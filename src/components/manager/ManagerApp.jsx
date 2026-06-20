@@ -9,7 +9,7 @@ import MgrGallery from "./MgrGallery";
 import MgrSettings from "./MgrSettings";
 
 export default function ManagerApp(props) {
-  const { clients, appts, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, ping, managerUser, handleManagerLogin, handleManagerLogout, studioName } = props;
+  const { clients, appts, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, ping, managerUser, handleManagerLogin, handleManagerLogout, studioName, refreshManagerAppts } = props;
   const [tab, setTab] = useState("home");
 
   if (!managerUser) return <ManagerLogin onLogin={handleManagerLogin} />;
@@ -30,7 +30,7 @@ export default function ManagerApp(props) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {tab === "home"     && <MgrHome {...props} go={setTab} />}
+        {tab === "home"     && <MgrHome {...props} go={setTab} refreshManagerAppts={refreshManagerAppts} />}
         {tab === "cal"      && <MgrCalendar appts={appts} clients={clients} cancelAppt={cancelAppt} ping={ping} />}
         {tab === "clients"  && <MgrClients {...props} />}
         {tab === "gallery"  && <MgrGallery gallery={gallery} pending={pending} approvePhoto={approvePhoto} rejectPhoto={rejectPhoto} ping={ping} />}

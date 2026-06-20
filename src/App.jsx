@@ -36,10 +36,7 @@ export default function App() {
     const result = await managerSignIn(email, password);
     if (result.error) return result.error;
     setManagerUser(result.user);
-    if (studio) {
-      const rows = await loadManagerAppointments(studio.id);
-      if (rows) setLiveAppts(rows);
-    }
+    // Studio may still be loading — the useEffect below handles that race.
     return null;
   };
 
@@ -49,6 +46,21 @@ export default function App() {
     setLiveAppts(null);
     ensureAnonSession();
   };
+
+  const refreshManagerAppts = async () => {
+    if (!studio) return;
+    const rows = await loadManagerAppointments(studio.id);
+    if (rows) setLiveAppts(rows);
+  };
+
+  // Load real appointments whenever the manager is logged in AND studio is ready.
+  // This handles the race where studio loads after login, and the initial login.
+  useEffect(() => {
+    if (!managerUser || !studio) return;
+    loadManagerAppointments(studio.id).then((rows) => {
+      if (rows) setLiveAppts(rows);
+    });
+  }, [managerUser, studio]);
 
   // Shared in-memory state (demo + optimistic updates)
   const [clients, setClients] = useState(CLIENTS0);
@@ -101,7 +113,7 @@ export default function App() {
     clients, setClients, appts: allAppts, book, confirmArrival, cancelAppt,
     gallery, pending, approvePhoto, rejectPhoto, addPending, likePhoto,
     ping, ME, registered, handleRegister, studioName, services,
-    managerUser, handleManagerLogin, handleManagerLogout,
+    managerUser, handleManagerLogin, handleManagerLogout, refreshManagerAppts,
   };
 
   return (

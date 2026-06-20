@@ -1,8 +1,14 @@
-import React from "react";
-import { CalendarDays } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarDays, RefreshCw } from "lucide-react";
 import { SectionTitle, Empty, StatusChip, resolveAppt } from "../ui";
 
-export default function MgrHome({ appts, clients, pending, go }) {
+export default function MgrHome({ appts, clients, pending, go, refreshManagerAppts }) {
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshManagerAppts?.();
+    setRefreshing(false);
+  };
   const today = appts.filter((a) => a.day === 0).sort((x, y) => x.time.localeCompare(y.time));
   const needConfirm = today.filter((a) => !a.arrival && a.status !== "pending").length;
 
@@ -22,7 +28,12 @@ export default function MgrHome({ appts, clients, pending, go }) {
       </div>
 
       <div>
-        <SectionTitle icon={CalendarDays}>הלו"ז של היום</SectionTitle>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <SectionTitle icon={CalendarDays}>הלו"ז של היום</SectionTitle>
+          <button onClick={handleRefresh} disabled={refreshing} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4, display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, fontFamily: "inherit" }}>
+            <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} /> רענון
+          </button>
+        </div>
         {today.length === 0 && <Empty>אין עדיין תורים להיום — יום פנוי 🤍</Empty>}
         <div style={{ display: "grid", gap: 9 }}>
           {today.map((a) => {
