@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { loadStudioBundle } from "./lib/api";
+import { loadStudioBundle, ensureAnonSession, registerClient, saveAppointment } from "./lib/api";
 import {
   Home, CalendarDays, Users, Image as ImageIcon, Settings, Phone, Bell,
   Check, X, Plus, ChevronLeft, ChevronRight, Search, Trash2, Ban, Sparkles,
@@ -226,7 +226,11 @@ export default function App() {
   // live data loaded from Supabase (falls back to demo data if unavailable)
   const [studio, setStudio] = useState(null);
   const [dbServices, setDbServices] = useState([]);
+  // DB id of the registered client (null until registration completes)
+  const [dbClientId, setDbClientId] = useState(null);
+
   useEffect(() => {
+    ensureAnonSession();
     loadStudioBundle().then((b) => {
       if (!b) return;
       setServiceIndex(b.services);
@@ -242,18 +246,33 @@ export default function App() {
   const [pending, setPending] = useState(PENDING0);
   const [seq, setSeq] = useState(200);
   const [registered, setRegistered] = useState(false);
-  const ME = 1; // the logged-in client (נועה כהן)
+  const ME = 1; // demo client id for manager-side display
 
   const [toast, setToast] = useState(null);
   const ping = (msg) => { setToast(msg); window.clearTimeout(window.__bft); window.__bft = window.setTimeout(() => setToast(null), 2400); };
 
+  // Called by Register screen on completion — persists the client to DB.
+  const handleRegister = async ({ name, phone, email }) => {
+    if (studio) {
+      const id = await registerClient(studio.id, { name, phone, email });
+      if (id) setDbClientId(id);
+    }
+    setRegistered(true);
+    ping("ברוכה הבאה ל-Beautify 🤍");
+  };
+
   const book = (serviceId, offset, time, paid = false) => {
     const id = seq + 1; setSeq(id);
+    // Optimistic local update — UI responds instantly.
     setAppts((p) => [...p, {
       id, clientId: ME, service: serviceId, time,
       day: offset, dayLabel: offset === 0 ? "היום" : offset === 1 ? "מחר" : `בעוד ${offset} ימים`,
       status: "confirmed", arrival: false, paid,
     }]);
+    // Persist to DB in the background (non-blocking).
+    if (studio && dbClientId) {
+      saveAppointment(studio.id, dbClientId, serviceId, offset, time, paid);
+    }
     return id;
   };
   const confirmArrival = (id) => setAppts((p) => p.map((a) => a.id === id ? { ...a, arrival: true } : a));
@@ -265,7 +284,7 @@ export default function App() {
 
   const studioName = studio?.name || "הסטודיו של דנה";
   const services = dbServices.length ? dbServices : SERVICES;
-  const shared = { clients, setClients, appts, book, confirmArrival, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, addPending, likePhoto, ping, ME, registered, setRegistered, studioName, services };
+  const shared = { clients, setClients, appts, book, confirmArrival, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, addPending, likePhoto, ping, ME, registered, handleRegister, studioName, services };
 
   return (
     <div className="bf-root">
@@ -543,7 +562,7 @@ function ClientApp(props) {
   const [tab, setTab] = useState("book");
   const me = clients.find((c) => c.id === ME);
 
-  if (!registered) return <Register onDone={() => props.ping("ברוכה הבאה ל-Beautify 🤍") || setRegistered(true)} />;
+  if (!registered) return <Register onDone={props.handleRegister} />;
 
   const titles = { book: ["קביעת תור", studioName], mine: ["התורים שלי", me?.name], gallery: ["הגלריה", "עבודות הסטודיו"], profile: ["הפרופיל שלי", me?.name] };
   const t = titles[tab];
@@ -567,7 +586,14 @@ function Register({ onDone }) {
   const [f, setF] = useState({ name: "", phone: "", email: "" });
   const [agree, setAgree] = useState(false);
   const [terms, setTerms] = useState(false);
+  const [saving, setSaving] = useState(false);
   const ok = f.name && f.phone.length >= 9 && f.email.includes("@") && agree;
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    await onDone({ name: f.name, phone: f.phone, email: f.email });
+    setSaving(false);
+  };
   return (
     <>
       <div className="bf-appbar" style={{ textAlign: "center" }}>
@@ -582,10 +608,12 @@ function Register({ onDone }) {
 
         <button onClick={() => setAgree(!agree)} className="bf-card" style={{ padding: 13, display: "flex", gap: 11, alignItems: "flex-start", textAlign: "right", cursor: "pointer", border: agree ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
           <span style={{ width: 22, height: 22, borderRadius: 7, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: agree ? "linear-gradient(135deg,var(--plum),var(--rose))" : "#fff", border: agree ? "none" : "1px solid var(--sand)" }}>{agree && <Check size={15} color="#fff" />}</span>
-          <span style={{ fontSize: 13, lineHeight: 1.5 }}>קראתי ואני מאשרת את <button onClick={(e) => { e.stopPropagation(); setTerms(true); }} style={{ color: "var(--plum)", fontWeight: 700, textDecoration: "underline", background: "none", border: "none", cursor: "pointer", font: "inherit", padding: 0 }}>תנאי השירות והצהרת הבריאות</button></span>
+          <span style={{ fontSize: 13, lineHeight: 1.5 }}>קראתי ואני מאשרת את <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setTerms(true); }} onKeyDown={(e) => e.key === "Enter" && setTerms(true)} style={{ color: "var(--plum)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>תנאי השירות והצהרת הבריאות</span></span>
         </button>
 
-        <button className="bf-btn bf-btn-primary" disabled={!ok} onClick={onDone}><ShieldCheck size={17} /> סיום הרשמה</button>
+        <button className="bf-btn bf-btn-primary" disabled={!ok || saving} onClick={handleSubmit}>
+          <ShieldCheck size={17} /> {saving ? "שומרת…" : "סיום הרשמה"}
+        </button>
       </div>
 
       {terms && (
