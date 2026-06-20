@@ -55,7 +55,12 @@ export default function CliBook({ cli }) {
         {offset != null && (<>
           <SectionTitle icon={Clock}>בחרי שעה</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
-            {TIMES.map((tm) => <button key={tm} className={"bf-slot" + (time === tm ? " active" : "")} onClick={() => setTime(tm)}>{tm}</button>)}
+            {TIMES.map((tm) => {
+              const inBreak = (cli.breaks || []).some((b) => b.day === offset && tm >= b.time && tm < b.endTime);
+              const taken = (cli.appts || []).some((a) => a.day === offset && a.time === tm && a.status === "confirmed");
+              const disabled = inBreak || taken;
+              return <button key={tm} disabled={disabled} className={"bf-slot" + (time === tm ? " active" : "")} onClick={() => setTime(tm)}>{tm}</button>;
+            })}
           </div>
         </>)}
         <button className="bf-btn bf-btn-primary" disabled={offset == null || !time} onClick={() => setStep(3)}>המשך לאישור</button>

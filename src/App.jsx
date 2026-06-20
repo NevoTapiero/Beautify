@@ -35,6 +35,7 @@ export default function App() {
   const [cliGallery, setCliGallery] = useState([]);
   const [cliUploads, setCliUploads] = useState([]);
   const [cliNotifs, setCliNotifs] = useState([]);
+  const [cliBreaks, setCliBreaks] = useState([]);
 
   // ─── Initial load: studio, then restore any existing sessions ─────
   useEffect(() => {
@@ -63,12 +64,12 @@ export default function App() {
   const loadClientData = useCallback(async (c, s) => {
     const cl = c || client; const sid = (s || studio)?.id;
     if (!cl || !sid) return;
-    const [appts, gallery, uploads, notifs] = await Promise.all([
+    const [appts, gallery, uploads, notifs, breaks] = await Promise.all([
       api.loadMyAppointments(cl.id), api.loadGallery(sid, cl.id),
-      api.loadMyUploads(cl.id), api.loadNotifications(cl.id),
+      api.loadMyUploads(cl.id), api.loadNotifications(cl.id), api.loadBreaks(sid),
     ]);
     setCliAppts(appts || []); setCliGallery(gallery || []);
-    setCliUploads(uploads || []); setCliNotifs(notifs || []);
+    setCliUploads(uploads || []); setCliNotifs(notifs || []); setCliBreaks(breaks || []);
   }, [client, studio]);
 
   // Refresh each side once its prerequisites (login + studio) are ready.
@@ -134,7 +135,7 @@ export default function App() {
 
   // ─── Client actions ──────────────────────────────────────────────
   const cli = {
-    client, studio, services, appts: cliAppts, gallery: cliGallery, uploads: cliUploads, notifications: cliNotifs,
+    client, studio, services, appts: cliAppts, gallery: cliGallery, uploads: cliUploads, notifications: cliNotifs, breaks: cliBreaks,
     studioName: studio?.name || "הסטודיו",
     register: async ({ name, phone, email, password }) => {
       const r = await api.clientRegister(studio.id, { name, phone, email, password });

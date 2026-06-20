@@ -209,17 +209,16 @@ export async function deleteClient(clientId) {
 }
 
 // Returns true if a blocked client with matching phone OR email exists.
+// Uses a SECURITY DEFINER function so it works for not-yet-authenticated
+// visitors at registration time (RLS would otherwise hide blocked rows).
 export async function isContactBlocked(studioId, { phone, email }) {
   if (!isSupabaseReady) return false;
   try {
-    const ors = [];
-    if (phone) ors.push(`phone.eq.${phone}`);
-    if (email) ors.push(`email.eq.${email}`);
-    if (!ors.length) return false;
-    const { data } = await supabaseClient
-      .from("clients").select("id, blocked").eq("studio_id", studioId)
-      .eq("blocked", true).or(ors.join(","));
-    return (data || []).length > 0;
+    const { data, error } = await supabaseClient.rpc("is_contact_blocked", {
+      p_studio: studioId, p_phone: phone, p_email: email || "",
+    });
+    if (error) throw error;
+    return !!data;
   } catch (err) { log("isContactBlocked", err); return false; }
 }
 
