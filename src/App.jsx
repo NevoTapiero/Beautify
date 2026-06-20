@@ -181,6 +181,7 @@ export default function App() {
       setClient((c) => ({ ...c, avatar_url: r.url })); ping("תמונת הפרופיל עודכנה");
     },
     markNotifRead: async (id) => { await api.markNotificationRead(id); loadClientData(); },
+    refresh: () => loadClientData(),
     ping,
   };
 

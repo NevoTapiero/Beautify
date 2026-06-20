@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell } from "lucide-react";
 import { SectionTitle, Empty, PaidChip, BitSheet } from "../ui";
 
 export default function CliMine({ cli }) {
   const [payFor, setPayFor] = useState(null);   // appointment being paid
+
+  // Pull fresh appointments + messages each time this screen opens.
+  useEffect(() => { cli.refresh?.(); /* eslint-disable-next-line */ }, []);
 
   const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
