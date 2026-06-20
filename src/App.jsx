@@ -69,7 +69,8 @@ export default function App() {
   const [pending, setPending] = useState(PENDING0);
   const [seq, setSeq] = useState(200);
   const [registered, setRegistered] = useState(false);
-  const ME = 1;
+  // ME starts null — set to the real client's ID after registration.
+  const [ME, setME] = useState(null);
 
   const [toast, setToast] = useState(null);
   const ping = (msg) => {
@@ -79,10 +80,15 @@ export default function App() {
   };
 
   const handleRegister = async ({ name, phone, email }) => {
+    let dbId = null;
     if (studio) {
-      const id = await registerClient(studio.id, { name, phone, email });
-      if (id) setDbClientId(id);
+      dbId = await registerClient(studio.id, { name, phone, email });
+      if (dbId) setDbClientId(dbId);
     }
+    // Give the new client a unique local ID and add them to the clients list.
+    const localId = dbId || `local_${Date.now()}`;
+    setClients((prev) => [...prev, { id: localId, name, phone, email, visits: 0, last: "היום", blocked: false }]);
+    setME(localId);
     setRegistered(true);
     ping("ברוכה הבאה ל-Beautify 🤍");
   };
