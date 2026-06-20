@@ -402,15 +402,17 @@ async function uploadFile(db, bucket, path, file) {
 const safeName = (n) => (n || "photo").replace(/[^\w.\-]/g, "_");
 
 // Client uploads work → lands as 'pending' for the manager to approve (note 15).
+// Goes through the share_photo() SECURITY DEFINER function rather than a direct
+// gallery insert: the direct path is blocked by a stale RLS plan in Supabase's
+// API layer, and the function also stops a client forging another's id/status.
 export async function uploadClientPhoto(studioId, client, file, caption) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
   try {
     const path = `${studioId}/${client.id}/${Date.now()}_${safeName(file.name)}`;
     const url = await uploadFile(supabaseClient, "gallery", path, file);
-    const { data, error } = await supabaseClient.from("gallery").insert({
-      studio_id: studioId, client_id: client.id, image_url: url,
-      caption: caption || "העבודה שלי", uploaded_by: client.name, status: "pending",
-    }).select("*").single();
+    const { data, error } = await supabaseClient.rpc("share_photo", {
+      p_studio: studioId, p_image_url: url, p_caption: caption || "",
+    });
     if (error) throw error;
     return { photo: data };
   } catch (err) { log("uploadClientPhoto", err); return { error: "העלאת התמונה נכשלה." }; }

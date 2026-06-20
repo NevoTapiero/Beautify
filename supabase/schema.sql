@@ -1,21 +1,25 @@
 -- ============================================================
--- Beautify — database schema v1 (multi-tenant)
--- Paste this whole file into Supabase → SQL Editor → New query → Run.
--- Every studio is a "tenant"; every row carries studio_id and is
--- isolated by Row Level Security (RLS) — each studio sees only its own data.
+-- Beautify — database schema (single source of truth)
+-- Multi-tenant: every row carries studio_id and is isolated by Row Level
+-- Security. Safe & idempotent — running it again won't harm existing data
+-- (it does NOT delete anything).
+-- Paste into Supabase → SQL Editor → New query → Run.
 -- ============================================================
 
 -- ---------- TABLES ----------
 
--- One row per beautician/studio (the tenant). Holds her branding.
 create table if not exists studios (
   id            uuid primary key default gen_random_uuid(),
-  slug          text unique not null,          -- e.g. "dana" → dana.beautify.co.il
+  slug          text unique not null,
   name          text not null,
   logo_url      text,
   color_primary text not null default '#7C2A53',
   color_accent  text not null default '#D9738F',
-  owner_id      uuid references auth.users(id),-- the manager's login (set on first sign-in)
+  owner_id      uuid references auth.users(id),
+  notify_day_start   boolean not null default true,
+  notify_after_break boolean not null default true,
+  notify_client_24h  boolean not null default true,
+  notify_client_1h   boolean not null default true,
   created_at    timestamptz not null default now()
 );
 
@@ -23,22 +27,23 @@ create table if not exists services (
   id         uuid primary key default gen_random_uuid(),
   studio_id  uuid not null references studios(id) on delete cascade,
   name       text not null,
-  duration   int  not null,                    -- minutes
-  price      int  not null,                    -- shekels
+  duration   int  not null,
+  price      int  not null,
   gradient   text,
-  active      boolean not null default true,
+  active     boolean not null default true,
   sort_order int not null default 0
 );
 
 create table if not exists clients (
   id            uuid primary key default gen_random_uuid(),
   studio_id     uuid not null references studios(id) on delete cascade,
-  auth_user_id  uuid references auth.users(id),-- the client's phone login (if signed in)
+  auth_user_id  uuid references auth.users(id),
   name          text not null,
   phone         text not null,
   email         text,
+  avatar_url    text,
   blocked       boolean not null default false,
-  health_signed_at timestamptz,                -- when the health declaration was signed
+  health_signed_at timestamptz,
   created_at    timestamptz not null default now()
 );
 
@@ -48,7 +53,7 @@ create table if not exists appointments (
   client_id    uuid not null references clients(id) on delete cascade,
   service_id   uuid not null references services(id),
   starts_at    timestamptz not null,
-  status       text not null default 'confirmed',   -- confirmed | pending | cancelled | done
+  status       text not null default 'confirmed',   -- confirmed | cancelled | completed | no_show
   arrival_confirmed boolean not null default false,
   paid         boolean not null default false,
   created_at   timestamptz not null default now()
@@ -59,19 +64,83 @@ create table if not exists gallery (
   studio_id   uuid not null references studios(id) on delete cascade,
   image_url   text,
   caption     text,
-  uploaded_by text,                              -- display name of who shared it
-  client_id   uuid references clients(id),
+  uploaded_by text,
+  client_id   uuid references clients(id) on delete cascade,
   likes       int not null default 0,
-  status      text not null default 'pending',   -- pending | approved | rejected
+  status      text not null default 'pending',      -- pending | approved | rejected
   created_at  timestamptz not null default now()
 );
 
--- ---------- HELPER ----------
--- True when the logged-in user owns the given studio (i.e. is its manager).
+create table if not exists gallery_likes (
+  gallery_id uuid not null references gallery(id) on delete cascade,
+  client_id  uuid not null references clients(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (gallery_id, client_id)
+);
+
+create table if not exists breaks (
+  id         uuid primary key default gen_random_uuid(),
+  studio_id  uuid not null references studios(id) on delete cascade,
+  starts_at  timestamptz not null,
+  ends_at    timestamptz not null,
+  title      text not null default 'הפסקה',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists notifications (
+  id             uuid primary key default gen_random_uuid(),
+  studio_id      uuid not null references studios(id) on delete cascade,
+  client_id      uuid not null references clients(id) on delete cascade,
+  type           text not null default 'message',   -- message | reminder | reschedule | cancelled
+  title          text not null,
+  body           text,
+  appointment_id uuid references appointments(id) on delete set null,
+  read           boolean not null default false,
+  created_at     timestamptz not null default now()
+);
+
+-- ---------- HELPER FUNCTIONS (SECURITY DEFINER) ----------
+
+-- True when the logged-in user owns the given studio (is its manager).
 create or replace function is_studio_manager(target uuid)
 returns boolean language sql security definer stable as $$
   select exists (select 1 from studios s where s.id = target and s.owner_id = auth.uid());
 $$;
+
+-- True when the logged-in user owns the given client row.
+create or replace function client_owns(p_client uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from clients where id = p_client and auth_user_id = auth.uid());
+$$;
+grant execute on function client_owns(uuid) to anon, authenticated;
+
+-- True when a blocked client with this phone/email exists (used pre-login).
+create or replace function is_contact_blocked(p_studio uuid, p_phone text, p_email text)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from clients
+    where studio_id = p_studio and blocked = true
+      and (phone = p_phone or (p_email is not null and p_email <> '' and email = p_email))
+  );
+$$;
+grant execute on function is_contact_blocked(uuid, text, text) to anon, authenticated;
+
+-- Client shares a photo for herself (lands as 'pending'). SECURITY DEFINER so a
+-- client can file her own photo reliably without forging id/status.
+create or replace function share_photo(p_studio uuid, p_image_url text, p_caption text)
+returns gallery language plpgsql security definer as $$
+declare v_client clients; v_row gallery;
+begin
+  select * into v_client from clients
+    where studio_id = p_studio and auth_user_id = auth.uid() limit 1;
+  if v_client.id is null then raise exception 'not a client of this studio'; end if;
+  insert into gallery(studio_id, client_id, image_url, caption, uploaded_by, status)
+    values (p_studio, v_client.id, p_image_url,
+            coalesce(nullif(p_caption, ''), 'העבודה שלי'), v_client.name, 'pending')
+    returning * into v_row;
+  return v_row;
+end $$;
+grant execute on function share_photo(uuid, text, text) to authenticated;
 
 -- ---------- ENABLE RLS ----------
 alter table studios       enable row level security;
@@ -79,19 +148,27 @@ alter table services      enable row level security;
 alter table clients       enable row level security;
 alter table appointments  enable row level security;
 alter table gallery       enable row level security;
+alter table gallery_likes enable row level security;
+alter table breaks        enable row level security;
+alter table notifications enable row level security;
 
 -- ---------- POLICIES ----------
 
--- studios: anyone may read branding (public studio page); only the owner edits.
+drop policy if exists studios_read   on studios;
+drop policy if exists studios_update on studios;
 create policy studios_read   on studios for select using (true);
 create policy studios_update on studios for update using (owner_id = auth.uid());
 
--- services: public read (clients browse before booking); manager manages.
-create policy services_read on services for select using (true);
+drop policy if exists services_read  on services;
+drop policy if exists services_write on services;
+create policy services_read  on services for select using (true);
 create policy services_write on services for all
   using (is_studio_manager(studio_id)) with check (is_studio_manager(studio_id));
 
--- clients: a client sees only her own row; the manager sees all her studio's clients.
+drop policy if exists clients_read   on clients;
+drop policy if exists clients_insert on clients;
+drop policy if exists clients_update on clients;
+drop policy if exists clients_delete on clients;
 create policy clients_read on clients for select
   using (auth_user_id = auth.uid() or is_studio_manager(studio_id));
 create policy clients_insert on clients for insert
@@ -101,32 +178,75 @@ create policy clients_update on clients for update
 create policy clients_delete on clients for delete
   using (is_studio_manager(studio_id));
 
--- appointments: client sees/books her own; manager sees/manages all.
+drop policy if exists appts_read   on appointments;
+drop policy if exists appts_insert on appointments;
+drop policy if exists appts_update on appointments;
+drop policy if exists appts_delete on appointments;
 create policy appts_read on appointments for select
-  using (is_studio_manager(studio_id)
-         or client_id in (select id from clients where auth_user_id = auth.uid()));
+  using (is_studio_manager(studio_id) or client_owns(client_id));
 create policy appts_insert on appointments for insert
-  with check (is_studio_manager(studio_id)
-              or client_id in (select id from clients where auth_user_id = auth.uid()));
+  with check (is_studio_manager(studio_id) or client_owns(client_id));
 create policy appts_update on appointments for update
-  using (is_studio_manager(studio_id)
-         or client_id in (select id from clients where auth_user_id = auth.uid()));
+  using (is_studio_manager(studio_id) or client_owns(client_id));
 create policy appts_delete on appointments for delete
-  using (is_studio_manager(studio_id)
-         or client_id in (select id from clients where auth_user_id = auth.uid()));
+  using (is_studio_manager(studio_id) or client_owns(client_id));
 
--- gallery: approved photos are public; manager manages; client may submit (pending).
+drop policy if exists gallery_read       on gallery;
+drop policy if exists gallery_insert     on gallery;
+drop policy if exists gallery_write      on gallery;
+drop policy if exists gallery_delete     on gallery;
+drop policy if exists gallery_delete_own on gallery;
 create policy gallery_read on gallery for select
-  using (status = 'approved' or is_studio_manager(studio_id));
+  using (status = 'approved' or is_studio_manager(studio_id) or client_owns(client_id));
 create policy gallery_insert on gallery for insert
-  with check (is_studio_manager(studio_id)
-              or client_id in (select id from clients where auth_user_id = auth.uid()));
+  with check (is_studio_manager(studio_id) or client_owns(client_id));
 create policy gallery_write on gallery for update
   using (is_studio_manager(studio_id)) with check (is_studio_manager(studio_id));
 create policy gallery_delete on gallery for delete
   using (is_studio_manager(studio_id));
+create policy gallery_delete_own on gallery for delete
+  using (status in ('pending', 'rejected') and client_owns(client_id));
 
--- ---------- SEED: one demo studio so the app has data on day one ----------
+drop policy if exists likes_read   on gallery_likes;
+drop policy if exists likes_insert on gallery_likes;
+drop policy if exists likes_delete on gallery_likes;
+create policy likes_read   on gallery_likes for select using (true);
+create policy likes_insert on gallery_likes for insert with check (client_owns(client_id));
+create policy likes_delete on gallery_likes for delete using (client_owns(client_id));
+
+drop policy if exists breaks_read  on breaks;
+drop policy if exists breaks_write on breaks;
+create policy breaks_read  on breaks for select using (true);
+create policy breaks_write on breaks for all
+  using (is_studio_manager(studio_id)) with check (is_studio_manager(studio_id));
+
+drop policy if exists notif_read   on notifications;
+drop policy if exists notif_insert on notifications;
+drop policy if exists notif_update on notifications;
+create policy notif_read on notifications for select
+  using (is_studio_manager(studio_id) or client_owns(client_id));
+create policy notif_insert on notifications for insert
+  with check (is_studio_manager(studio_id) or client_owns(client_id));
+create policy notif_update on notifications for update
+  using (is_studio_manager(studio_id) or client_owns(client_id));
+
+-- ---------- STORAGE BUCKETS ----------
+insert into storage.buckets (id, name, public) values ('gallery', 'gallery', true)
+  on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true)
+  on conflict (id) do nothing;
+
+drop policy if exists "bf storage read"   on storage.objects;
+drop policy if exists "bf storage insert" on storage.objects;
+drop policy if exists "bf storage delete" on storage.objects;
+create policy "bf storage read" on storage.objects for select
+  using (bucket_id in ('gallery', 'avatars'));
+create policy "bf storage insert" on storage.objects for insert to authenticated
+  with check (bucket_id in ('gallery', 'avatars'));
+create policy "bf storage delete" on storage.objects for delete to authenticated
+  using (bucket_id in ('gallery', 'avatars'));
+
+-- ---------- SEED: one demo studio so the app has branding on day one ----------
 insert into studios (slug, name) values ('demo', 'הסטודיו של דנה')
   on conflict (slug) do nothing;
 
