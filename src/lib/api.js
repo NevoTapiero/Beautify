@@ -20,6 +20,31 @@ export async function ensureAnonSession() {
   }
 }
 
+// Manager signs in with email + password.
+export async function managerSignIn(email, password) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
+  return { user: data.user };
+}
+
+export async function managerSignOut() {
+  if (!isSupabaseReady) return;
+  await supabase.auth.signOut();
+}
+
+// Returns true if the current session belongs to a manager of the demo studio.
+export async function checkIsManager(studioId) {
+  if (!isSupabaseReady || !studioId) return false;
+  const { data } = await supabase
+    .from("studios")
+    .select("id")
+    .eq("id", studioId)
+    .eq("owner_id", (await supabase.auth.getUser()).data.user?.id)
+    .maybeSingle();
+  return !!data;
+}
+
 // ─── Studio + services ───────────────────────────────────────────────────────
 
 export async function loadStudioBundle() {
@@ -115,6 +140,52 @@ export async function saveAppointment(studioId, clientId, serviceId, dayOffset, 
     return data.id;
   } catch (err) {
     console.error("[Beautify] saveAppointment failed:", err);
+    return null;
+  }
+}
+
+// Loads ALL appointments for a studio (manager view), next 7 days.
+// Returns rows shaped like the UI's appt objects, or null on failure.
+export async function loadManagerAppointments(studioId) {
+  if (!isSupabaseReady || !studioId) return null;
+  try {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end   = new Date(start); end.setDate(start.getDate() + 7);
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("id, starts_at, status, paid, arrival_confirmed, clients(id, name, phone), services(id, name, duration, price, gradient)")
+      .eq("studio_id", studioId)
+      .gte("starts_at", start.toISOString())
+      .lt("starts_at", end.toISOString())
+      .order("starts_at");
+    if (error) throw error;
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return (data || []).map((row) => {
+      const d = new Date(row.starts_at);
+      const dayOffset = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
+      const timeStr = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+      return {
+        id: row.id,
+        clientId: row.clients?.id,
+        clientName: row.clients?.name,
+        clientPhone: row.clients?.phone,
+        service: row.services?.id,
+        serviceName: row.services?.name,
+        serviceDur: row.services?.duration,
+        servicePrice: row.services?.price,
+        serviceGrad: row.services?.gradient,
+        time: timeStr,
+        day: dayOffset,
+        dayLabel: dayOffset === 0 ? "היום" : dayOffset === 1 ? "מחר" : `בעוד ${dayOffset} ימים`,
+        status: row.status,
+        arrival: row.arrival_confirmed,
+        paid: row.paid,
+        _live: true,
+      };
+    });
+  } catch (err) {
+    console.error("[Beautify] loadManagerAppointments failed:", err);
     return null;
   }
 }

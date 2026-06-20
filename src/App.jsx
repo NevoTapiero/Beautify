@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { loadStudioBundle, ensureAnonSession, registerClient, saveAppointment } from "./lib/api";
+import { loadStudioBundle, ensureAnonSession, registerClient, saveAppointment, managerSignIn, managerSignOut, loadManagerAppointments } from "./lib/api";
 import {
   Home, CalendarDays, Users, Image as ImageIcon, Settings, Phone, Bell,
   Check, X, Plus, ChevronLeft, ChevronRight, Search, Trash2, Ban, Sparkles,
@@ -226,8 +226,11 @@ export default function App() {
   // live data loaded from Supabase (falls back to demo data if unavailable)
   const [studio, setStudio] = useState(null);
   const [dbServices, setDbServices] = useState([]);
-  // DB id of the registered client (null until registration completes)
   const [dbClientId, setDbClientId] = useState(null);
+
+  // Manager auth state
+  const [managerUser, setManagerUser] = useState(null);    // set after email login
+  const [liveAppts, setLiveAppts] = useState(null);        // real appointments from DB
 
   useEffect(() => {
     ensureAnonSession();
@@ -238,6 +241,26 @@ export default function App() {
       setStudio(b.studio);
     });
   }, []);
+
+  // When manager logs in, load their real appointments.
+  const handleManagerLogin = async (email, password) => {
+    const result = await managerSignIn(email, password);
+    if (result.error) return result.error;
+    setManagerUser(result.user);
+    if (studio) {
+      const rows = await loadManagerAppointments(studio.id);
+      if (rows) setLiveAppts(rows);
+    }
+    return null;
+  };
+
+  const handleManagerLogout = async () => {
+    await managerSignOut();
+    setManagerUser(null);
+    setLiveAppts(null);
+    // restore anonymous session for client side
+    ensureAnonSession();
+  };
 
   // shared, connected state
   const [clients, setClients] = useState(CLIENTS0);
@@ -284,7 +307,9 @@ export default function App() {
 
   const studioName = studio?.name || "הסטודיו של דנה";
   const services = dbServices.length ? dbServices : SERVICES;
-  const shared = { clients, setClients, appts, book, confirmArrival, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, addPending, likePhoto, ping, ME, registered, handleRegister, studioName, services };
+  // Manager sees live DB appointments (if logged in) merged with demo ones.
+  const allAppts = liveAppts ? [...liveAppts, ...appts] : appts;
+  const shared = { clients, setClients, appts: allAppts, book, confirmArrival, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, addPending, likePhoto, ping, ME, registered, handleRegister, studioName, services, managerUser, handleManagerLogin, handleManagerLogout };
 
   return (
     <div className="bf-root">
@@ -310,12 +335,56 @@ export default function App() {
 }
 
 /* ============================================================
+   MANAGER LOGIN
+   ============================================================ */
+function ManagerLogin({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setErr(null); setLoading(true);
+    const error = await onLogin(email, pw);
+    setLoading(false);
+    if (error) setErr(error);
+  };
+
+  return (
+    <>
+      <div className="bf-appbar" style={{ textAlign: "center" }}>
+        <span className="bf-mark" style={{ margin: "0 auto 8px" }} />
+        <h1 className="bf-display" style={{ textAlign: "center" }}>כניסת מנהלת</h1>
+        <div className="sub" style={{ textAlign: "center" }}>הסטודיו שלך מחכה לך</div>
+      </div>
+      <div className="bf-screen bf-pad" style={{ display: "grid", gap: 14 }}>
+        <div>
+          <label className="bf-label">אימייל</label>
+          <input className="bf-input" inputMode="email" placeholder="dana@studio.com" value={email} onChange={e => setEmail(e.target.value)} />
+        </div>
+        <div>
+          <label className="bf-label">סיסמה</label>
+          <input className="bf-input" type="password" placeholder="••••••••" value={pw} onChange={e => setPw(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && submit()} />
+        </div>
+        {err && <div style={{ background: "#FEE8E8", color: "#B23A48", borderRadius: 12, padding: "10px 14px", fontSize: 13.5, fontWeight: 600 }}>{err}</div>}
+        <button className="bf-btn bf-btn-primary" disabled={!email || !pw || loading} onClick={submit}>
+          <ShieldCheck size={17} /> {loading ? "נכנסת…" : "כניסה"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
    MANAGER
    ============================================================ */
 function ManagerApp(props) {
-  const { clients, appts, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, ping } = props;
+  const { clients, appts, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, ping, managerUser, handleManagerLogin, handleManagerLogout, studioName } = props;
+
   const [tab, setTab] = useState("home");
-  const titles = { home: ["בוקר טוב, דנה", "הנה היום שלך"], cal: ["יומן תורים", "ניהול הלו\"ז שלך"], clients: ["הלקוחות שלך", `${clients.length} לקוחות רשומות`], gallery: ["הגלריה שלך", "תיק העבודות שלך"], settings: ["הגדרות", "אוטומציות והעדפות"] };
+  if (!managerUser) return <ManagerLogin onLogin={handleManagerLogin} />;
+  const titles = { home: [`בוקר טוב, ${studioName}`, "הנה היום שלך"], cal: ["יומן תורים", "ניהול הלו\"ז שלך"], clients: ["הלקוחות שלך", `${clients.length} לקוחות רשומות`], gallery: ["הגלריה שלך", "תיק העבודות שלך"], settings: ["הגדרות", "אוטומציות והעדפות"] };
   const t = titles[tab];
 
   return (
@@ -326,7 +395,7 @@ function ManagerApp(props) {
         {tab === "cal" && <MgrCalendar appts={appts} clients={clients} cancelAppt={cancelAppt} ping={ping} />}
         {tab === "clients" && <MgrClients {...props} />}
         {tab === "gallery" && <MgrGallery gallery={gallery} pending={pending} approvePhoto={approvePhoto} rejectPhoto={rejectPhoto} ping={ping} />}
-        {tab === "settings" && <MgrSettings ping={ping} />}
+        {tab === "settings" && <MgrSettings ping={ping} onLogout={handleManagerLogout} />}
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן"], ["clients", Users, "לקוחות"],
@@ -334,6 +403,31 @@ function ManagerApp(props) {
       ]} />
     </>
   );
+}
+
+// Resolves display-ready client+service data for an appointment,
+// whether it came from the live DB (_live:true) or demo in-memory data.
+function resolveAppt(a, clients) {
+  if (a._live) {
+    return {
+      clientName: a.clientName,
+      clientPhone: a.clientPhone,
+      svcName: a.serviceName,
+      svcDur: a.serviceDur,
+      svcPrice: a.servicePrice,
+      svcGrad: a.serviceGrad,
+    };
+  }
+  const c = clients.find((x) => x.id === a.clientId);
+  const s = svc(a.service);
+  return {
+    clientName: c?.name,
+    clientPhone: c?.phone,
+    svcName: s?.name,
+    svcDur: s?.dur,
+    svcPrice: s?.price,
+    svcGrad: s?.grad,
+  };
 }
 
 function MgrHome({ appts, clients, pending, go }) {
@@ -357,16 +451,16 @@ function MgrHome({ appts, clients, pending, go }) {
         <SectionTitle icon={CalendarDays}>הלו"ז של היום</SectionTitle>
         {today.length === 0 && <Empty>אין עדיין תורים להיום — יום פנוי 🤍</Empty>}
         <div style={{ display: "grid", gap: 9 }}>
-          {today.map((a) => { const c = clients.find((x) => x.id === a.clientId); const s = svc(a.service); return (
+          {today.map((a) => { const r = resolveAppt(a, clients); return (
             <div key={a.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11 }}>
               <div style={{ textAlign: "center", minWidth: 46 }}>
                 <div className="bf-display" style={{ fontSize: 17, fontWeight: 800, color: "var(--plum)" }}>{a.time}</div>
-                <div style={{ fontSize: 10.5, color: "var(--muted)" }}>{s.dur} ד׳</div>
+                <div style={{ fontSize: 10.5, color: "var(--muted)" }}>{r.svcDur} ד׳</div>
               </div>
-              <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: s.grad }} />
+              <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{c?.name}</div>
-                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{s.name} · ₪{s.price}</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{r.clientName}</div>
+                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{r.svcName} · ₪{r.svcPrice}</div>
               </div>
               <StatusChip a={a} />
             </div> ); })}
@@ -405,32 +499,32 @@ function MgrCalendar({ appts, clients, cancelAppt, ping }) {
       </div>
       {list.length === 0 && <Empty>אין תורים ביום הזה</Empty>}
       <div style={{ display: "grid", gap: 9 }}>
-        {list.map((a) => { const c = clients.find((x) => x.id === a.clientId); const s = svc(a.service); return (
+        {list.map((a) => { const r = resolveAppt(a, clients); return (
           <button key={a.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--sand)" }} onClick={() => setOpen(a)}>
             <div className="bf-display" style={{ fontSize: 17, fontWeight: 800, color: "var(--plum)", minWidth: 46, textAlign: "center" }}>{a.time}</div>
-            <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: s.grad }} />
+            <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{c?.name}</div>
-              <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{s.name}</div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{r.clientName}</div>
+              <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{r.svcName}</div>
             </div>
             <StatusChip a={a} />
           </button> ); })}
       </div>
 
-      {open && (() => { const c = clients.find((x) => x.id === open.clientId); const s = svc(open.service); return (
+      {open && (() => { const r = resolveAppt(open, clients); return (
         <Sheet onClose={() => setOpen(null)}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <Avatar name={c.name} />
-            <div><div style={{ fontWeight: 800, fontSize: 18 }}>{c.name}</div><div style={{ color: "var(--muted)", fontSize: 13 }}>{open.dayLabel} · {open.time} · {s.name}</div></div>
+            <Avatar name={r.clientName} />
+            <div><div style={{ fontWeight: 800, fontSize: 18 }}>{r.clientName}</div><div style={{ color: "var(--muted)", fontSize: 13 }}>{open.dayLabel} · {open.time} · {r.svcName}</div></div>
           </div>
           <div className="bf-card" style={{ padding: 12, marginBottom: 14, display: "grid", gap: 6, fontSize: 13.5 }}>
-            <Row k="שירות" v={`${s.name} (${s.dur} דקות)`} />
-            <Row k="מחיר" v={`₪${s.price}`} />
+            <Row k="שירות" v={`${r.svcName} (${r.svcDur} דקות)`} />
+            <Row k="מחיר" v={`₪${r.svcPrice}`} />
             <Row k="תשלום" v={open.paid ? "שולם בביט ✓" : "ישולם במקום"} />
             <Row k="אישור הגעה" v={open.arrival ? "אושר ✓" : "ממתין"} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <a className="bf-btn bf-btn-ghost" href={`tel:${c.phone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
+            <a className="bf-btn bf-btn-ghost" href={`tel:${r.clientPhone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
             <button className="bf-btn bf-btn-soft" onClick={() => { ping("נשלחה ללקוחה בקשה להזזת התור"); setOpen(null); }}><Clock size={16} /> הזיזי תור</button>
           </div>
           <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { cancelAppt(open.id); ping("התור בוטל"); setOpen(null); }}><X size={16} /> ביטול התור</button>
@@ -525,7 +619,7 @@ function MgrGallery({ gallery, pending, approvePhoto, rejectPhoto, ping }) {
   );
 }
 
-function MgrSettings({ ping }) {
+function MgrSettings({ ping, onLogout }) {
   const [s, setS] = useState({ dayStart: true, afterBreak: true, c24: true, c1: true });
   const tog = (k) => setS((p) => { const n = { ...p, [k]: !p[k] }; ping("ההגדרה נשמרה"); return n; });
   const Toggle = ({ on, set, title, sub }) => (
@@ -550,6 +644,9 @@ function MgrSettings({ ping }) {
         <Row k="שירותים פעילים" v={`${SERVICES.length}`} />
         <Row k="ערכת צבע" v="ויין · בלאש" />
       </div>
+      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 6, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={onLogout}>
+        <LogOut size={16} /> התנתקות
+      </button>
     </div>
   );
 }
