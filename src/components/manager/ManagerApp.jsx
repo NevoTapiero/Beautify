@@ -8,16 +8,15 @@ import MgrClients from "./MgrClients";
 import MgrGallery from "./MgrGallery";
 import MgrSettings from "./MgrSettings";
 
-export default function ManagerApp(props) {
-  const { clients, appts, cancelAppt, gallery, pending, approvePhoto, rejectPhoto, ping, managerUser, handleManagerLogin, handleManagerLogout, studioName, refreshManagerAppts } = props;
+export default function ManagerApp({ mgr, ping }) {
   const [tab, setTab] = useState("home");
 
-  if (!managerUser) return <ManagerLogin onLogin={handleManagerLogin} />;
+  if (!mgr.user) return <ManagerLogin onLogin={mgr.login} />;
 
   const titles = {
-    home:     [`בוקר טוב, ${studioName}`, "הנה היום שלך"],
+    home:     [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
     cal:      ["יומן תורים", "ניהול הלו\"ז שלך"],
-    clients:  ["הלקוחות שלך", `${clients.length} לקוחות רשומות`],
+    clients:  ["הלקוחות שלך", `${mgr.clients.length} לקוחות רשומות`],
     gallery:  ["הגלריה שלך", "תיק העבודות שלך"],
     settings: ["הגדרות", "אוטומציות והעדפות"],
   };
@@ -30,11 +29,11 @@ export default function ManagerApp(props) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {tab === "home"     && <MgrHome {...props} go={setTab} refreshManagerAppts={refreshManagerAppts} />}
-        {tab === "cal"      && <MgrCalendar appts={appts} clients={clients} cancelAppt={cancelAppt} ping={ping} />}
-        {tab === "clients"  && <MgrClients {...props} />}
-        {tab === "gallery"  && <MgrGallery gallery={gallery} pending={pending} approvePhoto={approvePhoto} rejectPhoto={rejectPhoto} ping={ping} />}
-        {tab === "settings" && <MgrSettings ping={ping} onLogout={handleManagerLogout} />}
+        {tab === "home"     && <MgrHome mgr={mgr} go={setTab} />}
+        {tab === "cal"      && <MgrCalendar mgr={mgr} />}
+        {tab === "clients"  && <MgrClients mgr={mgr} />}
+        {tab === "gallery"  && <MgrGallery mgr={mgr} />}
+        {tab === "settings" && <MgrSettings mgr={mgr} />}
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן"], ["clients", Users, "לקוחות"],

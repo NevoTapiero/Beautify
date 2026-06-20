@@ -4,18 +4,27 @@ import { createClient } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// While the prototype still runs on in-memory demo data, the keys may be empty.
-// We guard so the app keeps working until Supabase is wired in screen-by-screen.
 export const isSupabaseReady = Boolean(url && anonKey);
 
-export const supabase = isSupabaseReady
-  ? createClient(url, anonKey)
-  : null;
+// Two independent auth sessions in the same browser: one for the manager,
+// one for the client. This lets the demo stay "logged in" as both at once
+// (manager view + client view) without one signing the other out.
+function make(storageKey) {
+  if (!isSupabaseReady) return null;
+  return createClient(url, anonKey, {
+    auth: { storageKey, persistSession: true, autoRefreshToken: true },
+  });
+}
+
+export const supabaseClient  = make("bf-client");
+export const supabaseManager = make("bf-manager");
+
+// Default client (used for public reads + client-side operations).
+export const supabase = supabaseClient;
 
 if (!isSupabaseReady && typeof window !== "undefined") {
-  // Friendly heads-up in the browser console, not a crash.
   console.info(
-    "[Beautify] Supabase not configured yet — running on in-memory demo data. " +
-      "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env to connect."
+    "[Beautify] Supabase not configured — add VITE_SUPABASE_URL and " +
+      "VITE_SUPABASE_ANON_KEY to .env to connect."
   );
 }

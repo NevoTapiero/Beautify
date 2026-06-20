@@ -1,24 +1,23 @@
 import React, { useState } from "react";
 import { Plus, CalendarDays, Image as ImageIcon, User } from "lucide-react";
 import { NavBar } from "../ui";
-import Register from "./Register";
+import ClientAuth from "./ClientAuth";
 import CliBook from "./CliBook";
 import CliMine from "./CliMine";
 import CliGallery from "./CliGallery";
 import CliProfile from "./CliProfile";
 
-export default function ClientApp(props) {
-  const { appts, ME, clients, registered, studioName } = props;
+export default function ClientApp({ cli }) {
   const [tab, setTab] = useState("book");
-  const me = clients.find((c) => c.id === ME);
 
-  if (!registered) return <Register onDone={props.handleRegister} />;
+  if (!cli.client) return <ClientAuth cli={cli} />;
 
+  const me = cli.client;
   const titles = {
-    book:    ["קביעת תור", studioName],
-    mine:    ["התורים שלי", me?.name],
+    book:    ["קביעת תור", cli.studioName],
+    mine:    ["התורים שלי", me.name],
     gallery: ["הגלריה", "עבודות הסטודיו"],
-    profile: ["הפרופיל שלי", me?.name],
+    profile: ["הפרופיל שלי", me.name],
   };
   const t = titles[tab];
 
@@ -29,10 +28,10 @@ export default function ClientApp(props) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {tab === "book"    && <CliBook {...props} />}
-        {tab === "mine"    && <CliMine {...props} />}
-        {tab === "gallery" && <CliGallery {...props} />}
-        {tab === "profile" && <CliProfile me={me} ping={props.ping} />}
+        {tab === "book"    && <CliBook cli={cli} />}
+        {tab === "mine"    && <CliMine cli={cli} />}
+        {tab === "gallery" && <CliGallery cli={cli} />}
+        {tab === "profile" && <CliProfile cli={cli} />}
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["book", Plus, "תור חדש"], ["mine", CalendarDays, "התורים שלי"],

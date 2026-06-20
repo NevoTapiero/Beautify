@@ -1,117 +1,17 @@
-import { supabase, isSupabaseReady } from "./supabase";
+import { supabaseClient, supabaseManager, isSupabaseReady } from "./supabase";
 
 export const STUDIO_SLUG = "demo";
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
+// Returning clients log in with phone + password. Under the hood that's a
+// Supabase email/password account using a synthetic address, so no SMS is
+// needed yet. (SMS one-time-code comes later.)
+const phoneDigits = (phone) => (phone || "").replace(/\D/g, "");
+const phoneToEmail = (phone) => `${phoneDigits(phone)}@clients.beautify.app`;
 
-// Called once on app start. Gives the visitor a real (anonymous) identity so
-// RLS policies can verify them. Returns the Supabase user object or null.
-export async function ensureAnonSession() {
-  if (!isSupabaseReady) return null;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) return session.user;
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) throw error;
-    return data.user;
-  } catch (err) {
-    console.error("[Beautify] ensureAnonSession failed:", err);
-    return null;
-  }
-}
+const log = (where, err) => console.error(`[Beautify] ${where} failed:`, err?.message || err);
 
-// Manager signs in with email + password.
-export async function managerSignIn(email, password) {
-  if (!isSupabaseReady) return { error: "Supabase not configured" };
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message };
-  return { user: data.user };
-}
+// ─── Time helpers ────────────────────────────────────────────────────────────
 
-export async function managerSignOut() {
-  if (!isSupabaseReady) return;
-  await supabase.auth.signOut();
-}
-
-// Returns true if the current session belongs to a manager of the demo studio.
-export async function checkIsManager(studioId) {
-  if (!isSupabaseReady || !studioId) return false;
-  const { data } = await supabase
-    .from("studios")
-    .select("id")
-    .eq("id", studioId)
-    .eq("owner_id", (await supabase.auth.getUser()).data.user?.id)
-    .maybeSingle();
-  return !!data;
-}
-
-// ─── Studio + services ───────────────────────────────────────────────────────
-
-export async function loadStudioBundle() {
-  if (!isSupabaseReady) return null;
-  try {
-    const { data: studio, error: e1 } = await supabase
-      .from("studios")
-      .select("*")
-      .eq("slug", STUDIO_SLUG)
-      .single();
-    if (e1 || !studio) throw e1 || new Error("studio not found");
-
-    const { data: services, error: e2 } = await supabase
-      .from("services")
-      .select("*")
-      .eq("studio_id", studio.id)
-      .eq("active", true)
-      .order("sort_order");
-    if (e2) throw e2;
-
-    return {
-      studio,
-      services: (services || []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        dur: s.duration,
-        price: s.price,
-        grad: s.gradient,
-      })),
-    };
-  } catch (err) {
-    console.error("[Beautify] loadStudioBundle failed:", err);
-    return null;
-  }
-}
-
-// ─── Clients ─────────────────────────────────────────────────────────────────
-
-// Creates a client row linked to the current anonymous user.
-// Returns the new client's DB id, or null on failure.
-export async function registerClient(studioId, { name, phone, email }) {
-  if (!isSupabaseReady) return null;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await supabase
-      .from("clients")
-      .insert({
-        studio_id: studioId,
-        auth_user_id: user?.id,
-        name,
-        phone,
-        email,
-        health_signed_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    return data.id;
-  } catch (err) {
-    console.error("[Beautify] registerClient failed:", err);
-    return null;
-  }
-}
-
-// ─── Appointments ─────────────────────────────────────────────────────────────
-
-// Converts the UI's (dayOffset, "HH:MM") into a real UTC timestamp.
 function toTimestamp(dayOffset, timeStr) {
   const d = new Date();
   d.setDate(d.getDate() + dayOffset);
@@ -120,90 +20,499 @@ function toTimestamp(dayOffset, timeStr) {
   return d.toISOString();
 }
 
-// Writes one appointment row. Returns the new row id or null.
+// Shapes a DB appointment row (with joined client + service) into the UI object.
+function shapeAppt(row) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(row.starts_at);
+  const dayOffset = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
+  const time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return {
+    id: row.id,
+    clientId: row.clients?.id ?? row.client_id,
+    clientName: row.clients?.name,
+    clientPhone: row.clients?.phone,
+    service: row.services?.id ?? row.service_id,
+    serviceName: row.services?.name,
+    serviceDur: row.services?.duration,
+    servicePrice: row.services?.price,
+    serviceGrad: row.services?.gradient,
+    starts_at: row.starts_at,
+    time,
+    day: dayOffset,
+    dayLabel: dayOffset === 0 ? "היום" : dayOffset === 1 ? "מחר" : dayOffset > 0 ? `בעוד ${dayOffset} ימים` : "עבר",
+    status: row.status,
+    arrival: row.arrival_confirmed,
+    paid: row.paid,
+    _live: true,
+  };
+}
+
+// ─── Studio + services ───────────────────────────────────────────────────────
+
+export async function loadStudioBundle() {
+  if (!isSupabaseReady) return null;
+  try {
+    const { data: studio, error: e1 } = await supabaseClient
+      .from("studios").select("*").eq("slug", STUDIO_SLUG).single();
+    if (e1 || !studio) throw e1 || new Error("studio not found");
+
+    const { data: services, error: e2 } = await supabaseClient
+      .from("services").select("*").eq("studio_id", studio.id)
+      .eq("active", true).order("sort_order");
+    if (e2) throw e2;
+
+    return {
+      studio,
+      services: (services || []).map((s) => ({
+        id: s.id, name: s.name, dur: s.duration, price: s.price, grad: s.gradient,
+      })),
+    };
+  } catch (err) { log("loadStudioBundle", err); return null; }
+}
+
+export async function updateStudioSettings(studioId, settings) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("studios").update(settings).eq("id", studioId);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("updateStudioSettings", err); return false; }
+}
+
+// ─── Manager auth ────────────────────────────────────────────────────────────
+
+export async function managerSignIn(email, password) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  const { data, error } = await supabaseManager.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
+  return { user: data.user };
+}
+
+export async function managerSignOut() {
+  if (!isSupabaseReady) return;
+  await supabaseManager.auth.signOut();
+}
+
+export async function getManagerSession() {
+  if (!isSupabaseReady) return null;
+  const { data } = await supabaseManager.auth.getSession();
+  return data?.session?.user || null;
+}
+
+// ─── Client auth (phone + password) ──────────────────────────────────────────
+
+// Registers a new client: creates the auth account, then the client row.
+// Returns { client } or { error }.
+export async function clientRegister(studioId, { name, phone, email, password }) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    // Block enforcement (note 42): refuse if this contact is blocked.
+    const blocked = await isContactBlocked(studioId, { phone, email, name });
+    if (blocked) return { error: "מספר/אימייל זה חסום בסטודיו. פני לסטודיו." };
+
+    const { data: auth, error: e1 } = await supabaseClient.auth.signUp({
+      email: phoneToEmail(phone), password,
+    });
+    if (e1) {
+      if (e1.message?.includes("already")) return { error: "מספר הטלפון כבר רשום. נסי להתחבר." };
+      throw e1;
+    }
+    const { data: client, error: e2 } = await supabaseClient
+      .from("clients")
+      .insert({
+        studio_id: studioId, auth_user_id: auth.user?.id,
+        name, phone, email, health_signed_at: new Date().toISOString(),
+      })
+      .select("*").single();
+    if (e2) throw e2;
+    return { client };
+  } catch (err) { log("clientRegister", err); return { error: "ההרשמה נכשלה, נסי שוב." }; }
+}
+
+// Logs an existing client in by phone + password.
+export async function clientSignIn(studioId, phone, password) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const { data: auth, error } = await supabaseClient.auth.signInWithPassword({
+      email: phoneToEmail(phone), password,
+    });
+    if (error) return { error: "טלפון או סיסמה שגויים." };
+    const { data: client } = await supabaseClient
+      .from("clients").select("*").eq("auth_user_id", auth.user.id).maybeSingle();
+    if (!client) return { error: "לא נמצא פרופיל ללקוחה זו." };
+    if (client.blocked) { await supabaseClient.auth.signOut(); return { error: "החשבון חסום. פני לסטודיו." }; }
+    return { client };
+  } catch (err) { log("clientSignIn", err); return { error: "ההתחברות נכשלה." }; }
+}
+
+export async function clientSignOut() {
+  if (!isSupabaseReady) return;
+  await supabaseClient.auth.signOut();
+}
+
+// Restores the client profile for an existing session (page reload).
+export async function getCurrentClient() {
+  if (!isSupabaseReady) return null;
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    const uid = data?.session?.user?.id;
+    if (!uid) return null;
+    const { data: client } = await supabaseClient
+      .from("clients").select("*").eq("auth_user_id", uid).maybeSingle();
+    return client || null;
+  } catch (err) { log("getCurrentClient", err); return null; }
+}
+
+export async function updateClientProfile(clientId, fields) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseClient.from("clients").update(fields).eq("id", clientId);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("updateClientProfile", err); return false; }
+}
+
+// ─── Clients (manager) ───────────────────────────────────────────────────────
+
+export async function loadClients(studioId) {
+  if (!isSupabaseReady || !studioId) return null;
+  try {
+    const { data, error } = await supabaseManager
+      .from("clients").select("*").eq("studio_id", studioId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map((c) => ({
+      id: c.id, name: c.name, phone: c.phone, email: c.email,
+      blocked: c.blocked, avatar: c.avatar_url,
+      visits: 0, last: "—",
+    }));
+  } catch (err) { log("loadClients", err); return null; }
+}
+
+export async function setClientBlocked(clientId, blocked, useManager = true) {
+  if (!isSupabaseReady) return false;
+  try {
+    const db = useManager ? supabaseManager : supabaseClient;
+    const { error } = await db.from("clients").update({ blocked }).eq("id", clientId);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("setClientBlocked", err); return false; }
+}
+
+export async function deleteClient(clientId) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("clients").delete().eq("id", clientId);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("deleteClient", err); return false; }
+}
+
+// Returns true if a blocked client with matching phone OR email exists.
+export async function isContactBlocked(studioId, { phone, email }) {
+  if (!isSupabaseReady) return false;
+  try {
+    const ors = [];
+    if (phone) ors.push(`phone.eq.${phone}`);
+    if (email) ors.push(`email.eq.${email}`);
+    if (!ors.length) return false;
+    const { data } = await supabaseClient
+      .from("clients").select("id, blocked").eq("studio_id", studioId)
+      .eq("blocked", true).or(ors.join(","));
+    return (data || []).length > 0;
+  } catch (err) { log("isContactBlocked", err); return false; }
+}
+
+// ─── Appointments ────────────────────────────────────────────────────────────
+
 export async function saveAppointment(studioId, clientId, serviceId, dayOffset, timeStr, paid) {
   if (!isSupabaseReady) return null;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("appointments")
       .insert({
-        studio_id: studioId,
-        client_id: clientId,
-        service_id: serviceId,
-        starts_at: toTimestamp(dayOffset, timeStr),
-        status: "confirmed",
-        paid,
+        studio_id: studioId, client_id: clientId, service_id: serviceId,
+        starts_at: toTimestamp(dayOffset, timeStr), status: "confirmed", paid,
       })
-      .select("id")
+      .select("*, clients(id,name,phone), services(id,name,duration,price,gradient)")
       .single();
     if (error) throw error;
-    return data.id;
-  } catch (err) {
-    console.error("[Beautify] saveAppointment failed:", err);
-    return null;
-  }
+    return shapeAppt(data);
+  } catch (err) { log("saveAppointment", err); return null; }
 }
 
-// Loads ALL appointments for a studio (manager view), next 7 days.
-// Returns rows shaped like the UI's appt objects, or null on failure.
+// Manager view: all non-cancelled appointments in the next 7 days.
 export async function loadManagerAppointments(studioId) {
   if (!isSupabaseReady || !studioId) return null;
   try {
     const start = new Date(); start.setHours(0, 0, 0, 0);
-    const end   = new Date(start); end.setDate(start.getDate() + 7);
-    const { data, error } = await supabase
+    const end = new Date(start); end.setDate(start.getDate() + 7);
+    const { data, error } = await supabaseManager
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, clients(id, name, phone), services(id, name, duration, price, gradient)")
-      .eq("studio_id", studioId)
-      .gte("starts_at", start.toISOString())
-      .lt("starts_at", end.toISOString())
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, clients(id,name,phone), services(id,name,duration,price,gradient)")
+      .eq("studio_id", studioId).neq("status", "cancelled")
+      .gte("starts_at", start.toISOString()).lt("starts_at", end.toISOString())
       .order("starts_at");
     if (error) throw error;
-
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return (data || []).map((row) => {
-      const d = new Date(row.starts_at);
-      const dayOffset = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
-      const timeStr = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
-      return {
-        id: row.id,
-        clientId: row.clients?.id,
-        clientName: row.clients?.name,
-        clientPhone: row.clients?.phone,
-        service: row.services?.id,
-        serviceName: row.services?.name,
-        serviceDur: row.services?.duration,
-        servicePrice: row.services?.price,
-        serviceGrad: row.services?.gradient,
-        time: timeStr,
-        day: dayOffset,
-        dayLabel: dayOffset === 0 ? "היום" : dayOffset === 1 ? "מחר" : `בעוד ${dayOffset} ימים`,
-        status: row.status,
-        arrival: row.arrival_confirmed,
-        paid: row.paid,
-        _live: true,
-      };
-    });
-  } catch (err) {
-    console.error("[Beautify] loadManagerAppointments failed:", err);
-    return null;
-  }
+    return (data || []).map(shapeAppt);
+  } catch (err) { log("loadManagerAppointments", err); return null; }
 }
 
-// Loads all upcoming appointments for the current client from the DB.
+// Client view: all of this client's non-cancelled appointments.
 export async function loadMyAppointments(clientId) {
   if (!isSupabaseReady || !clientId) return null;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("appointments")
-      .select("*, services(name, duration, price, gradient)")
-      .eq("client_id", clientId)
-      .gte("starts_at", new Date().toISOString())
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, clients(id,name,phone), services(id,name,duration,price,gradient)")
+      .eq("client_id", clientId).neq("status", "cancelled")
       .order("starts_at");
     if (error) throw error;
+    return (data || []).map(shapeAppt);
+  } catch (err) { log("loadMyAppointments", err); return null; }
+}
+
+// Soft-cancel: keeps the row but hides it from both sides. `useManager` picks
+// which session does it (manager cancelling vs client cancelling).
+export async function cancelAppointment(id, useManager = false) {
+  if (!isSupabaseReady) return false;
+  try {
+    const db = useManager ? supabaseManager : supabaseClient;
+    const { error } = await db.from("appointments").update({ status: "cancelled" }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("cancelAppointment", err); return false; }
+}
+
+export async function confirmArrival(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseClient
+      .from("appointments").update({ arrival_confirmed: true }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("confirmArrival", err); return false; }
+}
+
+// Manager marks an appointment 'completed' or 'no_show' (note 38).
+export async function setAppointmentStatus(id, status) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("appointments").update({ status }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("setAppointmentStatus", err); return false; }
+}
+
+// Mark paid (note 22 — pay-later; Bit is still simulated so this just flips paid).
+export async function payAppointment(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseClient
+      .from("appointments").update({ paid: true }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("payAppointment", err); return false; }
+}
+
+// ─── Breaks (note 39) ────────────────────────────────────────────────────────
+
+export async function loadBreaks(studioId) {
+  if (!isSupabaseReady || !studioId) return null;
+  try {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(start.getDate() + 7);
+    const { data, error } = await supabaseClient
+      .from("breaks").select("*").eq("studio_id", studioId)
+      .gte("starts_at", start.toISOString()).lt("starts_at", end.toISOString())
+      .order("starts_at");
+    if (error) throw error;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return (data || []).map((b) => {
+      const d = new Date(b.starts_at), e = new Date(b.ends_at);
+      const day = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
+      const fmt = (x) => x.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+      return { id: b.id, title: b.title, day, time: fmt(d), endTime: fmt(e), starts_at: b.starts_at, _break: true };
+    });
+  } catch (err) { log("loadBreaks", err); return null; }
+}
+
+export async function addBreak(studioId, dayOffset, startStr, endStr, title) {
+  if (!isSupabaseReady) return null;
+  try {
+    const { data, error } = await supabaseManager
+      .from("breaks")
+      .insert({ studio_id: studioId, starts_at: toTimestamp(dayOffset, startStr), ends_at: toTimestamp(dayOffset, endStr), title: title || "הפסקה" })
+      .select("*").single();
+    if (error) throw error;
     return data;
-  } catch (err) {
-    console.error("[Beautify] loadMyAppointments failed:", err);
-    return null;
-  }
+  } catch (err) { log("addBreak", err); return null; }
+}
+
+export async function deleteBreak(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("breaks").delete().eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("deleteBreak", err); return false; }
+}
+
+// ─── Notifications (notes 26, 37) ────────────────────────────────────────────
+
+export async function sendNotification(studioId, clientId, { type, title, body, appointmentId }) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("notifications").insert({
+      studio_id: studioId, client_id: clientId, type, title, body, appointment_id: appointmentId || null,
+    });
+    if (error) throw error;
+    return true;
+  } catch (err) { log("sendNotification", err); return false; }
+}
+
+export async function loadNotifications(clientId) {
+  if (!isSupabaseReady || !clientId) return null;
+  try {
+    const { data, error } = await supabaseClient
+      .from("notifications").select("*").eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) { log("loadNotifications", err); return null; }
+}
+
+export async function markNotificationRead(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseClient.from("notifications").update({ read: true }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("markNotificationRead", err); return false; }
+}
+
+// ─── Gallery + photos ────────────────────────────────────────────────────────
+
+// Uploads a file to a storage bucket and returns its public URL.
+async function uploadFile(db, bucket, path, file) {
+  const { error } = await db.storage.from(bucket).upload(path, file, { upsert: true, cacheControl: "3600" });
+  if (error) throw error;
+  return db.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+const safeName = (n) => (n || "photo").replace(/[^\w.\-]/g, "_");
+
+// Client uploads work → lands as 'pending' for the manager to approve (note 15).
+export async function uploadClientPhoto(studioId, client, file, caption) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${studioId}/${client.id}/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseClient, "gallery", path, file);
+    const { data, error } = await supabaseClient.from("gallery").insert({
+      studio_id: studioId, client_id: client.id, image_url: url,
+      caption: caption || "העבודה שלי", uploaded_by: client.name, status: "pending",
+    }).select("*").single();
+    if (error) throw error;
+    return { photo: data };
+  } catch (err) { log("uploadClientPhoto", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// Manager uploads her own work → immediately 'approved' (note 47).
+export async function uploadManagerPhoto(studioId, studioName, file, caption) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${studioId}/studio/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseManager, "gallery", path, file);
+    const { data, error } = await supabaseManager.from("gallery").insert({
+      studio_id: studioId, image_url: url, caption: caption || "עבודה חדשה",
+      uploaded_by: studioName || "הסטודיו", status: "approved",
+    }).select("*").single();
+    if (error) throw error;
+    return { photo: data };
+  } catch (err) { log("uploadManagerPhoto", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// Client profile photo (note 9).
+export async function uploadClientAvatar(clientId, file) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${clientId}/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseClient, "avatars", path, file);
+    await supabaseClient.from("clients").update({ avatar_url: url }).eq("id", clientId);
+    return { url };
+  } catch (err) { log("uploadClientAvatar", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// Loads approved photos for the public gallery + like counts + liked-by-me.
+export async function loadGallery(studioId, myClientId) {
+  if (!isSupabaseReady || !studioId) return null;
+  try {
+    const { data, error } = await supabaseClient
+      .from("gallery").select("*, gallery_likes(client_id)")
+      .eq("studio_id", studioId).eq("status", "approved")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map((g) => ({
+      id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by,
+      likes: (g.gallery_likes || []).length,
+      likedByMe: myClientId ? (g.gallery_likes || []).some((l) => l.client_id === myClientId) : false,
+    }));
+  } catch (err) { log("loadGallery", err); return null; }
+}
+
+// Manager: pending photos awaiting approval.
+export async function loadPendingPhotos(studioId) {
+  if (!isSupabaseReady || !studioId) return null;
+  try {
+    const { data, error } = await supabaseManager
+      .from("gallery").select("*").eq("studio_id", studioId).eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map((g) => ({ id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by }));
+  } catch (err) { log("loadPendingPhotos", err); return null; }
+}
+
+// Client: my uploads with their status (note 19).
+export async function loadMyUploads(clientId) {
+  if (!isSupabaseReady || !clientId) return null;
+  try {
+    const { data, error } = await supabaseClient
+      .from("gallery").select("*").eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map((g) => ({ id: g.id, img: g.image_url, cap: g.caption, status: g.status }));
+  } catch (err) { log("loadMyUploads", err); return null; }
+}
+
+export async function setPhotoStatus(id, status) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("gallery").update({ status }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("setPhotoStatus", err); return false; }
+}
+
+export async function deletePhoto(id, useManager = true) {
+  if (!isSupabaseReady) return false;
+  try {
+    const db = useManager ? supabaseManager : supabaseClient;
+    const { error } = await db.from("gallery").delete().eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("deletePhoto", err); return false; }
+}
+
+// Toggle a like on/off for the current client (note 17). Returns new liked state.
+export async function toggleLike(galleryId, clientId, currentlyLiked) {
+  if (!isSupabaseReady || !clientId) return currentlyLiked;
+  try {
+    if (currentlyLiked) {
+      await supabaseClient.from("gallery_likes").delete()
+        .eq("gallery_id", galleryId).eq("client_id", clientId);
+      return false;
+    }
+    await supabaseClient.from("gallery_likes").insert({ gallery_id: galleryId, client_id: clientId });
+    return true;
+  } catch (err) { log("toggleLike", err); return currentlyLiked; }
 }
