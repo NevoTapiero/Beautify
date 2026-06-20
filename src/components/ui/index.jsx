@@ -159,12 +159,13 @@ export function Sheet({ children, onClose }) {
   );
 }
 
-// Picks a file from the device (camera or gallery) and hands it back (note 15, 47).
+// Picks a file from the device — the OS lets the user choose camera OR
+// gallery OR files (no `capture`, so it isn't forced to the camera) (note 15, 47).
 export function PhotoPicker({ onPick, children, accept = "image/*" }) {
   const ref = useRef(null);
   return (
     <>
-      <input ref={ref} type="file" accept={accept} capture="environment" hidden
+      <input ref={ref} type="file" accept={accept} hidden
         onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ""; }} />
       {React.cloneElement(children, { onClick: () => ref.current?.click() })}
     </>
