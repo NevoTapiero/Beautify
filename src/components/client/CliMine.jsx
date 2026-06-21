@@ -43,7 +43,7 @@ export default function CliMine({ cli }) {
               <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: a.serviceGrad, minHeight: 38 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{a.serviceName}</div>
-                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{cli.studioName} · ₪{a.servicePrice}</div>
+                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{a.serviceDur} דק׳ · ₪{a.servicePrice}</div>
               </div>
               <PaidChip paid={a.paid} />
             </div>

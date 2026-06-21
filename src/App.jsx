@@ -98,6 +98,7 @@ export default function App() {
     user: managerUser,
     studio, appts: mgrAppts, clients: mgrClients, gallery: mgrGallery, pending: mgrPending, breaks: mgrBreaks,
     studioName: studio?.name || "הסטודיו",
+    ping,
     refresh: () => loadManagerData(),
     login: async (email, password) => {
       const r = await api.managerSignIn(email, password);

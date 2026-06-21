@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Camera, X } from "lucide-react";
+import { Camera, X, RefreshCw } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty } from "../ui";
 
 const STATUS = {
@@ -14,25 +14,33 @@ export default function CliGallery({ cli }) {
   const [picked, setPicked] = useState(null);
   const [cap, setCap] = useState("");
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const doUpload = async () => {
     setBusy(true);
     await cli.uploadPhoto(picked, cap);
     setBusy(false); setPicked(null); setCap("");
   };
+  const doRefresh = async () => { setRefreshing(true); await cli.refresh(); setRefreshing(false); };
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
-      <div className="bf-seg">
-        <button className={seg === "all" ? "active" : ""} onClick={() => setSeg("all")}>הגלריה ({cli.gallery.length})</button>
-        <button className={seg === "mine" ? "active" : ""} onClick={() => setSeg("mine")}>השיתופים שלי ({cli.uploads.length})</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="bf-seg" style={{ flex: 1 }}>
+          <button className={seg === "all" ? "active" : ""} onClick={() => setSeg("all")}>הגלריה ({cli.gallery.length})</button>
+          <button className={seg === "mine" ? "active" : ""} onClick={() => setSeg("mine")}>השיתופים שלי ({cli.uploads.length})</button>
+        </div>
+        <button onClick={doRefresh} disabled={refreshing} aria-label="רענון" style={{ background: "none", border: "1px solid var(--sand)", borderRadius: 12, padding: 9, cursor: "pointer", color: "var(--plum)" }}>
+          <RefreshCw size={16} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+        </button>
       </div>
 
       {seg === "all" && (<>
         <div className="bf-card" style={{ padding: 13, display: "flex", gap: 11, alignItems: "center", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
           <Camera size={20} color="var(--plum)" />
           <div style={{ flex: 1, fontSize: 13.5 }}><b>אהבת את התוצאה?</b> שתפי תמונה — תופיע בגלריה אחרי אישור הסטודיו.</div>
-          <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPicked(f); setCap(""); }}>
+          <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPicked(f); setCap(""); }}
+            onTooBig={(mb) => cli.ping(`הקובץ גדול מדי (${mb}MB). המקסימום 50MB — נסי סרטון קצר יותר.`)}>
             <button className="bf-btn bf-btn-soft bf-btn-sm">שיתוף</button>
           </PhotoPicker>
         </div>

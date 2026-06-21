@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Camera, Check, X, Pencil } from "lucide-react";
+import { Camera, Check, X, Pencil, RefreshCw } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet } from "../ui";
 
 export default function MgrGallery({ mgr }) {
@@ -9,22 +9,30 @@ export default function MgrGallery({ mgr }) {
   const [pickedFile, setPickedFile] = useState(null);
   const [cap, setCap] = useState("");
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const doUpload = async () => {
     setBusy(true);
     await mgr.uploadPhoto(pickedFile, cap);
     setBusy(false); setPickedFile(null); setCap("");
   };
+  const doRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
-      <div className="bf-seg">
-        <button className={seg === "mine" ? "active" : ""} onClick={() => setSeg("mine")}>הגלריה שלי ({mgr.gallery.length})</button>
-        <button className={seg === "pend" ? "active" : ""} onClick={() => setSeg("pend")}>לאישור ({mgr.pending.length})</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="bf-seg" style={{ flex: 1 }}>
+          <button className={seg === "mine" ? "active" : ""} onClick={() => setSeg("mine")}>הגלריה שלי ({mgr.gallery.length})</button>
+          <button className={seg === "pend" ? "active" : ""} onClick={() => setSeg("pend")}>לאישור ({mgr.pending.length})</button>
+        </div>
+        <button onClick={doRefresh} disabled={refreshing} aria-label="רענון" style={{ background: "none", border: "1px solid var(--sand)", borderRadius: 12, padding: 9, cursor: "pointer", color: "var(--plum)" }}>
+          <RefreshCw size={16} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+        </button>
       </div>
 
       {seg === "mine" && (<>
-        <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPickedFile(f); setCap(""); }}>
+        <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPickedFile(f); setCap(""); }}
+          onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB). המקסימום 50MB — נסי סרטון קצר יותר.`)}>
           <button className="bf-btn bf-btn-ghost"><Camera size={17} /> העלאת תמונה או סרטון</button>
         </PhotoPicker>
         {mgr.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה — העלי את העבודה הראשונה 🤍</Empty>}

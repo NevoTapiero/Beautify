@@ -175,14 +175,28 @@ export function Sheet({ children, onClose }) {
   );
 }
 
+// Largest file we accept for upload (Supabase free-tier cap). Keeps a huge
+// video from hanging the browser (note 16).
+export const MAX_UPLOAD_MB = 50;
+
 // Picks a file from the device — the OS lets the user choose camera OR
 // gallery OR files (no `capture`, so it isn't forced to the camera) (note 15, 47).
-export function PhotoPicker({ onPick, children, accept = "image/*" }) {
+// Rejects oversized files with a message via onTooBig.
+export function PhotoPicker({ onPick, onTooBig, children, accept = "image/*" }) {
   const ref = useRef(null);
+  const handle = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (f.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      onTooBig?.(Math.round(f.size / (1024 * 1024)));
+      return;
+    }
+    onPick(f);
+  };
   return (
     <>
-      <input ref={ref} type="file" accept={accept} hidden
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ""; }} />
+      <input ref={ref} type="file" accept={accept} hidden onChange={handle} />
       {React.cloneElement(children, { onClick: () => ref.current?.click() })}
     </>
   );
