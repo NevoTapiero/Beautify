@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Wallet, Sparkles } from "lucide-react";
 import { Steps, SectionTitle, Back, BitSheet, Row, Empty } from "../ui";
-import { svc } from "../../lib/services";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -14,7 +13,7 @@ export default function CliBook({ cli }) {
   const [busy, setBusy] = useState(false);
   const [slots, setSlots] = useState(null);   // null = loading, [] = none free
   const days = next7();
-  const s = svc(service);
+  const s = cli.services.find((x) => x.id === service);
 
   // Load the real free slots whenever the chosen day changes.
   useEffect(() => {

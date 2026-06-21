@@ -98,7 +98,7 @@ const STYLE = `
 .bf-day .dl{ font-size:11px; font-weight:700; opacity:.8; margin-top:3px; }
 
 .bf-slot{ border:1px solid var(--sand); background:#fff; border-radius:12px; padding:11px 0; text-align:center;
-  cursor:pointer; font-weight:700; font-size:14.5px; color:var(--ink); transition:.15px; }
+  cursor:pointer; font-weight:700; font-size:14.5px; color:var(--ink); transition:.15s; }
 .bf-slot.active{ background:var(--plum); border-color:var(--plum); color:#fff; }
 .bf-slot:disabled{ color:#CFC0C7; background:#F6EFEC; cursor:not-allowed; }
 

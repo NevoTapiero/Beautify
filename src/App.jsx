@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 import STYLE from "./styles";
-import { setServiceIndex } from "./lib/services";
 import * as api from "./lib/api";
 
 import ManagerApp from "./components/manager/ManagerApp";
@@ -43,7 +42,6 @@ export default function App() {
       if (!b) return;
       setStudio(b.studio);
       setServices(b.services);
-      setServiceIndex(b.services);
     });
     api.getManagerSession().then((u) => { if (u) setManagerUser(u); });
     api.getCurrentClient().then((c) => { if (c) setClient(c); });
@@ -75,7 +73,7 @@ export default function App() {
   // Reload studio + services (after the manager edits her service list).
   const refreshStudio = useCallback(async () => {
     const b = await api.loadStudioBundle();
-    if (b) { setStudio(b.studio); setServices(b.services); setServiceIndex(b.services); }
+    if (b) { setStudio(b.studio); setServices(b.services); }
   }, []);
 
   // Refresh each side once its prerequisites (login + studio) are ready.

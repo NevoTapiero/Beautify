@@ -1,6 +1,5 @@
 import React, { useState, useRef } from "react";
 import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, ShieldCheck, XCircle, Play } from "lucide-react";
-import { svc } from "../../lib/services";
 
 export const initials = (n) => (n || "").split(" ").map((w) => w[0]).slice(0, 2).join("");
 
@@ -230,13 +229,10 @@ export function BitSheet({ amount, onClose, onPaid }) {
   );
 }
 
-// Resolves display data for an appointment (all live now, but keeps the
-// demo-fallback path harmless).
-export function resolveAppt(a, clients) {
-  if (a._live) {
-    return { clientName: a.clientName, clientPhone: a.clientPhone, svcName: a.serviceName, svcDur: a.serviceDur, svcPrice: a.servicePrice, svcGrad: a.serviceGrad };
-  }
-  const c = (clients || []).find((x) => x.id === a.clientId);
-  const s = svc(a.service);
-  return { clientName: c?.name, clientPhone: c?.phone, svcName: s?.name, svcDur: s?.dur, svcPrice: s?.price, svcGrad: s?.grad };
+// Pulls display fields off a (live) appointment row.
+export function resolveAppt(a) {
+  return {
+    clientName: a.clientName, clientPhone: a.clientPhone,
+    svcName: a.serviceName, svcDur: a.serviceDur, svcPrice: a.servicePrice, svcGrad: a.serviceGrad,
+  };
 }

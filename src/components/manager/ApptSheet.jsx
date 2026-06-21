@@ -4,7 +4,7 @@ import { Avatar, Sheet, Row, resolveAppt } from "../ui";
 
 // Manager's appointment detail card — shared by Home and Calendar.
 export default function ApptSheet({ appt, mgr, onClose }) {
-  const r = resolveAppt(appt, mgr.clients);
+  const r = resolveAppt(appt);
   const done = appt.status === "completed" || appt.status === "no_show";
   // Can only mark done / no-show once the appointment time has passed (note 21).
   const passed = appt.starts_at ? new Date(appt.starts_at) <= new Date() : false;

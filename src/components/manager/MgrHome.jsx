@@ -74,7 +74,7 @@ export default function MgrHome({ mgr, go }) {
               <Coffee size={16} color="var(--gold)" />
               <div style={{ flex: 1, fontWeight: 700, fontSize: 14, color: "#8A6D3B" }}>{item.title} · עד {item.endTime}</div>
             </div>
-          ) : (() => { const r = resolveAppt(item, mgr.clients); return (
+          ) : (() => { const r = resolveAppt(item); return (
             <button key={item.id} className="bf-card" onClick={() => setOpen(item)} style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--sand)" }}>
               <div style={{ textAlign: "center", minWidth: 46 }}>
                 <div className="bf-display" style={{ fontSize: 17, fontWeight: 800, color: "var(--plum)" }}>{item.time}</div>

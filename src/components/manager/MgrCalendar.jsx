@@ -76,7 +76,7 @@ export default function MgrCalendar({ mgr }) {
           </div>
         ))}
 
-        {appts.map((a) => { const r = resolveAppt(a, mgr.clients); const ghost = a.status === "reschedule_requested"; return (
+        {appts.map((a) => { const r = resolveAppt(a); const ghost = a.status === "reschedule_requested"; return (
           <button key={a.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--sand)", opacity: ghost ? 0.6 : 1 }} onClick={() => setOpen(a)}>
             <div className="bf-display" style={{ fontSize: 17, fontWeight: 800, color: "var(--plum)", minWidth: 46, textAlign: "center" }}>{a.time}</div>
             <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad }} />
