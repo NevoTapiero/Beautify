@@ -99,6 +99,26 @@ create table if not exists notifications (
   created_at     timestamptz not null default now()
 );
 
+-- Weekly default working hours (one row per weekday, 0=Sun .. 6=Sat).
+create table if not exists work_hours (
+  studio_id  uuid not null references studios(id) on delete cascade,
+  weekday    int  not null,
+  is_open    boolean not null default true,
+  start_time time not null default '09:00',
+  end_time   time not null default '19:00',
+  primary key (studio_id, weekday)
+);
+
+-- Per-date overrides (holiday, short day) — replace the weekly default for a date.
+create table if not exists work_overrides (
+  studio_id  uuid not null references studios(id) on delete cascade,
+  date       date not null,
+  is_open    boolean not null default true,
+  start_time time not null default '09:00',
+  end_time   time not null default '19:00',
+  primary key (studio_id, date)
+);
+
 -- ---------- HELPER FUNCTIONS (SECURITY DEFINER) ----------
 
 -- True when the logged-in user owns the given studio (is its manager).
@@ -152,6 +172,47 @@ returns setof gallery language sql security definer stable as $$
 $$;
 grant execute on function my_uploads() to authenticated;
 
+-- Free start-times (every 15 min) where a p_duration-minute service fits, given
+-- the studio's working hours minus existing appointments and breaks (Israel time).
+create or replace function available_slots(p_studio uuid, p_date date, p_duration int)
+returns setof text language plpgsql security definer stable
+set timezone = 'Asia/Jerusalem' as $$
+declare
+  v_wd int := extract(dow from p_date);
+  v_open time; v_close time; v_is_open boolean;
+  v_slot timestamptz; v_window_end timestamptz; v_cand_end timestamptz;
+  v_dur interval := make_interval(mins => p_duration);
+begin
+  select is_open, start_time, end_time into v_is_open, v_open, v_close
+    from work_overrides where studio_id = p_studio and date = p_date;
+  if not found then
+    select is_open, start_time, end_time into v_is_open, v_open, v_close
+      from work_hours where studio_id = p_studio and weekday = v_wd;
+  end if;
+  if not found or not coalesce(v_is_open, false) then return; end if;
+
+  v_slot := (p_date + v_open)::timestamptz;
+  v_window_end := (p_date + v_close)::timestamptz;
+
+  while v_slot + v_dur <= v_window_end loop
+    v_cand_end := v_slot + v_dur;
+    if v_slot > now()
+       and not exists (
+         select 1 from appointments a join services s on s.id = a.service_id
+         where a.studio_id = p_studio and a.status <> 'cancelled'
+           and tstzrange(a.starts_at, a.starts_at + make_interval(mins => s.duration))
+               && tstzrange(v_slot, v_cand_end))
+       and not exists (
+         select 1 from breaks b where b.studio_id = p_studio
+           and tstzrange(b.starts_at, b.ends_at) && tstzrange(v_slot, v_cand_end))
+    then
+      return next to_char(v_slot, 'HH24:MI');
+    end if;
+    v_slot := v_slot + interval '15 minutes';
+  end loop;
+end $$;
+grant execute on function available_slots(uuid, date, int) to anon, authenticated;
+
 -- ---------- ENABLE RLS ----------
 alter table studios       enable row level security;
 alter table services      enable row level security;
@@ -161,6 +222,8 @@ alter table gallery       enable row level security;
 alter table gallery_likes enable row level security;
 alter table breaks        enable row level security;
 alter table notifications enable row level security;
+alter table work_hours     enable row level security;
+alter table work_overrides enable row level security;
 
 -- ---------- POLICIES ----------
 
@@ -240,6 +303,18 @@ create policy notif_insert on notifications for insert
 create policy notif_update on notifications for update
   using (is_studio_manager(studio_id) or client_owns(client_id));
 
+drop policy if exists wh_read  on work_hours;
+drop policy if exists wh_write on work_hours;
+create policy wh_read  on work_hours for select using (true);
+create policy wh_write on work_hours for all
+  using (is_studio_manager(studio_id)) with check (is_studio_manager(studio_id));
+
+drop policy if exists wo_read  on work_overrides;
+drop policy if exists wo_write on work_overrides;
+create policy wo_read  on work_overrides for select using (true);
+create policy wo_write on work_overrides for all
+  using (is_studio_manager(studio_id)) with check (is_studio_manager(studio_id));
+
 -- ---------- STORAGE BUCKETS ----------
 insert into storage.buckets (id, name, public) values ('gallery', 'gallery', true)
   on conflict (id) do nothing;
@@ -272,3 +347,14 @@ from studios s,
   ) as v(name, duration, price, gradient, sort_order)
 where s.slug = 'demo'
   and not exists (select 1 from services x where x.studio_id = s.id);
+
+-- Default weekly hours for the demo studio (Sun–Thu 09–19, Fri 09–14, Sat closed)
+insert into work_hours (studio_id, weekday, is_open, start_time, end_time)
+select s.id, v.wd, v.op, v.st::time, v.en::time
+from studios s, (values
+  (0, true,  '09:00', '19:00'), (1, true,  '09:00', '19:00'), (2, true, '09:00', '19:00'),
+  (3, true,  '09:00', '19:00'), (4, true,  '09:00', '19:00'), (5, true, '09:00', '14:00'),
+  (6, false, '09:00', '19:00')
+) as v(wd, op, st, en)
+where s.slug = 'demo'
+on conflict (studio_id, weekday) do nothing;

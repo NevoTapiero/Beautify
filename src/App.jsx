@@ -134,6 +134,9 @@ export default function App() {
       ping("ההפסקה נוספה"); loadManagerData();
     },
     deleteBreak: async (id) => { await api.deleteBreak(id); ping("ההפסקה הוסרה"); loadManagerData(); },
+    setWeeklyHours: async (weekday, fields) => { await api.setWeeklyHours(studio.id, weekday, fields); ping("שעות העבודה נשמרו"); },
+    setDayOverride: async (dateStr, fields) => { await api.setDayOverride(studio.id, dateStr, fields); ping("שעות היום עודכנו"); },
+    clearDayOverride: async (dateStr) => { await api.clearDayOverride(studio.id, dateStr); ping("היום חזר לברירת המחדל"); },
     blockClient: async (c) => {
       await api.setClientBlocked(c.id, !c.blocked);
       ping(c.blocked ? "החסימה הוסרה" : "הלקוחה נחסמה"); loadManagerData();

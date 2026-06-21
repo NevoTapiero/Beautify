@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Wallet, Sparkles } from "lucide-react";
-import { Steps, SectionTitle, Back, BitSheet, Row } from "../ui";
+import { Steps, SectionTitle, Back, BitSheet, Row, Empty } from "../ui";
 import { svc } from "../../lib/services";
-import { next7, TIMES } from "../../data/mock";
+import { next7, dateForOffset } from "../../data/mock";
+import { availableSlots } from "../../lib/api";
 
 export default function CliBook({ cli }) {
   const [step, setStep] = useState(1);
@@ -11,8 +12,20 @@ export default function CliBook({ cli }) {
   const [time, setTime] = useState(null);
   const [pay, setPay] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [slots, setSlots] = useState(null);   // null = loading, [] = none free
   const days = next7();
   const s = svc(service);
+
+  // Load the real free slots whenever the chosen day changes.
+  useEffect(() => {
+    if (offset == null || !s) { setSlots(null); return; }
+    let active = true;
+    setSlots(null); setTime(null);
+    availableSlots(cli.studio.id, dateForOffset(offset), s.dur).then((list) => {
+      if (active) setSlots(list);
+    });
+    return () => { active = false; };
+  }, [offset, service]); // eslint-disable-line
 
   const finish = async (paid) => {
     setBusy(true);
@@ -54,14 +67,15 @@ export default function CliBook({ cli }) {
         </div>
         {offset != null && (<>
           <SectionTitle icon={Clock}>בחרי שעה</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
-            {TIMES.map((tm) => {
-              const inBreak = (cli.breaks || []).some((b) => b.day === offset && tm >= b.time && tm < b.endTime);
-              const taken = (cli.appts || []).some((a) => a.day === offset && a.time === tm && a.status === "confirmed");
-              const disabled = inBreak || taken;
-              return <button key={tm} disabled={disabled} className={"bf-slot" + (time === tm ? " active" : "")} onClick={() => setTime(tm)}>{tm}</button>;
-            })}
-          </div>
+          {slots === null && <div style={{ textAlign: "center", color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>טוען שעות פנויות…</div>}
+          {slots && slots.length === 0 && <Empty>אין שעות פנויות ביום זה — נסי יום אחר 🤍</Empty>}
+          {slots && slots.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
+              {slots.map((tm) => (
+                <button key={tm} className={"bf-slot" + (time === tm ? " active" : "")} onClick={() => setTime(tm)}>{tm}</button>
+              ))}
+            </div>
+          )}
         </>)}
         <button className="bf-btn bf-btn-primary" disabled={offset == null || !time} onClick={() => setStep(3)}>המשך לאישור</button>
       </>)}

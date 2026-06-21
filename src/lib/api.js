@@ -360,6 +360,71 @@ export async function deleteBreak(id) {
   } catch (err) { log("deleteBreak", err); return false; }
 }
 
+// ─── Working hours (notes 15, 20) ────────────────────────────────────────────
+
+// Weekly defaults: 7 rows (weekday 0=Sun .. 6=Sat).
+export async function loadWeeklyHours(studioId) {
+  if (!isSupabaseReady || !studioId) return [];
+  try {
+    const { data, error } = await supabaseClient
+      .from("work_hours").select("*").eq("studio_id", studioId).order("weekday");
+    if (error) throw error;
+    return data || [];
+  } catch (err) { log("loadWeeklyHours", err); return []; }
+}
+
+export async function setWeeklyHours(studioId, weekday, fields) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("work_hours")
+      .upsert({ studio_id: studioId, weekday, ...fields }, { onConflict: "studio_id,weekday" });
+    if (error) throw error;
+    return true;
+  } catch (err) { log("setWeeklyHours", err); return false; }
+}
+
+// Per-date override (replaces the weekly default for one date).
+export async function getDayOverride(studioId, dateStr) {
+  if (!isSupabaseReady) return null;
+  try {
+    const { data } = await supabaseClient.from("work_overrides")
+      .select("*").eq("studio_id", studioId).eq("date", dateStr).maybeSingle();
+    return data || null;
+  } catch (err) { log("getDayOverride", err); return null; }
+}
+
+export async function setDayOverride(studioId, dateStr, fields) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("work_overrides")
+      .upsert({ studio_id: studioId, date: dateStr, ...fields }, { onConflict: "studio_id,date" });
+    if (error) throw error;
+    return true;
+  } catch (err) { log("setDayOverride", err); return false; }
+}
+
+export async function clearDayOverride(studioId, dateStr) {
+  if (!isSupabaseReady) return false;
+  try {
+    await supabaseManager.from("work_overrides").delete()
+      .eq("studio_id", studioId).eq("date", dateStr);
+    return true;
+  } catch (err) { log("clearDayOverride", err); return false; }
+}
+
+// The free start-times for a service of `durationMin` on a given date —
+// computed server-side from working hours minus appointments and breaks.
+export async function availableSlots(studioId, dateStr, durationMin) {
+  if (!isSupabaseReady || !studioId) return [];
+  try {
+    const { data, error } = await supabaseClient.rpc("available_slots", {
+      p_studio: studioId, p_date: dateStr, p_duration: durationMin,
+    });
+    if (error) throw error;
+    return data || [];
+  } catch (err) { log("availableSlots", err); return []; }
+}
+
 // ─── Notifications (notes 26, 37) ────────────────────────────────────────────
 
 export async function sendNotification(studioId, clientId, { type, title, body, appointmentId }) {

@@ -1,14 +1,37 @@
-import React, { useState } from "react";
-import { Coffee, Plus, X, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Coffee, Plus, X, Trash2, Clock, Pencil } from "lucide-react";
 import { Sheet, Empty, StatusChip, resolveAppt } from "../ui";
-import { next7 } from "../../data/mock";
+import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
+import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import ApptSheet from "./ApptSheet";
+
+const hhmm = (t) => (t || "").slice(0, 5);
 
 export default function MgrCalendar({ mgr }) {
   const days = next7();
   const [sel, setSel] = useState(0);
   const [open, setOpen] = useState(null);
   const [addBreak, setAddBreak] = useState(false);
+  const [editWeekly, setEditWeekly] = useState(false);
+  const [editDay, setEditDay] = useState(false);
+
+  const [weekly, setWeekly] = useState([]);
+  const [override, setOverride] = useState(null);
+
+  const dateStr = dateForOffset(sel);
+  const weekday = days[sel].weekday;
+
+  const reload = useCallback(async () => {
+    const [w, o] = await Promise.all([
+      loadWeeklyHours(mgr.studio.id),
+      getDayOverride(mgr.studio.id, dateStr),
+    ]);
+    setWeekly(w); setOverride(o);
+  }, [mgr.studio.id, dateStr]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const effective = override || weekly.find((w) => w.weekday === weekday) || null;
 
   const appts = mgr.appts.filter((a) => a.day === sel).sort((x, y) => x.time.localeCompare(y.time));
   const breaks = mgr.breaks.filter((b) => b.day === sel);
@@ -21,6 +44,20 @@ export default function MgrCalendar({ mgr }) {
             <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
           </div>
         ))}
+      </div>
+
+      {/* Working hours for the selected day */}
+      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
+        <Clock size={16} color="var(--plum)" />
+        <div style={{ flex: 1, fontSize: 13.5 }}>
+          <b>שעות עבודה · {DOW_FULL[weekday]}</b>
+          <div style={{ color: "var(--muted)", fontSize: 12.5 }}>
+            {!effective || !effective.is_open ? "סגור" : `${hhmm(effective.start_time)}–${hhmm(effective.end_time)}`}
+            {override && <span style={{ color: "var(--gold)", marginInlineStart: 6 }}>· חריג ליום זה</span>}
+          </div>
+        </div>
+        <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditDay(true)}><Pencil size={13} /> יום זה</button>
+        <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditWeekly(true)}>שבועי</button>
       </div>
 
       <button className="bf-btn bf-btn-ghost" onClick={() => setAddBreak(true)}><Coffee size={16} /> הוספת הפסקה ליום זה</button>
@@ -51,6 +88,8 @@ export default function MgrCalendar({ mgr }) {
 
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
       {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} onClose={() => setAddBreak(false)} />}
+      {editWeekly && <WeeklyHoursSheet weekly={weekly} mgr={mgr} onClose={() => setEditWeekly(false)} onSaved={reload} />}
+      {editDay && <DayHoursSheet dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} hasOverride={!!override} mgr={mgr} onClose={() => setEditDay(false)} onSaved={reload} />}
     </div>
   );
 }
@@ -60,13 +99,7 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
   const [end, setEnd] = useState("14:00");
   const [title, setTitle] = useState("הפסקה");
   const valid = end > start;
-
-  const save = () => {
-    if (!valid) return;
-    mgr.addBreak(day, start, end, title);
-    onClose();
-  };
-
+  const save = () => { if (!valid) return; mgr.addBreak(day, start, end, title); onClose(); };
   return (
     <Sheet onClose={onClose}>
       <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>הוספת הפסקה · {dayLabel}</h3>
@@ -83,11 +116,95 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
   );
 }
 
-function TimeSelect({ value, onChange }) {
-  const opts = [];
-  for (let h = 8; h <= 21; h++) for (const m of ["00", "30"]) opts.push(`${String(h).padStart(2, "0")}:${m}`);
+// Edit the weekly default working hours (7 days).
+function WeeklyHoursSheet({ weekly, mgr, onClose, onSaved }) {
+  const byDay = (wd) => weekly.find((w) => w.weekday === wd) || { is_open: wd !== 6, start_time: "09:00", end_time: wd === 5 ? "14:00" : "19:00" };
+  const [rows, setRows] = useState(() => Array.from({ length: 7 }, (_, wd) => {
+    const r = byDay(wd); return { weekday: wd, is_open: r.is_open, start: hhmm(r.start_time), end: hhmm(r.end_time) };
+  }));
+  const [busy, setBusy] = useState(false);
+
+  const set = (wd, patch) => setRows((p) => p.map((r) => r.weekday === wd ? { ...r, ...patch } : r));
+  const save = async () => {
+    setBusy(true);
+    for (const r of rows) {
+      await mgr.setWeeklyHours(r.weekday, { is_open: r.is_open, start_time: r.start, end_time: r.end });
+    }
+    setBusy(false); await onSaved(); onClose();
+  };
+
   return (
-    <select className="bf-input" value={value} onChange={(e) => onChange(e.target.value)}>
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>שעות עבודה שבועיות</h3>
+      <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 14 }}>ברירת המחדל לכל יום בשבוע. אפשר לשנות יום ספציפי דרך "יום זה".</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {rows.map((r) => (
+          <div key={r.weekday} className="bf-card" style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 42, fontWeight: 700, fontSize: 13.5 }}>{DOW_FULL[r.weekday]}</div>
+            <button onClick={() => set(r.weekday, { is_open: !r.is_open })} aria-pressed={r.is_open}
+              style={{ width: 40, height: 24, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: r.is_open ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: r.is_open ? "flex-end" : "flex-start" }}>
+              <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", display: "block" }} />
+            </button>
+            {r.is_open ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                <TimeSelect value={r.start} onChange={(v) => set(r.weekday, { start: v })} small />
+                <span style={{ color: "var(--muted)" }}>–</span>
+                <TimeSelect value={r.end} onChange={(v) => set(r.weekday, { end: v })} small />
+              </div>
+            ) : <div style={{ flex: 1, textAlign: "left", color: "var(--muted)", fontSize: 13 }}>סגור</div>}
+          </div>
+        ))}
+      </div>
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy} onClick={save}>{busy ? "שומרת…" : "שמירה"}</button>
+    </Sheet>
+  );
+}
+
+// Override (or reset) the hours for one specific date.
+function DayHoursSheet({ dateStr, dayLabel, effective, hasOverride, mgr, onClose, onSaved }) {
+  const [isOpen, setIsOpen] = useState(effective ? effective.is_open : true);
+  const [start, setStart] = useState(hhmm(effective?.start_time) || "09:00");
+  const [end, setEnd] = useState(hhmm(effective?.end_time) || "19:00");
+  const [busy, setBusy] = useState(false);
+  const valid = !isOpen || end > start;
+
+  const save = async () => {
+    if (!valid) return;
+    setBusy(true);
+    await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end });
+    setBusy(false); await onSaved(); onClose();
+  };
+  const reset = async () => { setBusy(true); await mgr.clearDayOverride(dateStr); setBusy(false); await onSaved(); onClose(); };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>שעות ליום {dayLabel}</h3>
+      <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 14 }}>שינוי חד-פעמי ליום זה בלבד (חג, יום מקוצר וכו׳).</div>
+      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>{isOpen ? "פתוח" : "סגור"}</div>
+        <button onClick={() => setIsOpen((v) => !v)} aria-pressed={isOpen}
+          style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: isOpen ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: isOpen ? "flex-end" : "flex-start" }}>
+          <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
+        </button>
+      </div>
+      {isOpen && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><label className="bf-label">משעה</label><TimeSelect value={start} onChange={setStart} /></div>
+          <div><label className="bf-label">עד שעה</label><TimeSelect value={end} onChange={setEnd} /></div>
+        </div>
+      )}
+      {!valid && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>שעת הסיום צריכה להיות אחרי ההתחלה</div>}
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy || !valid} onClick={save}>{busy ? "שומרת…" : "שמירה ליום זה"}</button>
+      {hasOverride && <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={reset}>חזרה לשעות הקבועות</button>}
+    </Sheet>
+  );
+}
+
+function TimeSelect({ value, onChange, small }) {
+  const opts = [];
+  for (let h = 6; h <= 23; h++) for (const m of ["00", "30"]) opts.push(`${String(h).padStart(2, "0")}:${m}`);
+  return (
+    <select className="bf-input" value={value} onChange={(e) => onChange(e.target.value)} style={small ? { padding: "7px 8px", fontSize: 13, width: "auto" } : undefined}>
       {opts.map((t) => <option key={t} value={t}>{t}</option>)}
     </select>
   );
