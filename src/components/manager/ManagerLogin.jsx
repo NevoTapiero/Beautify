@@ -36,8 +36,9 @@ export default function ManagerLogin({ onLogin }) {
             {err}
           </div>
         )}
-        <button className="bf-btn bf-btn-primary" disabled={!email || !pw || loading} onClick={submit}>
-          <ShieldCheck size={17} /> {loading ? "נכנסת…" : "כניסה"}
+        <button className="bf-btn bf-btn-primary" disabled={!email || !pw || loading} onClick={submit}
+          style={{ width: "auto", padding: "10px 30px", fontSize: 14.5, margin: "4px auto 0" }}>
+          <ShieldCheck size={15} /> {loading ? "נכנסת…" : "כניסה"}
         </button>
       </div>
     </>

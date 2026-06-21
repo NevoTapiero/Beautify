@@ -41,8 +41,8 @@ export function GalleryTile({ item, onLike, onOpen }) {
   );
 }
 
-// Full-screen image viewer (notes 18, 46). Optional delete action.
-export function Lightbox({ item, onClose, onDelete }) {
+// Full-screen image viewer (notes 18, 46). Optional edit/delete actions.
+export function Lightbox({ item, onClose, onEdit, onDelete }) {
   if (!item) return null;
   return (
     <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={onClose}>
@@ -51,6 +51,7 @@ export function Lightbox({ item, onClose, onDelete }) {
         {item.cap && <div style={{ color: "#fff", textAlign: "center", fontWeight: 700, fontSize: 15 }}>{item.cap}</div>}
         <div style={{ display: "flex", gap: 10 }}>
           <button className="bf-btn bf-btn-ghost" onClick={onClose}><X size={16} /> סגירה</button>
+          {onEdit && <button className="bf-btn bf-btn-ghost" onClick={() => onEdit(item)}>עריכת תיאור</button>}
           {onDelete && <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { onDelete(item); onClose(); }}>מחיקה</button>}
         </div>
       </div>

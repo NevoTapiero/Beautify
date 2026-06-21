@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Camera, Check, X } from "lucide-react";
+import { Camera, Check, X, Pencil } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet } from "../ui";
 
 export default function MgrGallery({ mgr }) {
   const [seg, setSeg] = useState("mine");
-  const [view, setView] = useState(null);     // lightbox item
+  const [view, setView] = useState(null);       // lightbox item
+  const [editing, setEditing] = useState(null);  // photo whose caption is being edited
   const [pickedFile, setPickedFile] = useState(null);
   const [cap, setCap] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,7 +29,15 @@ export default function MgrGallery({ mgr }) {
         </PhotoPicker>
         {mgr.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה — העלי את העבודה הראשונה 🤍</Empty>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {mgr.gallery.map((g) => <GalleryTile key={g.id} item={g} onOpen={setView} />)}
+          {mgr.gallery.map((g) => (
+            <div key={g.id} style={{ position: "relative" }}>
+              <GalleryTile item={g} onOpen={setView} />
+              <button aria-label="עריכת תיאור" onClick={(e) => { e.stopPropagation(); setEditing(g); }}
+                style={{ position: "absolute", insetInlineStart: 7, top: 7, width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: "rgba(255,255,255,.85)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Pencil size={14} color="var(--plum)" />
+              </button>
+            </div>
+          ))}
         </div>
       </>)}
 
@@ -38,8 +47,11 @@ export default function MgrGallery({ mgr }) {
           {mgr.pending.map((p) => (
             <div key={p.id} className="bf-card" style={{ padding: 12, display: "flex", gap: 12, alignItems: "center" }}>
               <div onClick={() => setView(p)} style={{ width: 66, height: 66, borderRadius: 14, background: p.img ? `url(${p.img}) center/cover` : "var(--rose-soft)", flex: "none", cursor: "pointer" }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.cap}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14.5 }}>{p.cap}</span>
+                  <button aria-label="עריכת תיאור" onClick={() => setEditing(p)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 0 }}><Pencil size={13} /></button>
+                </div>
                 <div style={{ fontSize: 12.5, color: "var(--muted)" }}>הועלה ע״י {p.by}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -51,7 +63,9 @@ export default function MgrGallery({ mgr }) {
         </div>
       </>)}
 
-      {view && <Lightbox item={view} onClose={() => setView(null)} onDelete={(it) => mgr.deletePhoto(it.id)} />}
+      {view && <Lightbox item={view} onClose={() => setView(null)} onEdit={(it) => { setView(null); setEditing(it); }} onDelete={(it) => mgr.deletePhoto(it.id)} />}
+
+      {editing && <CaptionEditor photo={editing} mgr={mgr} onClose={() => setEditing(null)} />}
 
       {pickedFile && (
         <Sheet onClose={() => setPickedFile(null)}>
@@ -65,5 +79,20 @@ export default function MgrGallery({ mgr }) {
         </Sheet>
       )}
     </div>
+  );
+}
+
+function CaptionEditor({ photo, mgr, onClose }) {
+  const [text, setText] = useState(photo.cap || "");
+  const [busy, setBusy] = useState(false);
+  const save = async () => { setBusy(true); await mgr.updateCaption(photo.id, text); setBusy(false); onClose(); };
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>עריכת תיאור</h3>
+      <div style={{ height: 120, borderRadius: 14, background: photo.img ? `url(${photo.img}) center/cover` : "var(--rose-soft)", marginBottom: 14 }} />
+      <label className="bf-label">תיאור</label>
+      <input className="bf-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="תיאור התמונה" />
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy} onClick={save}>{busy ? "שומרת…" : "שמירה"}</button>
+    </Sheet>
   );
 }

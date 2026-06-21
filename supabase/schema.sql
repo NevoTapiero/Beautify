@@ -142,6 +142,16 @@ begin
 end $$;
 grant execute on function share_photo(uuid, text, text) to authenticated;
 
+-- Returns the calling client's own photos at any status (incl. pending).
+create or replace function my_uploads()
+returns setof gallery language sql security definer stable as $$
+  select g.* from gallery g
+  join clients c on c.id = g.client_id
+  where c.auth_user_id = auth.uid()
+  order by g.created_at desc;
+$$;
+grant execute on function my_uploads() to authenticated;
+
 -- ---------- ENABLE RLS ----------
 alter table studios       enable row level security;
 alter table services      enable row level security;

@@ -57,11 +57,16 @@ function RegisterForm({ cli, busy, run }) {
   const [f, setF] = useState({ name: "", phone: "", email: "", password: "" });
   const [agree, setAgree] = useState(false);
   const [terms, setTerms] = useState(false);
-  const ok = f.name && f.phone.length >= 9 && f.email.includes("@") && f.password.length >= 6 && agree;
+  const fullName = f.name.trim().split(/\s+/).filter(Boolean).length >= 2;
+  const ok = fullName && f.phone.length >= 9 && f.email.includes("@") && f.password.length >= 6 && agree;
 
   return (
     <>
-      <div><label className="bf-label">שם מלא</label><input className="bf-input" placeholder="לדוגמה: נועה כהן" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
+      <div>
+        <label className="bf-label">שם מלא</label>
+        <input className="bf-input" placeholder="לדוגמה: נועה כהן" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        {f.name.trim() && !fullName && <div style={{ fontSize: 12, color: "#B23A48", marginTop: 5, fontWeight: 600 }}>יש להזין שם פרטי ושם משפחה</div>}
+      </div>
       <div><label className="bf-label">טלפון נייד</label><input className="bf-input" inputMode="tel" placeholder="050-0000000" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
       <div><label className="bf-label">אימייל</label><input className="bf-input" inputMode="email" placeholder="name@mail.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
       <div><label className="bf-label">סיסמה (6 תווים לפחות)</label><input className="bf-input" type="password" placeholder="••••••••" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>

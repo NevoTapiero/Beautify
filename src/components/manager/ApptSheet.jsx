@@ -6,6 +6,8 @@ import { Avatar, Sheet, Row, resolveAppt } from "../ui";
 export default function ApptSheet({ appt, mgr, onClose }) {
   const r = resolveAppt(appt, mgr.clients);
   const done = appt.status === "completed" || appt.status === "no_show";
+  // Can only mark done / no-show once the appointment time has passed (note 21).
+  const passed = appt.starts_at ? new Date(appt.starts_at) <= new Date() : false;
 
   return (
     <Sheet onClose={onClose}>
@@ -25,13 +27,17 @@ export default function ApptSheet({ appt, mgr, onClose }) {
         {done && <Row k="סטטוס" v={appt.status === "completed" ? "בוצע ✓" : "לא הגיעה"} />}
       </div>
 
-      {/* Mark completed / no-show (note 38) */}
-      {!done && (
+      {/* Mark completed / no-show — only after the appointment time passed (notes 38, 21) */}
+      {!done && (passed ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <button className="bf-btn bf-btn-soft" onClick={() => { mgr.setStatus(appt.id, "completed"); onClose(); }}><Check size={16} /> בוצע</button>
           <button className="bf-btn bf-btn-ghost" onClick={() => { mgr.setStatus(appt.id, "no_show"); onClose(); }}><XCircle size={16} /> לא הגיעה</button>
         </div>
-      )}
+      ) : (
+        <div style={{ fontSize: 12.5, color: "var(--muted)", textAlign: "center", marginBottom: 10, padding: "8px 0" }}>
+          ניתן לסמן "בוצע" או "לא הגיעה" רק לאחר מועד התור
+        </div>
+      ))}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <a className="bf-btn bf-btn-ghost" href={`tel:${r.clientPhone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>

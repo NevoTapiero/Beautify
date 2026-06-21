@@ -202,6 +202,9 @@ export async function setClientBlocked(clientId, blocked, useManager = true) {
 export async function deleteClient(clientId) {
   if (!isSupabaseReady) return false;
   try {
+    // Remove the client's gallery rows first — that link has no cascade, so it
+    // would otherwise block the delete (appointments/likes/notifications cascade).
+    await supabaseManager.from("gallery").delete().eq("client_id", clientId);
     const { error } = await supabaseManager.from("clients").delete().eq("id", clientId);
     if (error) throw error;
     return true;
@@ -473,16 +476,24 @@ export async function loadPendingPhotos(studioId) {
   } catch (err) { log("loadPendingPhotos", err); return null; }
 }
 
-// Client: my uploads with their status (note 19).
-export async function loadMyUploads(clientId) {
-  if (!isSupabaseReady || !clientId) return null;
+// Client: my uploads with their status (notes 19, 11). Uses a SECURITY DEFINER
+// RPC so the client reliably sees her OWN photos at any status (pending too).
+export async function loadMyUploads() {
+  if (!isSupabaseReady) return null;
   try {
-    const { data, error } = await supabaseClient
-      .from("gallery").select("*").eq("client_id", clientId)
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabaseClient.rpc("my_uploads");
     if (error) throw error;
     return (data || []).map((g) => ({ id: g.id, img: g.image_url, cap: g.caption, status: g.status }));
   } catch (err) { log("loadMyUploads", err); return null; }
+}
+
+export async function updatePhotoCaption(id, caption) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("gallery").update({ caption }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("updatePhotoCaption", err); return false; }
 }
 
 export async function setPhotoStatus(id, status) {

@@ -66,7 +66,7 @@ export default function App() {
     if (!cl || !sid) return;
     const [appts, gallery, uploads, notifs, breaks] = await Promise.all([
       api.loadMyAppointments(cl.id), api.loadGallery(sid, cl.id),
-      api.loadMyUploads(cl.id), api.loadNotifications(cl.id), api.loadBreaks(sid),
+      api.loadMyUploads(), api.loadNotifications(cl.id), api.loadBreaks(sid),
     ]);
     setCliAppts(appts || []); setCliGallery(gallery || []);
     setCliUploads(uploads || []); setCliNotifs(notifs || []); setCliBreaks(breaks || []);
@@ -75,6 +75,23 @@ export default function App() {
   // Refresh each side once its prerequisites (login + studio) are ready.
   useEffect(() => { if (managerUser && studio) loadManagerData(); }, [managerUser, studio, loadManagerData]);
   useEffect(() => { if (client && studio) loadClientData(); }, [client, studio, loadClientData]);
+
+  // If the manager blocks a client mid-session, sign her out automatically
+  // (note 26). Checks on an interval and whenever the tab regains focus.
+  useEffect(() => {
+    if (!client) return;
+    const check = async () => {
+      const fresh = await api.getCurrentClient();
+      if (fresh && fresh.blocked) {
+        await api.clientSignOut();
+        setClient(null); setCliAppts([]); setCliGallery([]); setCliUploads([]); setCliNotifs([]);
+        ping("חשבונך נחסם על ידי הסטודיו");
+      }
+    };
+    const id = window.setInterval(check, 20000);
+    window.addEventListener("focus", check);
+    return () => { window.clearInterval(id); window.removeEventListener("focus", check); };
+  }, [client, ping]);
 
   // ─── Manager actions ─────────────────────────────────────────────
   const mgr = {
@@ -121,7 +138,8 @@ export default function App() {
       await api.setClientBlocked(c.id, !c.blocked);
       ping(c.blocked ? "החסימה הוסרה" : "הלקוחה נחסמה"); loadManagerData();
     },
-    deleteClient: async (id) => { await api.deleteClient(id); ping("הלקוחה נמחקה"); loadManagerData(); },
+    deleteClient: async (id) => { const ok = await api.deleteClient(id); ping(ok ? "הלקוחה נמחקה" : "מחיקת הלקוחה נכשלה"); loadManagerData(); },
+    updateCaption: async (id, caption) => { await api.updatePhotoCaption(id, caption); ping("התיאור עודכן"); loadManagerData(); },
     approvePhoto: async (id) => { await api.setPhotoStatus(id, "approved"); ping("התמונה אושרה ונוספה לגלריה"); loadManagerData(); },
     rejectPhoto: async (id) => { await api.setPhotoStatus(id, "rejected"); ping("התמונה נדחתה"); loadManagerData(); },
     deletePhoto: async (id) => { await api.deletePhoto(id, true); ping("התמונה נמחקה"); loadManagerData(); },
@@ -130,7 +148,11 @@ export default function App() {
       if (r.error) { ping(r.error); return; }
       ping("העבודה נוספה לגלריה"); loadManagerData();
     },
-    saveSettings: async (settings) => { await api.updateStudioSettings(studio.id, settings); ping("ההגדרה נשמרה"); },
+    saveSettings: async (settings) => {
+      await api.updateStudioSettings(studio.id, settings);
+      setStudio((s) => ({ ...s, ...settings }));   // keep local copy in sync so toggles persist across screens
+      ping("ההגדרה נשמרה");
+    },
   };
 
   // ─── Client actions ──────────────────────────────────────────────
