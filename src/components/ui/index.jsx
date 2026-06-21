@@ -16,6 +16,7 @@ export function Avatar({ name, src }) {
 export function StatusChip({ a }) {
   if (a.status === "completed") return <span className="bf-chip bf-chip-ok"><Check size={12} /> בוצע</span>;
   if (a.status === "no_show")   return <span className="bf-chip" style={{ background: "#F3E3E5", color: "#B23A48" }}><XCircle size={12} /> לא הגיעה</span>;
+  if (a.status === "reschedule_requested") return <span className="bf-chip" style={{ background: "#EDE6F0", color: "#6B4E7A" }}><Clock size={12} /> ממתינה להזזה</span>;
   if (a.arrival)                return <span className="bf-chip bf-chip-ok"><CheckCircle2 size={12} /> אישרה הגעה</span>;
   return <span className="bf-chip bf-chip-rose"><Bell size={12} /> טרם אישרה</span>;
 }

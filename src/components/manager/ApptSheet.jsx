@@ -41,7 +41,7 @@ export default function ApptSheet({ appt, mgr, onClose }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <a className="bf-btn bf-btn-ghost" href={`tel:${r.clientPhone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
-        <button className="bf-btn bf-btn-soft" onClick={() => { mgr.requestMove(appt); onClose(); }}><Clock size={16} /> הזיזי תור</button>
+        <button className="bf-btn bf-btn-soft" onClick={() => { mgr.requestReschedule(appt); onClose(); }}><Clock size={16} /> הזיזי תור</button>
       </div>
 
       <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} onClick={() => { mgr.sendReminder(appt); onClose(); }}>

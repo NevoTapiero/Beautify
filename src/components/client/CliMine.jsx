@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell } from "lucide-react";
-import { SectionTitle, Empty, PaidChip, BitSheet } from "../ui";
+import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle } from "lucide-react";
+import { SectionTitle, Empty, PaidChip, BitSheet, Sheet } from "../ui";
+import { next7, dateForOffset } from "../../data/mock";
+import { availableSlots } from "../../lib/api";
 
 export default function CliMine({ cli }) {
-  const [payFor, setPayFor] = useState(null);   // appointment being paid
+  const [payFor, setPayFor] = useState(null);    // appointment being paid
+  const [moveAppt, setMoveAppt] = useState(null); // appointment being rescheduled
 
   // Pull fresh appointments + messages each time this screen opens.
   useEffect(() => { cli.refresh?.(); /* eslint-disable-next-line */ }, []);
 
+  const toMove = cli.appts.filter((a) => a.status === "reschedule_requested");
   const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
   const past = cli.appts.filter((a) => a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0))
@@ -16,7 +20,32 @@ export default function CliMine({ cli }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
-      {/* Manager messages — reminders / reschedule / cancellation (note 26) */}
+      {/* Appointments the studio asked to move (notes 27) */}
+      {toMove.length > 0 && (<>
+        <SectionTitle icon={AlertTriangle}>תורים להזזה</SectionTitle>
+        <div style={{ display: "grid", gap: 11 }}>
+          {toMove.map((a) => (
+            <div key={a.id} className="bf-card" style={{ padding: 13, border: "1px solid #E0D2E6", background: "#F6F1F8" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ textAlign: "center", minWidth: 50, opacity: 0.6 }}>
+                  <div className="bf-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--plum)", textDecoration: "line-through" }}>{a.time}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 700 }}>{a.dayLabel}</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{a.serviceName}</div>
+                  <div style={{ fontSize: 12.5, color: "#6B4E7A", marginTop: 2 }}>הסטודיו ביקש להזיז את התור הזה</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => setMoveAppt(a)}><CalendarDays size={15} /> הזזה לשעה אחרת</button>
+                <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelAppt(a.id)}><X size={15} /> ביטול</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>)}
+
+      {/* Manager messages — reminders / reschedule / cancellation */}
       {unread.length > 0 && (
         <div style={{ display: "grid", gap: 9 }}>
           <SectionTitle icon={Bell}>הודעות מהסטודיו</SectionTitle>
@@ -77,6 +106,53 @@ export default function CliMine({ cli }) {
       </>)}
 
       {payFor && <BitSheet amount={payFor.servicePrice} onClose={() => setPayFor(null)} onPaid={async () => { await cli.payAppt(payFor.id); setPayFor(null); }} />}
+      {moveAppt && <RescheduleSheet appt={moveAppt} cli={cli} onClose={() => setMoveAppt(null)} />}
     </div>
+  );
+}
+
+// Pick a new free time for an appointment the studio asked to move.
+function RescheduleSheet({ appt, cli, onClose }) {
+  const days = next7();
+  const [offset, setOffset] = useState(null);
+  const [slots, setSlots] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (offset == null) { setSlots(null); return; }
+    let active = true; setSlots(null);
+    availableSlots(cli.studio.id, dateForOffset(offset), appt.serviceDur).then((l) => { if (active) setSlots(l); });
+    return () => { active = false; };
+  }, [offset]); // eslint-disable-line
+
+  const pick = async (time) => {
+    setBusy(true);
+    await cli.reschedule(appt.id, offset, time);
+    setBusy(false); onClose();
+  };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>הזזת התור</h3>
+      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>{appt.serviceName} · {appt.serviceDur} דקות — בחרי מועד חדש</div>
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+        {days.map((d) => (
+          <div key={d.offset} className={"bf-day" + (offset === d.offset ? " active" : "")} onClick={() => setOffset(d.offset)}>
+            <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
+          </div>
+        ))}
+      </div>
+      {offset != null && (
+        <div style={{ marginTop: 12 }}>
+          {slots === null && <div style={{ textAlign: "center", color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>טוען שעות פנויות…</div>}
+          {slots && slots.length === 0 && <Empty>אין שעות פנויות ביום זה — נסי יום אחר</Empty>}
+          {slots && slots.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
+              {slots.map((t) => <button key={t} className="bf-slot" disabled={busy} onClick={() => pick(t)}>{t}</button>)}
+            </div>
+          )}
+        </div>
+      )}
+    </Sheet>
   );
 }

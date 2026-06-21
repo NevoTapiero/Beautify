@@ -327,7 +327,7 @@ export async function confirmArrival(id) {
   } catch (err) { log("confirmArrival", err); return false; }
 }
 
-// Manager marks an appointment 'completed' or 'no_show' (note 38).
+// Manager marks an appointment 'completed' / 'no_show' / 'reschedule_requested' (notes 38, 26-29).
 export async function setAppointmentStatus(id, status) {
   if (!isSupabaseReady) return false;
   try {
@@ -335,6 +335,18 @@ export async function setAppointmentStatus(id, status) {
     if (error) throw error;
     return true;
   } catch (err) { log("setAppointmentStatus", err); return false; }
+}
+
+// Client moves her own appointment to a new slot (note 27) — back to confirmed.
+export async function rescheduleAppointment(id, dayOffset, timeStr) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseClient.from("appointments")
+      .update({ starts_at: toTimestamp(dayOffset, timeStr), status: "confirmed", arrival_confirmed: false })
+      .eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("rescheduleAppointment", err); return false; }
 }
 
 // Mark paid (note 22 — pay-later; Bit is still simulated so this just flips paid).

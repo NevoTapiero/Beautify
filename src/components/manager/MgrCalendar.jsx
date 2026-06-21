@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Coffee, Plus, X, Trash2, Clock, Pencil } from "lucide-react";
+import { Coffee, Plus, Trash2, Clock, Pencil, AlertTriangle } from "lucide-react";
 import { Sheet, Empty, StatusChip, resolveAppt } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import ApptSheet from "./ApptSheet";
 
 const hhmm = (t) => (t || "").slice(0, 5);
+const toMin = (t) => { const [h, m] = hhmm(t).split(":").map(Number); return h * 60 + m; };
+const overlaps = (s1, e1, s2, e2) => s1 < e2 && s2 < e1;
+const wdForOffset = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.getDay(); };
 
 export default function MgrCalendar({ mgr }) {
   const days = next7();
@@ -46,7 +49,6 @@ export default function MgrCalendar({ mgr }) {
         ))}
       </div>
 
-      {/* Working hours for the selected day */}
       <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
         <Clock size={16} color="var(--plum)" />
         <div style={{ flex: 1, fontSize: 13.5 }}>
@@ -74,8 +76,8 @@ export default function MgrCalendar({ mgr }) {
           </div>
         ))}
 
-        {appts.map((a) => { const r = resolveAppt(a, mgr.clients); return (
-          <button key={a.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--sand)" }} onClick={() => setOpen(a)}>
+        {appts.map((a) => { const r = resolveAppt(a, mgr.clients); const ghost = a.status === "reschedule_requested"; return (
+          <button key={a.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--sand)", opacity: ghost ? 0.6 : 1 }} onClick={() => setOpen(a)}>
             <div className="bf-display" style={{ fontSize: 17, fontWeight: 800, color: "var(--plum)", minWidth: 46, textAlign: "center" }}>{a.time}</div>
             <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad }} />
             <div style={{ flex: 1 }}>
@@ -88,9 +90,34 @@ export default function MgrCalendar({ mgr }) {
 
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
       {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} onClose={() => setAddBreak(false)} />}
-      {editWeekly && <WeeklyHoursSheet weekly={weekly} mgr={mgr} onClose={() => setEditWeekly(false)} onSaved={reload} />}
-      {editDay && <DayHoursSheet dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} hasOverride={!!override} mgr={mgr} onClose={() => setEditDay(false)} onSaved={reload} />}
+      {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} onClose={() => setEditWeekly(false)} onSaved={reload} />}
+      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} hasOverride={!!override} mgr={mgr} onClose={() => setEditDay(false)} onSaved={reload} />}
     </div>
+  );
+}
+
+// Confirmation shown when a change runs over existing appointments (notes 26-29).
+function ConflictConfirm({ affected, onConfirm, onClose, busy }) {
+  return (
+    <Sheet onClose={busy ? () => {} : onClose}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <span style={{ width: 38, height: 38, borderRadius: "50%", background: "#FBEFD6", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><AlertTriangle size={19} color="#9A6B14" /></span>
+        <h3 className="bf-display" style={{ margin: 0, fontSize: 19 }}>שינוי על תורים קיימים</h3>
+      </div>
+      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 12 }}>
+        השינוי משפיע על {affected.length} תורים. אם תמשיכי, יישלחו ללקוחות בקשות להזיז את התור.
+      </div>
+      <div className="bf-card" style={{ padding: 10, marginBottom: 14, display: "grid", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+        {affected.map((a) => (
+          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ fontWeight: 700 }}>{a.clientName}</span>
+            <span style={{ color: "var(--muted)" }}>{a.dayLabel} · {a.time}</span>
+          </div>
+        ))}
+      </div>
+      <button className="bf-btn bf-btn-primary" disabled={busy} onClick={onConfirm}>{busy ? "מעדכן…" : "המשך ושלח בקשות הזזה"}</button>
+      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={onClose}>ביטול</button>
+    </Sheet>
   );
 }
 
@@ -98,8 +125,25 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
   const [start, setStart] = useState("13:00");
   const [end, setEnd] = useState("14:00");
   const [title, setTitle] = useState("הפסקה");
+  const [conflict, setConflict] = useState(null);
+  const [busy, setBusy] = useState(false);
   const valid = end > start;
-  const save = () => { if (!valid) return; mgr.addBreak(day, start, end, title); onClose(); };
+
+  const affectedFor = () => mgr.appts.filter((a) => a.day === day && a.status === "confirmed"
+    && overlaps(toMin(a.time), toMin(a.time) + a.serviceDur, toMin(start), toMin(end)));
+
+  const apply = async (affected) => {
+    setBusy(true);
+    await mgr.addBreak(day, start, end, title);
+    if (affected.length) await mgr.rescheduleMany(affected);
+    setBusy(false); onClose();
+  };
+  const save = () => {
+    if (!valid) return;
+    const affected = affectedFor();
+    if (affected.length) setConflict(affected); else apply([]);
+  };
+
   return (
     <Sheet onClose={onClose}>
       <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>הוספת הפסקה · {dayLabel}</h3>
@@ -111,26 +155,108 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
         <div><label className="bf-label">עד שעה</label><TimeSelect value={end} onChange={setEnd} /></div>
       </div>
       {!valid && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>שעת הסיום צריכה להיות אחרי ההתחלה</div>}
-      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={!valid} onClick={save}><Plus size={16} /> הוספת הפסקה</button>
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={!valid || busy} onClick={save}><Plus size={16} /> הוספת הפסקה</button>
+      {conflict && <ConflictConfirm affected={conflict} busy={busy} onClose={() => setConflict(null)} onConfirm={() => apply(conflict)} />}
     </Sheet>
   );
 }
 
-// Edit the weekly default working hours (7 days).
-function WeeklyHoursSheet({ weekly, mgr, onClose, onSaved }) {
+function DayHoursSheet({ day, dateStr, dayLabel, effective, hasOverride, mgr, onClose, onSaved }) {
+  const [isOpen, setIsOpen] = useState(effective ? effective.is_open : true);
+  const [start, setStart] = useState(hhmm(effective?.start_time) || "09:00");
+  const [end, setEnd] = useState(hhmm(effective?.end_time) || "19:00");
+  const [conflict, setConflict] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const valid = !isOpen || end > start;
+
+  // appointments/breaks that no longer fit the new hours (or all, if closing).
+  const computeImpact = () => {
+    const dayAppts = mgr.appts.filter((a) => a.day === day && a.status === "confirmed");
+    const dayBreaks = mgr.breaks.filter((b) => b.day === day);
+    if (!isOpen) return { affected: dayAppts, staleBreaks: dayBreaks.map((b) => b.id) };
+    const o = toMin(start), c = toMin(end);
+    const affected = dayAppts.filter((a) => toMin(a.time) < o || toMin(a.time) + a.serviceDur > c);
+    const staleBreaks = dayBreaks.filter((b) => toMin(b.time) < o || toMin(b.endTime) > c).map((b) => b.id);
+    return { affected, staleBreaks };
+  };
+
+  const apply = async ({ affected, staleBreaks }) => {
+    setBusy(true);
+    await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end });
+    if (staleBreaks.length) await mgr.removeBreaks(staleBreaks);
+    if (affected.length) await mgr.rescheduleMany(affected);
+    setBusy(false); await onSaved(); onClose();
+  };
+  const save = () => {
+    if (!valid) return;
+    const impact = computeImpact();
+    if (impact.affected.length) setConflict(impact); else apply(impact);
+  };
+  const reset = async () => { setBusy(true); await mgr.clearDayOverride(dateStr); setBusy(false); await onSaved(); onClose(); };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>שעות ליום {dayLabel}</h3>
+      <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 14 }}>שינוי חד-פעמי ליום זה בלבד (חג, יום מקוצר וכו׳).</div>
+      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>{isOpen ? "פתוח" : "סגור"}</div>
+        <button onClick={() => setIsOpen((v) => !v)} aria-pressed={isOpen}
+          style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: isOpen ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: isOpen ? "flex-end" : "flex-start" }}>
+          <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
+        </button>
+      </div>
+      {isOpen && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><label className="bf-label">משעה</label><TimeSelect value={start} onChange={setStart} /></div>
+          <div><label className="bf-label">עד שעה</label><TimeSelect value={end} onChange={setEnd} /></div>
+        </div>
+      )}
+      {!valid && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>שעת הסיום צריכה להיות אחרי ההתחלה</div>}
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy || !valid} onClick={save}>{busy ? "שומרת…" : "שמירה ליום זה"}</button>
+      {hasOverride && <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={reset}>חזרה לשעות הקבועות</button>}
+      {conflict && <ConflictConfirm affected={conflict.affected} busy={busy} onClose={() => setConflict(null)} onConfirm={() => apply(conflict)} />}
+    </Sheet>
+  );
+}
+
+function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, onClose, onSaved }) {
   const byDay = (wd) => weekly.find((w) => w.weekday === wd) || { is_open: wd !== 6, start_time: "09:00", end_time: wd === 5 ? "14:00" : "19:00" };
   const [rows, setRows] = useState(() => Array.from({ length: 7 }, (_, wd) => {
     const r = byDay(wd); return { weekday: wd, is_open: r.is_open, start: hhmm(r.start_time), end: hhmm(r.end_time) };
   }));
+  const [conflict, setConflict] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const set = (wd, patch) => setRows((p) => p.map((r) => r.weekday === wd ? { ...r, ...patch } : r));
-  const save = async () => {
-    setBusy(true);
-    for (const r of rows) {
-      await mgr.setWeeklyHours(r.weekday, { is_open: r.is_open, start_time: r.start, end_time: r.end });
+
+  // Appointments/breaks in the next 7 days that won't fit the NEW weekly hours.
+  // Skips the selected day if it has its own override (weekly doesn't affect it).
+  const computeImpact = () => {
+    const affected = []; const staleBreaks = [];
+    for (const a of mgr.appts) {
+      if (a.status !== "confirmed") continue;
+      if (hasSelOverride && a.day === selDay) continue;
+      const row = rows[wdForOffset(a.day)];
+      if (!row.is_open || toMin(a.time) < toMin(row.start) || toMin(a.time) + a.serviceDur > toMin(row.end)) affected.push(a);
     }
+    for (const b of mgr.breaks) {
+      if (hasSelOverride && b.day === selDay) continue;
+      const row = rows[wdForOffset(b.day)];
+      if (!row.is_open || toMin(b.time) < toMin(row.start) || toMin(b.endTime) > toMin(row.end)) staleBreaks.push(b.id);
+    }
+    return { affected, staleBreaks };
+  };
+
+  const apply = async ({ affected, staleBreaks }) => {
+    setBusy(true);
+    for (const r of rows) await mgr.setWeeklyHours(r.weekday, { is_open: r.is_open, start_time: r.start, end_time: r.end });
+    if (staleBreaks.length) await mgr.removeBreaks(staleBreaks);
+    if (affected.length) await mgr.rescheduleMany(affected);
     setBusy(false); await onSaved(); onClose();
+  };
+  const save = () => {
+    const impact = computeImpact();
+    if (impact.affected.length) setConflict(impact); else apply(impact);
   };
 
   return (
@@ -156,46 +282,7 @@ function WeeklyHoursSheet({ weekly, mgr, onClose, onSaved }) {
         ))}
       </div>
       <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy} onClick={save}>{busy ? "שומרת…" : "שמירה"}</button>
-    </Sheet>
-  );
-}
-
-// Override (or reset) the hours for one specific date.
-function DayHoursSheet({ dateStr, dayLabel, effective, hasOverride, mgr, onClose, onSaved }) {
-  const [isOpen, setIsOpen] = useState(effective ? effective.is_open : true);
-  const [start, setStart] = useState(hhmm(effective?.start_time) || "09:00");
-  const [end, setEnd] = useState(hhmm(effective?.end_time) || "19:00");
-  const [busy, setBusy] = useState(false);
-  const valid = !isOpen || end > start;
-
-  const save = async () => {
-    if (!valid) return;
-    setBusy(true);
-    await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end });
-    setBusy(false); await onSaved(); onClose();
-  };
-  const reset = async () => { setBusy(true); await mgr.clearDayOverride(dateStr); setBusy(false); await onSaved(); onClose(); };
-
-  return (
-    <Sheet onClose={onClose}>
-      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>שעות ליום {dayLabel}</h3>
-      <div style={{ color: "var(--muted)", fontSize: 12.5, marginBottom: 14 }}>שינוי חד-פעמי ליום זה בלבד (חג, יום מקוצר וכו׳).</div>
-      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <div style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>{isOpen ? "פתוח" : "סגור"}</div>
-        <button onClick={() => setIsOpen((v) => !v)} aria-pressed={isOpen}
-          style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: isOpen ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: isOpen ? "flex-end" : "flex-start" }}>
-          <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
-        </button>
-      </div>
-      {isOpen && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div><label className="bf-label">משעה</label><TimeSelect value={start} onChange={setStart} /></div>
-          <div><label className="bf-label">עד שעה</label><TimeSelect value={end} onChange={setEnd} /></div>
-        </div>
-      )}
-      {!valid && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>שעת הסיום צריכה להיות אחרי ההתחלה</div>}
-      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy || !valid} onClick={save}>{busy ? "שומרת…" : "שמירה ליום זה"}</button>
-      {hasOverride && <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={reset}>חזרה לשעות הקבועות</button>}
+      {conflict && <ConflictConfirm affected={conflict.affected} busy={busy} onClose={() => setConflict(null)} onConfirm={() => apply(conflict)} />}
     </Sheet>
   );
 }

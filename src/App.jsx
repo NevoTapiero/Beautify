@@ -135,16 +135,32 @@ export default function App() {
         type: "reminder", title: "תזכורת לתור", body: `מזכירים את התור שלך ל-${appt.dayLabel} בשעה ${appt.time}.`, appointmentId: appt.id });
       ping("תזכורת נשלחה ללקוחה");
     },
-    requestMove: async (appt) => {
+    // Ask one client to move her appointment: grays it out + notifies (notes 27).
+    requestReschedule: async (appt) => {
+      await api.setAppointmentStatus(appt.id, "reschedule_requested");
       if (appt.clientId) await api.sendNotification(studio.id, appt.clientId, {
-        type: "reschedule", title: "בקשה להזזת תור", body: `הסטודיו מבקש להזיז את התור מ-${appt.dayLabel} ${appt.time}. אנא צרי קשר.`, appointmentId: appt.id });
-      ping("נשלחה ללקוחה בקשה להזזת התור");
+        type: "reschedule", title: "בקשה להזזת תור",
+        body: `הסטודיו ביקש להזיז את התור מ-${appt.dayLabel} בשעה ${appt.time}. אפשר להזיז לשעה אחרת או לבטל.`, appointmentId: appt.id });
+      ping("נשלחה ללקוחה בקשה להזיז את התור");
+      loadManagerData();
+    },
+    // Bulk version, used when a schedule change runs over several appointments.
+    rescheduleMany: async (appts) => {
+      for (const appt of appts) {
+        await api.setAppointmentStatus(appt.id, "reschedule_requested");
+        if (appt.clientId) await api.sendNotification(studio.id, appt.clientId, {
+          type: "reschedule", title: "בקשה להזזת תור",
+          body: `עקב שינוי בלו"ז, הסטודיו ביקש להזיז את התור מ-${appt.dayLabel} בשעה ${appt.time}. אפשר להזיז לשעה אחרת או לבטל.`, appointmentId: appt.id });
+      }
+      if (appts.length) ping(`נשלחו ${appts.length} בקשות הזזה ללקוחות`);
+      loadManagerData();
     },
     addBreak: async (dayOffset, start, end, title) => {
       await api.addBreak(studio.id, dayOffset, start, end, title);
       ping("ההפסקה נוספה"); loadManagerData();
     },
     deleteBreak: async (id) => { await api.deleteBreak(id); ping("ההפסקה הוסרה"); loadManagerData(); },
+    removeBreaks: async (ids) => { for (const id of ids) await api.deleteBreak(id); loadManagerData(); },
     setWeeklyHours: async (weekday, fields) => { await api.setWeeklyHours(studio.id, weekday, fields); ping("שעות העבודה נשמרו"); },
     setDayOverride: async (dateStr, fields) => { await api.setDayOverride(studio.id, dateStr, fields); ping("שעות היום עודכנו"); },
     clearDayOverride: async (dateStr) => { await api.clearDayOverride(studio.id, dateStr); ping("היום חזר לברירת המחדל"); },
@@ -194,6 +210,7 @@ export default function App() {
       return appt;
     },
     cancelAppt: async (id) => { await api.cancelAppointment(id, false); ping("התור בוטל"); loadClientData(); },
+    reschedule: async (apptId, offset, time) => { await api.rescheduleAppointment(apptId, offset, time); ping("התור הוזז בהצלחה ✓"); loadClientData(); },
     confirmArrival: async (id) => { await api.confirmArrival(id); ping("אישרת הגעה — נתראה!"); loadClientData(); },
     payAppt: async (id) => { await api.payAppointment(id); ping("התשלום בוצע ✓"); loadClientData(); },
     uploadPhoto: async (file, caption) => {
