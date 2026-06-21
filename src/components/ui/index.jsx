@@ -1,8 +1,11 @@
 import React, { useState, useRef } from "react";
-import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, ShieldCheck, XCircle } from "lucide-react";
+import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, ShieldCheck, XCircle, Play } from "lucide-react";
 import { svc } from "../../lib/services";
 
 export const initials = (n) => (n || "").split(" ").map((w) => w[0]).slice(0, 2).join("");
+
+// True if a stored URL points to a video clip.
+export const isVideoUrl = (u) => /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(u || "");
 
 export function Avatar({ name, src }) {
   if (src) return <img className="bf-avatar" src={src} alt={name} style={{ objectFit: "cover" }} />;
@@ -24,8 +27,17 @@ export function PaidChip({ paid }) {
 }
 
 export function GalleryTile({ item, onLike, onOpen }) {
+  const video = isVideoUrl(item.img);
   return (
-    <div className="bf-tile" style={{ background: item.img ? `url(${item.img}) center/cover` : item.grad }} onClick={() => onOpen?.(item)}>
+    <div className="bf-tile" style={{ background: video ? "#000" : (item.img ? `url(${item.img}) center/cover` : item.grad) }} onClick={() => onOpen?.(item)}>
+      {video && <video src={item.img} muted playsInline preload="metadata" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      {video && (
+        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <span style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Play size={18} color="#fff" fill="#fff" />
+          </span>
+        </span>
+      )}
       <span className="glow" />
       <span className="cap">
         <span>{item.cap}</span>
@@ -44,10 +56,13 @@ export function GalleryTile({ item, onLike, onOpen }) {
 // Full-screen image viewer (notes 18, 46). Optional edit/delete actions.
 export function Lightbox({ item, onClose, onEdit, onDelete }) {
   if (!item) return null;
+  const video = isVideoUrl(item.img);
   return (
     <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "88%", maxWidth: 340, display: "grid", gap: 12 }}>
-        <div style={{ aspectRatio: "1", borderRadius: 20, background: item.img ? `url(${item.img}) center/cover` : item.grad, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+        {video
+          ? <video src={item.img} controls autoPlay playsInline style={{ width: "100%", borderRadius: 20, maxHeight: "60vh", background: "#000", boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+          : <div style={{ aspectRatio: "1", borderRadius: 20, background: item.img ? `url(${item.img}) center/cover` : item.grad, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />}
         {item.cap && <div style={{ color: "#fff", textAlign: "center", fontWeight: 700, fontSize: 15 }}>{item.cap}</div>}
         <div style={{ display: "flex", gap: 10 }}>
           <button className="bf-btn bf-btn-ghost" onClick={onClose}><X size={16} /> סגירה</button>

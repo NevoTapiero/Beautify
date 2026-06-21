@@ -32,7 +32,7 @@ export default function CliGallery({ cli }) {
         <div className="bf-card" style={{ padding: 13, display: "flex", gap: 11, alignItems: "center", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
           <Camera size={20} color="var(--plum)" />
           <div style={{ flex: 1, fontSize: 13.5 }}><b>אהבת את התוצאה?</b> שתפי תמונה — תופיע בגלריה אחרי אישור הסטודיו.</div>
-          <PhotoPicker onPick={(f) => { setPicked(f); setCap(""); }}>
+          <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPicked(f); setCap(""); }}>
             <button className="bf-btn bf-btn-soft bf-btn-sm">שיתוף</button>
           </PhotoPicker>
         </div>
@@ -67,8 +67,10 @@ export default function CliGallery({ cli }) {
 
       {picked && (
         <Sheet onClose={() => setPicked(null)}>
-          <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>שיתוף תמונה</h3>
-          <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(picked)}) center/cover`, marginBottom: 14 }} />
+          <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>שיתוף תמונה או סרטון</h3>
+          {picked.type?.startsWith("video")
+            ? <video src={URL.createObjectURL(picked)} controls playsInline style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 16, marginBottom: 14, background: "#000" }} />
+            : <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(picked)}) center/cover`, marginBottom: 14 }} />}
           <label className="bf-label">תיאור קצר</label>
           <input className="bf-input" placeholder="לדוגמה: אומברה ורוד" value={cap} onChange={(e) => setCap(e.target.value)} />
           <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy} onClick={doUpload}>

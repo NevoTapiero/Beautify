@@ -24,8 +24,8 @@ export default function MgrGallery({ mgr }) {
       </div>
 
       {seg === "mine" && (<>
-        <PhotoPicker onPick={(f) => { setPickedFile(f); setCap(""); }}>
-          <button className="bf-btn bf-btn-ghost"><Camera size={17} /> העלאת עבודה חדשה</button>
+        <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPickedFile(f); setCap(""); }}>
+          <button className="bf-btn bf-btn-ghost"><Camera size={17} /> העלאת תמונה או סרטון</button>
         </PhotoPicker>
         {mgr.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה — העלי את העבודה הראשונה 🤍</Empty>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -70,7 +70,9 @@ export default function MgrGallery({ mgr }) {
       {pickedFile && (
         <Sheet onClose={() => setPickedFile(null)}>
           <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>העלאת עבודה</h3>
-          <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(pickedFile)}) center/cover`, marginBottom: 14 }} />
+          {pickedFile.type?.startsWith("video")
+            ? <video src={URL.createObjectURL(pickedFile)} controls playsInline style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 16, marginBottom: 14, background: "#000" }} />
+            : <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(pickedFile)}) center/cover`, marginBottom: 14 }} />}
           <label className="bf-label">תיאור קצר</label>
           <input className="bf-input" placeholder="לדוגמה: פרנץ' ורוד" value={cap} onChange={(e) => setCap(e.target.value)} />
           <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy} onClick={doUpload}>
