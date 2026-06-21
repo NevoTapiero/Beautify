@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut } from "lucide-react";
-import { SectionTitle, Row } from "../ui";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2 } from "lucide-react";
+import { SectionTitle, Row, Sheet } from "../ui";
 
 const KEYS = {
   notify_day_start:   { title: "סיכום בתחילת יום", sub: "כל הבוקר — רשימת התורים של היום" },
@@ -9,15 +9,21 @@ const KEYS = {
   notify_client_1h:   { title: "שעה לפני התור", sub: "תזכורת SMS אחרונה לפני ההגעה" },
 };
 
+const GRADS = [
+  "linear-gradient(135deg,#D9738F,#F4C9D4)", "linear-gradient(135deg,#7C2A53,#D9738F)",
+  "linear-gradient(135deg,#5E1F40,#9A4E72)", "linear-gradient(135deg,#C98AA6,#F0D7DF)",
+  "linear-gradient(135deg,#9A4E72,#E0AFC0)", "linear-gradient(135deg,#B4893E,#F4C9D4)",
+];
+
 export default function MgrSettings({ mgr }) {
   const s = mgr.studio || {};
-  // Local mirror so the toggle moves instantly; persisted to DB on change.
   const [state, setState] = useState({
     notify_day_start:   s.notify_day_start ?? true,
     notify_after_break: s.notify_after_break ?? true,
     notify_client_24h:  s.notify_client_24h ?? true,
     notify_client_1h:   s.notify_client_1h ?? true,
   });
+  const [editSvc, setEditSvc] = useState(null);   // service being added/edited
 
   const tog = (k) => {
     const next = !state[k];
@@ -37,8 +43,35 @@ export default function MgrSettings({ mgr }) {
     </div>
   );
 
+  const services = mgr.services || [];
+
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {/* Services management (notes 20, 25) */}
+      <SectionTitle icon={Sparkles} action={
+        <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setEditSvc({ name: "", dur: 60, price: 100, grad: GRADS[services.length % GRADS.length] })}>
+          <Plus size={14} /> שירות
+        </button>
+      }>השירותים שלך</SectionTitle>
+      {services.length === 0 && (
+        <div className="bf-card" style={{ padding: 16, textAlign: "center", color: "var(--muted)", fontSize: 13, borderStyle: "dashed" }}>
+          עדיין לא הוספת שירותים — הוסיפי כדי שלקוחות יוכלו לקבוע תור
+        </div>
+      )}
+      <div style={{ display: "grid", gap: 9 }}>
+        {services.map((sv) => (
+          <div key={sv.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: sv.grad, flex: "none" }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{sv.name}</div>
+              <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
+            </div>
+            <button onClick={() => setEditSvc(sv)} aria-label="עריכה" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4 }}><Pencil size={16} /></button>
+            <button onClick={() => mgr.deleteService(sv.id)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
+          </div>
+        ))}
+      </div>
+
       <SectionTitle icon={Bell}>תזכורות אוטומטיות אליי</SectionTitle>
       <Toggle k="notify_day_start" />
       <Toggle k="notify_after_break" />
@@ -52,13 +85,55 @@ export default function MgrSettings({ mgr }) {
       <SectionTitle icon={Sparkles}>פרטי הסטודיו</SectionTitle>
       <div className="bf-card" style={{ padding: 12, display: "grid", gap: 6, fontSize: 13.5 }}>
         <Row k="שם" v={mgr.studioName} />
-        <Row k="שירותים פעילים" v={`${(mgr.services || []).length || "—"}`} />
+        <Row k="שירותים פעילים" v={`${services.length || "—"}`} />
         <Row k="ערכת צבע" v="ויין · בלאש" />
       </div>
 
       <button className="bf-btn bf-btn-ghost" style={{ marginTop: 6, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={mgr.logout}>
         <LogOut size={16} /> התנתקות
       </button>
+
+      {editSvc && <ServiceEditor svc={editSvc} mgr={mgr} grads={GRADS} onClose={() => setEditSvc(null)} />}
     </div>
+  );
+}
+
+function ServiceEditor({ svc, mgr, grads, onClose }) {
+  const editing = !!svc.id;
+  const [name, setName] = useState(svc.name || "");
+  const [dur, setDur] = useState(svc.dur || 60);
+  const [price, setPrice] = useState(svc.price || 100);
+  const [grad, setGrad] = useState(svc.grad || grads[0]);
+  const [busy, setBusy] = useState(false);
+  const ok = name.trim() && dur > 0 && price >= 0;
+
+  const save = async () => {
+    if (!ok) return;
+    setBusy(true);
+    if (editing) await mgr.updateService(svc.id, { name, duration: dur, price, gradient: grad });
+    else await mgr.addService({ name, duration: dur, price, gradient: grad });
+    setBusy(false); onClose();
+  };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 14px", fontSize: 20 }}>{editing ? "עריכת שירות" : "שירות חדש"}</h3>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div><label className="bf-label">שם השירות</label><input className="bf-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="לדוגמה: לק ג'ל" /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><label className="bf-label">משך (דקות)</label><input className="bf-input" type="number" inputMode="numeric" value={dur} onChange={(e) => setDur(+e.target.value)} /></div>
+          <div><label className="bf-label">מחיר (₪)</label><input className="bf-input" type="number" inputMode="numeric" value={price} onChange={(e) => setPrice(+e.target.value)} /></div>
+        </div>
+        <div>
+          <label className="bf-label">צבע</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {grads.map((g) => (
+              <button key={g} onClick={() => setGrad(g)} aria-label="צבע" style={{ width: 40, height: 40, borderRadius: 11, background: g, border: grad === g ? "3px solid var(--plum)" : "2px solid transparent", cursor: "pointer" }} />
+            ))}
+          </div>
+        </div>
+        <button className="bf-btn bf-btn-primary" disabled={!ok || busy} onClick={save}>{busy ? "שומרת…" : (editing ? "שמירה" : "הוספת שירות")}</button>
+      </div>
+    </Sheet>
   );
 }

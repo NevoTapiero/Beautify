@@ -79,6 +79,38 @@ export async function updateStudioSettings(studioId, settings) {
   } catch (err) { log("updateStudioSettings", err); return false; }
 }
 
+// ─── Services (manager-managed, notes 20, 25) ────────────────────────────────
+
+export async function addService(studioId, { name, duration, price, gradient, sort }) {
+  if (!isSupabaseReady) return null;
+  try {
+    const { data, error } = await supabaseManager.from("services")
+      .insert({ studio_id: studioId, name, duration, price, gradient, sort_order: sort || 0, active: true })
+      .select("*").single();
+    if (error) throw error;
+    return data;
+  } catch (err) { log("addService", err); return null; }
+}
+
+export async function updateService(id, fields) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("services").update(fields).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("updateService", err); return false; }
+}
+
+// Hard-delete; if past appointments reference it, soft-delete (hide) instead.
+export async function deleteService(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("services").delete().eq("id", id);
+    if (error) await supabaseManager.from("services").update({ active: false }).eq("id", id);
+    return true;
+  } catch (err) { log("deleteService", err); return false; }
+}
+
 // ─── Manager auth ────────────────────────────────────────────────────────────
 
 export async function managerSignIn(email, password) {
@@ -199,13 +231,12 @@ export async function setClientBlocked(clientId, blocked, useManager = true) {
   } catch (err) { log("setClientBlocked", err); return false; }
 }
 
+// Fully deletes a client — including her login account — so the phone number
+// is freed for re-registration (note 31). Runs via a SECURITY DEFINER function.
 export async function deleteClient(clientId) {
   if (!isSupabaseReady) return false;
   try {
-    // Remove the client's gallery rows first — that link has no cascade, so it
-    // would otherwise block the delete (appointments/likes/notifications cascade).
-    await supabaseManager.from("gallery").delete().eq("client_id", clientId);
-    const { error } = await supabaseManager.from("clients").delete().eq("id", clientId);
+    const { error } = await supabaseManager.rpc("manager_delete_client", { p_client: clientId });
     if (error) throw error;
     return true;
   } catch (err) { log("deleteClient", err); return false; }

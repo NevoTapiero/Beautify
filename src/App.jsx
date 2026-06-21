@@ -72,6 +72,12 @@ export default function App() {
     setCliUploads(uploads || []); setCliNotifs(notifs || []); setCliBreaks(breaks || []);
   }, [client, studio]);
 
+  // Reload studio + services (after the manager edits her service list).
+  const refreshStudio = useCallback(async () => {
+    const b = await api.loadStudioBundle();
+    if (b) { setStudio(b.studio); setServices(b.services); setServiceIndex(b.services); }
+  }, []);
+
   // Refresh each side once its prerequisites (login + studio) are ready.
   useEffect(() => { if (managerUser && studio) loadManagerData(); }, [managerUser, studio, loadManagerData]);
   useEffect(() => { if (client && studio) loadClientData(); }, [client, studio, loadClientData]);
@@ -98,8 +104,12 @@ export default function App() {
     user: managerUser,
     studio, appts: mgrAppts, clients: mgrClients, gallery: mgrGallery, pending: mgrPending, breaks: mgrBreaks,
     studioName: studio?.name || "הסטודיו",
+    services,
     ping,
     refresh: () => loadManagerData(),
+    addService: async (fields) => { await api.addService(studio.id, fields); ping("השירות נוסף"); await refreshStudio(); },
+    updateService: async (id, fields) => { await api.updateService(id, fields); ping("השירות עודכן"); await refreshStudio(); },
+    deleteService: async (id) => { await api.deleteService(id); ping("השירות הוסר"); await refreshStudio(); },
     login: async (email, password) => {
       const r = await api.managerSignIn(email, password);
       if (r.error) return r.error;

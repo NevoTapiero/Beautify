@@ -162,6 +162,21 @@ begin
 end $$;
 grant execute on function share_photo(uuid, text, text) to authenticated;
 
+-- Fully deletes a client (incl. her auth login) so the phone is freed for
+-- re-registration. Only the studio's manager may call it.
+create or replace function manager_delete_client(p_client uuid)
+returns void language plpgsql security definer as $$
+declare v_auth uuid; v_studio uuid;
+begin
+  select auth_user_id, studio_id into v_auth, v_studio from clients where id = p_client;
+  if v_studio is null then return; end if;
+  if not is_studio_manager(v_studio) then raise exception 'not authorized'; end if;
+  delete from gallery where client_id = p_client;
+  delete from clients where id = p_client;        -- cascades appointments/likes/notifications
+  if v_auth is not null then delete from auth.users where id = v_auth; end if;
+end $$;
+grant execute on function manager_delete_client(uuid) to authenticated;
+
 -- Returns the calling client's own photos at any status (incl. pending).
 create or replace function my_uploads()
 returns setof gallery language sql security definer stable as $$
@@ -332,21 +347,9 @@ create policy "bf storage delete" on storage.objects for delete to authenticated
   using (bucket_id in ('gallery', 'avatars'));
 
 -- ---------- SEED: one demo studio so the app has branding on day one ----------
+-- (No demo services — the manager adds her own from Settings.)
 insert into studios (slug, name) values ('demo', 'הסטודיו של דנה')
   on conflict (slug) do nothing;
-
-insert into services (studio_id, name, duration, price, gradient, sort_order)
-select s.id, v.name, v.duration, v.price, v.gradient, v.sort_order
-from studios s,
-  (values
-    ('לק ג''ל',       60,  120, 'linear-gradient(135deg,#D9738F,#F4C9D4)', 1),
-    ('מילוי ג''ל',    90,  160, 'linear-gradient(135deg,#7C2A53,#D9738F)', 2),
-    ('בנייה באקריל',  120, 220, 'linear-gradient(135deg,#5E1F40,#9A4E72)', 3),
-    ('מניקור',         45,  90,  'linear-gradient(135deg,#C98AA6,#F0D7DF)', 4),
-    ('פדיקור',         60,  130, 'linear-gradient(135deg,#9A4E72,#E0AFC0)', 5)
-  ) as v(name, duration, price, gradient, sort_order)
-where s.slug = 'demo'
-  and not exists (select 1 from services x where x.studio_id = s.id);
 
 -- Default weekly hours for the demo studio (Sun–Thu 09–19, Fri 09–14, Sat closed)
 insert into work_hours (studio_id, weekday, is_open, start_time, end_time)
