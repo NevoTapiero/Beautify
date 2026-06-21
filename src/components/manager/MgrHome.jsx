@@ -1,11 +1,28 @@
-import React, { useState } from "react";
-import { CalendarDays, RefreshCw, Coffee } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CalendarDays, RefreshCw, Coffee, Moon } from "lucide-react";
 import { SectionTitle, Empty, StatusChip, resolveAppt } from "../ui";
+import { loadWeeklyHours, getDayOverride } from "../../lib/api";
+import { dateForOffset } from "../../data/mock";
 import ApptSheet from "./ApptSheet";
 
 export default function MgrHome({ mgr, go }) {
   const [open, setOpen] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [closedToday, setClosedToday] = useState(false);
+
+  // Is the studio closed today? (note 23)
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const todayStr = dateForOffset(0);
+      const [weekly, override] = await Promise.all([
+        loadWeeklyHours(mgr.studio.id), getDayOverride(mgr.studio.id, todayStr),
+      ]);
+      const eff = override || weekly.find((w) => w.weekday === new Date().getDay());
+      if (active) setClosedToday(!!eff && !eff.is_open);
+    })();
+    return () => { active = false; };
+  }, [mgr.studio.id, mgr.breaks]);
 
   const today = mgr.appts.filter((a) => a.day === 0).sort((x, y) => x.time.localeCompare(y.time));
   const todayBreaks = mgr.breaks.filter((b) => b.day === 0);
@@ -26,6 +43,15 @@ export default function MgrHome({ mgr, go }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {closedToday && (
+        <div className="bf-card" style={{ padding: "13px 15px", display: "flex", alignItems: "center", gap: 11, background: "linear-gradient(135deg,#3A2A40,#5E1F40)", color: "#fff" }}>
+          <Moon size={20} />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>הסטודיו סגור היום</div>
+            <div style={{ fontSize: 12.5, opacity: .85 }}>לקוחות לא יוכלו לקבוע תור להיום</div>
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 10 }}>
         <Stat n={today.length} l="תורים היום" c="var(--plum)" />
         <Stat n={needConfirm} l="טרם אישרו הגעה" c="var(--rose)" />
