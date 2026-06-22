@@ -77,13 +77,32 @@ export function Lightbox({ item, onClose, onEdit, onDelete }) {
 export function NavBar({ tab, setTab, items }) {
   return (
     <div className="bf-nav">
-      {items.map(([key, Icon, label]) => (
+      {items.map(([key, Icon, label, badge]) => (
         <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
-          <Icon size={21} strokeWidth={tab === key ? 2.4 : 1.9} />
+          <span style={{ position: "relative", display: "inline-flex" }}>
+            <Icon size={21} strokeWidth={tab === key ? 2.4 : 1.9} />
+            {badge > 0 && (
+              <span style={{ position: "absolute", top: -6, insetInlineEnd: -10, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 999, background: "var(--rose)", color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 2px var(--surface)" }}>
+                {badge > 9 ? "9+" : badge}
+              </span>
+            )}
+          </span>
           {label}
           {tab === key ? <span className="ndot" /> : <span style={{ height: 5 }} />}
         </button>
       ))}
+    </div>
+  );
+}
+
+// The health declaration / terms text (single source — pending lawyer review).
+export function HealthDeclarationText() {
+  return (
+    <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "#5b4a52", display: "grid", gap: 8 }}>
+      <p>אני מאשרת קבלת טיפולי קוסמטיקה בסטודיו ומצהירה כי איני סובלת ממצב רפואי, אלרגיה או רגישות העלולים להשפיע על הטיפול, ואם קיים — עדכנתי על כך מראש.</p>
+      <p>ידוע לי כי ביטול תור ייעשה עד 24 שעות מראש, וכי באי-הגעה ללא הודעה הסטודיו רשאי לגבות דמי ביטול בהתאם למדיניות.</p>
+      <p>אני מאשרת שמירת פרטי ההתקשרות והיסטוריית הטיפולים שלי לצורך מתן השירות, בהתאם למדיניות הפרטיות.</p>
+      <p>שיתוף תמונות בגלריה ייעשה רק באישורי המפורש ובאישור הסטודיו.</p>
     </div>
   );
 }

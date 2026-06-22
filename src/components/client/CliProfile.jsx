@@ -1,10 +1,13 @@
 import React, { useState } from "react";
-import { Wallet, LogOut, Pencil, Camera } from "lucide-react";
-import { SectionTitle, Row, Sheet, Avatar, PhotoPicker } from "../ui";
+import { Wallet, LogOut, Pencil, Camera, FileText, CalendarDays } from "lucide-react";
+import { SectionTitle, Row, Sheet, Avatar, PhotoPicker, HealthDeclarationText } from "../ui";
 
 export default function CliProfile({ cli }) {
   const me = cli.client;
   const [edit, setEdit] = useState(false);
+  const [health, setHealth] = useState(false);
+  // How many appointments she has had (note 14): past + completed, excluding cancelled.
+  const visits = (cli.appts || []).filter((a) => a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0)).length;
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
@@ -19,7 +22,7 @@ export default function CliProfile({ cli }) {
         </PhotoPicker>
         <div style={{ flex: 1 }}>
           <div className="bf-display" style={{ fontSize: 21, fontWeight: 800 }}>{me.name}</div>
-          <div style={{ color: "var(--muted)", fontSize: 13 }}>{me.phone}</div>
+          <div style={{ color: "var(--muted)", fontSize: 13, display: "flex", alignItems: "center", gap: 5 }}><CalendarDays size={13} /> {visits} תורים עד היום</div>
         </div>
         <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEdit(true)}><Pencil size={14} /> עריכה</button>
       </div>
@@ -29,6 +32,7 @@ export default function CliProfile({ cli }) {
         <Row k="אימייל" v={me.email || "—"} />
         <Row k="הצהרת בריאות" v="נחתמה ✓" />
       </div>
+      <button className="bf-btn bf-btn-ghost" onClick={() => setHealth(true)}><FileText size={16} /> צפייה בהצהרת הבריאות</button>
 
       <SectionTitle icon={Wallet}>אמצעי תשלום</SectionTitle>
       <div className="bf-card" style={{ padding: 13, display: "flex", alignItems: "center", gap: 11 }}>
@@ -45,6 +49,14 @@ export default function CliProfile({ cli }) {
       </button>
 
       {edit && <EditSheet cli={cli} me={me} onClose={() => setEdit(false)} />}
+      {health && (
+        <Sheet onClose={() => setHealth(false)}>
+          <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>תנאי שירות והצהרת בריאות</h3>
+          <span className="bf-chip bf-chip-ok" style={{ marginBottom: 12 }}>נחתמה ✓</span>
+          <HealthDeclarationText />
+          <button className="bf-btn bf-btn-ghost" style={{ marginTop: 16 }} onClick={() => setHealth(false)}>סגירה</button>
+        </Sheet>
+      )}
     </div>
   );
 }

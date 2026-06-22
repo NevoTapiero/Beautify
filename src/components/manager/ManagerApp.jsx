@@ -13,6 +13,14 @@ export default function ManagerApp({ mgr, ping }) {
 
   if (!mgr.user) return <ManagerLogin onLogin={mgr.login} />;
 
+  // Wait for the studio to load before rendering tabs — on a refresh the saved
+  // session restores before the studio bundle, and the tabs need mgr.studio.
+  if (!mgr.studio) return (
+    <div className="bf-screen" style={{ display: "grid", placeItems: "center", padding: 40 }}>
+      <div style={{ color: "var(--muted)", fontSize: 14 }}>טוען…</div>
+    </div>
+  );
+
   const titles = {
     home:     [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
     cal:      ["יומן תורים", "ניהול הלו\"ז שלך"],
@@ -37,7 +45,7 @@ export default function ManagerApp({ mgr, ping }) {
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן"], ["clients", Users, "לקוחות"],
-        ["gallery", ImageIcon, "גלריה"], ["settings", Settings, "הגדרות"],
+        ["gallery", ImageIcon, "גלריה", mgr.pending.length], ["settings", Settings, "הגדרות"],
       ]} />
     </>
   );

@@ -221,6 +221,29 @@ export async function loadClients(studioId) {
   } catch (err) { log("loadClients", err); return null; }
 }
 
+// A client's appointment history for the manager's client card (note 33).
+export async function loadClientHistory(clientId) {
+  if (!isSupabaseReady || !clientId) return [];
+  try {
+    const { data, error } = await supabaseManager
+      .from("appointments")
+      .select("id, starts_at, status, services(name, price)")
+      .eq("client_id", clientId).neq("status", "cancelled")
+      .order("starts_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map((a) => {
+      const d = new Date(a.starts_at);
+      return {
+        id: a.id,
+        when: d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "2-digit" }),
+        time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false }),
+        service: a.services?.name, price: a.services?.price,
+        status: a.status, past: d <= new Date(),
+      };
+    });
+  } catch (err) { log("loadClientHistory", err); return []; }
+}
+
 export async function setClientBlocked(clientId, blocked, useManager = true) {
   if (!isSupabaseReady) return false;
   try {

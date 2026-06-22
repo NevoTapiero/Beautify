@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Check, ShieldCheck, LogIn } from "lucide-react";
-import { Sheet } from "../ui";
+import { Sheet, HealthDeclarationText } from "../ui";
 
 export default function ClientAuth({ cli }) {
   const [mode, setMode] = useState("register");   // register | login
@@ -91,12 +91,7 @@ function RegisterForm({ cli, busy, run }) {
         <Sheet onClose={() => setTerms(false)}>
           <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>תנאי שירות והצהרת בריאות</h3>
           <span className="bf-chip bf-chip-wait" style={{ marginBottom: 12 }}>טיוטה — לאישור עו״ד</span>
-          <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "#5b4a52", display: "grid", gap: 8 }}>
-            <p>אני מאשרת קבלת טיפולי קוסמטיקה בסטודיו ומצהירה כי איני סובלת ממצב רפואי, אלרגיה או רגישות העלולים להשפיע על הטיפול, ואם קיים — עדכנתי על כך מראש.</p>
-            <p>ידוע לי כי ביטול תור ייעשה עד 24 שעות מראש, וכי באי-הגעה ללא הודעה הסטודיו רשאי לגבות דמי ביטול בהתאם למדיניות.</p>
-            <p>אני מאשרת שמירת פרטי ההתקשרות והיסטוריית הטיפולים שלי לצורך מתן השירות, בהתאם למדיניות הפרטיות.</p>
-            <p>שיתוף תמונות בגלריה ייעשה רק באישורי המפורש ובאישור הסטודיו.</p>
-          </div>
+          <HealthDeclarationText />
           <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} onClick={() => { setAgree(true); setTerms(false); }}>קראתי ואני מאשרת</button>
         </Sheet>
       )}

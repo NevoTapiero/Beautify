@@ -7,6 +7,28 @@ import * as api from "./lib/api";
 import ManagerApp from "./components/manager/ManagerApp";
 import ClientApp from "./components/client/ClientApp";
 
+// Catches any render error so the app shows a recover screen instead of going
+// blank. Keeps one component's bug from taking down the whole page.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err, info) { console.error("[Beautify] render error:", err, info); }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div style={{ minHeight: "60vh", display: "grid", placeItems: "center", textAlign: "center", padding: 24, fontFamily: "'Assistant',sans-serif" }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#7C2A53", marginBottom: 8 }}>משהו השתבש</div>
+            <div style={{ color: "#9A8490", fontSize: 14, marginBottom: 16 }}>אנא רעננו את העמוד</div>
+            <button onClick={() => window.location.reload()} style={{ border: "none", borderRadius: 12, padding: "11px 22px", background: "linear-gradient(135deg,#7C2A53,#D9738F)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>רענון</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [role, setRole] = useState("manager");
   const [studio, setStudio] = useState(null);
@@ -252,9 +274,11 @@ export default function App() {
       <div className="bf-hint">הדגמה חיה — קבעי תור בצד הלקוחה והוא יופיע ביומן המנהלת (רענון)</div>
 
       <div className="bf-phone" style={{ marginTop: 16 }} dir="rtl">
-        {role === "manager"
-          ? <ManagerApp mgr={mgr} ping={ping} />
-          : <ClientApp cli={cli} ping={ping} />}
+        <ErrorBoundary>
+          {role === "manager"
+            ? <ManagerApp mgr={mgr} ping={ping} />
+            : <ClientApp cli={cli} ping={ping} />}
+        </ErrorBoundary>
         {toast && <div className="bf-toast"><CheckCircle2 size={16} /> {toast}</div>}
       </div>
     </div>

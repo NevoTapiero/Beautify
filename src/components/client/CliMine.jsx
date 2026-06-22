@@ -15,7 +15,7 @@ export default function CliMine({ cli }) {
   const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
   const past = cli.appts.filter((a) => a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0))
-    .sort((x, y) => y.day - x.day);
+    .sort((x, y) => y.day - x.day).slice(0, 3);
   const unread = cli.notifications.filter((n) => !n.read);
 
   return (

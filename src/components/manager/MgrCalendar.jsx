@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Coffee, Plus, Trash2, Clock, Pencil, AlertTriangle } from "lucide-react";
+import { Coffee, Plus, Trash2, Clock, Pencil, AlertTriangle, RefreshCw } from "lucide-react";
 import { Sheet, Empty, StatusChip, resolveAppt } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
@@ -34,13 +34,22 @@ export default function MgrCalendar({ mgr }) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const doRefresh = async () => { setRefreshing(true); await Promise.all([mgr.refresh(), reload()]); setRefreshing(false); };
+
   const effective = override || weekly.find((w) => w.weekday === weekday) || null;
+  const weeklyDefault = weekly.find((w) => w.weekday === weekday) || null;
 
   const appts = mgr.appts.filter((a) => a.day === sel).sort((x, y) => x.time.localeCompare(y.time));
   const breaks = mgr.breaks.filter((b) => b.day === sel);
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={doRefresh} disabled={refreshing} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4, display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, fontFamily: "inherit" }}>
+          <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} /> רענון
+        </button>
+      </div>
       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
         {days.map((d) => (
           <div key={d.offset} className={"bf-day" + (sel === d.offset ? " active" : "")} onClick={() => setSel(d.offset)}>
@@ -91,7 +100,7 @@ export default function MgrCalendar({ mgr }) {
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
       {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} onClose={() => setAddBreak(false)} />}
       {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} onClose={() => setEditWeekly(false)} onSaved={reload} />}
-      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} hasOverride={!!override} mgr={mgr} onClose={() => setEditDay(false)} onSaved={reload} />}
+      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} weeklyDefault={weeklyDefault} hasOverride={!!override} mgr={mgr} onClose={() => setEditDay(false)} onSaved={reload} />}
     </div>
   );
 }
@@ -161,7 +170,7 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
   );
 }
 
-function DayHoursSheet({ day, dateStr, dayLabel, effective, hasOverride, mgr, onClose, onSaved }) {
+function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOverride, mgr, onClose, onSaved }) {
   const [isOpen, setIsOpen] = useState(effective ? effective.is_open : true);
   const [start, setStart] = useState(hhmm(effective?.start_time) || "09:00");
   const [end, setEnd] = useState(hhmm(effective?.end_time) || "19:00");
@@ -180,9 +189,19 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, hasOverride, mgr, on
     return { affected, staleBreaks };
   };
 
+  // True when the chosen hours equal the weekly default — then it's not an
+  // "exception", so we clear any override instead of creating one (note 29).
+  const matchesWeekly = () => {
+    const w = weeklyDefault;
+    if (!w) return false;
+    if (!isOpen && !w.is_open) return true;
+    return isOpen && w.is_open && hhmm(w.start_time) === start && hhmm(w.end_time) === end;
+  };
+
   const apply = async ({ affected, staleBreaks }) => {
     setBusy(true);
-    await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end });
+    if (matchesWeekly()) await mgr.clearDayOverride(dateStr);
+    else await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end });
     if (staleBreaks.length) await mgr.removeBreaks(staleBreaks);
     if (affected.length) await mgr.rescheduleMany(affected);
     setBusy(false); await onSaved(); onClose();

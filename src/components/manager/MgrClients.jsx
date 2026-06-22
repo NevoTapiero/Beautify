@@ -1,11 +1,23 @@
-import React, { useState } from "react";
-import { Search, ChevronLeft, Phone, Ban, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, ChevronLeft, Phone, Ban, Trash2, Check } from "lucide-react";
 import { Avatar, Sheet, Row, Empty } from "../ui";
+import { loadClientHistory } from "../../lib/api";
 
 export default function MgrClients({ mgr }) {
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState("active");
   const [open, setOpen] = useState(null);
+  const [history, setHistory] = useState(null);
+
+  // Load the selected client's visit history (note 33).
+  useEffect(() => {
+    if (!open) { setHistory(null); return; }
+    let active = true;
+    loadClientHistory(open.id).then((h) => { if (active) setHistory(h); });
+    return () => { active = false; };
+  }, [open]);
+
+  const visits = (history || []).filter((a) => a.past).length;
 
   const all = mgr.clients.filter((c) => (c.name || "").includes(q) || (c.phone || "").includes(q));
   const list = all.filter((c) => seg === "blocked" ? c.blocked : !c.blocked);
@@ -53,7 +65,30 @@ export default function MgrClients({ mgr }) {
             <Row k="טלפון" v={open.phone} />
             <Row k="אימייל" v={open.email || "—"} />
             <Row k="הצהרת בריאות" v="נחתמה ✓" />
+            <Row k="סך ביקורים" v={history === null ? "…" : visits} />
           </div>
+
+          {/* Visit history (note 33) */}
+          {history && history.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 7 }}>היסטוריית תורים</div>
+              <div style={{ display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+                {history.map((a) => (
+                  <div key={a.id} className="bf-card" style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700 }}>{a.service || "תור"}</div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>{a.when} · {a.time}{a.price ? ` · ₪${a.price}` : ""}</div>
+                    </div>
+                    {a.status === "completed" ? <span className="bf-chip bf-chip-ok"><Check size={11} /> בוצע</span>
+                      : a.status === "no_show" ? <span className="bf-chip" style={{ background: "#F3E3E5", color: "#B23A48" }}>לא הגיעה</span>
+                      : a.past ? <span className="bf-chip bf-chip-wait">עבר</span>
+                      : <span className="bf-chip bf-chip-rose">קרוב</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <a className="bf-btn bf-btn-ghost" href={`tel:${open.phone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
             <button className="bf-btn bf-btn-ghost" onClick={() => { mgr.blockClient(open); setOpen(null); }}><Ban size={16} /> {open.blocked ? "ביטול חסימה" : "חסימה"}</button>
