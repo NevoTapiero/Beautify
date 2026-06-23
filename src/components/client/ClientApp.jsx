@@ -11,6 +11,13 @@ import CliProfile from "./CliProfile";
 export default function ClientApp({ cli }) {
   const [tab, setTab] = useState("book");
 
+  // Gallery badge (note A): how many studio photos are new since she last
+  // looked. NOTE: must run before any early return (Rules of Hooks).
+  const sid = cli.studio?.id;
+  const galleryCount = (cli.gallery || []).length;
+  const newPhotos = Math.max(0, galleryCount - getSeen(sid, "cli-gallery"));
+  useEffect(() => { if (tab === "gallery") setSeen(sid, "cli-gallery", galleryCount); }, [tab, galleryCount, sid]);
+
   // Wait for the studio before showing anything that needs it (auth + booking).
   if (!cli.studio) return (
     <div className="bf-screen" style={{ display: "grid", placeItems: "center", padding: 40 }}>
@@ -21,15 +28,8 @@ export default function ClientApp({ cli }) {
   if (!cli.client) return <ClientAuth cli={cli} />;
 
   const me = cli.client;
-  const sid = cli.studio?.id;
   const unread = (cli.notifications || []).filter((n) => !n.read).length
     + (cli.appts || []).filter((a) => a.status === "reschedule_requested").length;
-
-  // Gallery badge (note A): how many studio photos are new since she last looked.
-  const galleryCount = (cli.gallery || []).length;
-  const newPhotos = Math.max(0, galleryCount - getSeen(sid, "cli-gallery"));
-  // When she opens the gallery, mark everything as seen so the badge clears.
-  useEffect(() => { if (tab === "gallery") setSeen(sid, "cli-gallery", galleryCount); }, [tab, galleryCount, sid]);
   const titles = {
     book:    ["קביעת תור", cli.studioName],
     mine:    ["התורים שלי", me.name],

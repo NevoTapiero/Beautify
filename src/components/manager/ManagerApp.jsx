@@ -12,6 +12,18 @@ import MgrSettings from "./MgrSettings";
 export default function ManagerApp({ mgr, ping }) {
   const [tab, setTab] = useState("home");
 
+  // Badges (V5): a "!" when new appointments came in, a count of new client
+  // signups, the pending photo count, and pending standing-slot requests.
+  // NOTE: these hooks must run before any early return (Rules of Hooks).
+  const sid = mgr.studio?.id;
+  const apptCount = (mgr.appts || []).length;
+  const clientCount = (mgr.clients || []).length;
+  const newAppts = apptCount > getSeen(sid, "mgr-appts");
+  const newClients = Math.max(0, clientCount - getSeen(sid, "mgr-clients"));
+  const pendingStanding = (mgr.standing || []).filter((s) => s.status === "pending").length;
+  useEffect(() => { if (tab === "cal") setSeen(sid, "mgr-appts", apptCount); }, [tab, apptCount, sid]);
+  useEffect(() => { if (tab === "clients") setSeen(sid, "mgr-clients", clientCount); }, [tab, clientCount, sid]);
+
   if (!mgr.user) return <ManagerLogin onLogin={mgr.login} />;
 
   // Wait for the studio to load before rendering tabs — on a refresh the saved
@@ -21,17 +33,6 @@ export default function ManagerApp({ mgr, ping }) {
       <div style={{ color: "var(--muted)", fontSize: 14 }}>טוען…</div>
     </div>
   );
-
-  const sid = mgr.studio?.id;
-  // Badges (V5): a "!" when new appointments came in, a count of new client
-  // signups, the pending photo count, and pending standing-slot requests.
-  const apptCount = (mgr.appts || []).length;
-  const clientCount = (mgr.clients || []).length;
-  const newAppts = apptCount > getSeen(sid, "mgr-appts");
-  const newClients = Math.max(0, clientCount - getSeen(sid, "mgr-clients"));
-  const pendingStanding = (mgr.standing || []).filter((s) => s.status === "pending").length;
-  useEffect(() => { if (tab === "cal") setSeen(sid, "mgr-appts", apptCount); }, [tab, apptCount, sid]);
-  useEffect(() => { if (tab === "clients") setSeen(sid, "mgr-clients", clientCount); }, [tab, clientCount, sid]);
 
   const titles = {
     home:     [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
