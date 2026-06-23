@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, CalendarDays, Image as ImageIcon, User } from "lucide-react";
 import { NavBar } from "../ui";
+import { getSeen, setSeen } from "../../lib/seen";
 import ClientAuth from "./ClientAuth";
 import CliBook from "./CliBook";
 import CliMine from "./CliMine";
@@ -20,9 +21,15 @@ export default function ClientApp({ cli }) {
   if (!cli.client) return <ClientAuth cli={cli} />;
 
   const me = cli.client;
+  const sid = cli.studio?.id;
   const unread = (cli.notifications || []).filter((n) => !n.read).length
     + (cli.appts || []).filter((a) => a.status === "reschedule_requested").length;
-  const pendingUploads = (cli.uploads || []).filter((u) => u.status === "pending").length;
+
+  // Gallery badge (note A): how many studio photos are new since she last looked.
+  const galleryCount = (cli.gallery || []).length;
+  const newPhotos = Math.max(0, galleryCount - getSeen(sid, "cli-gallery"));
+  // When she opens the gallery, mark everything as seen so the badge clears.
+  useEffect(() => { if (tab === "gallery") setSeen(sid, "cli-gallery", galleryCount); }, [tab, galleryCount, sid]);
   const titles = {
     book:    ["קביעת תור", cli.studioName],
     mine:    ["התורים שלי", me.name],
@@ -45,7 +52,7 @@ export default function ClientApp({ cli }) {
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["book", Plus, "תור חדש"], ["mine", CalendarDays, "התורים שלי", unread],
-        ["gallery", ImageIcon, "גלריה", pendingUploads], ["profile", User, "פרופיל"],
+        ["gallery", ImageIcon, "גלריה", newPhotos], ["profile", User, "פרופיל"],
       ]} />
     </>
   );

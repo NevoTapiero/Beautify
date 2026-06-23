@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+.vercel/
+
+# Logs / caches
+*.log
+.vite/
+.cache/
+
+# Env / secrets
+.env
+.env.*
+
+# Binaries / media
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+*.zip
+*.ico
+
+# Lockfiles
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

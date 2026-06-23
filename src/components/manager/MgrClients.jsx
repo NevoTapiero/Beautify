@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, ChevronLeft, Phone, Ban, Trash2, Check } from "lucide-react";
+import { Search, ChevronLeft, Phone, Ban, Trash2, Check, Users } from "lucide-react";
 import { Avatar, Sheet, Row, Empty } from "../ui";
 import { loadClientHistory } from "../../lib/api";
 
@@ -25,6 +25,16 @@ export default function MgrClients({ mgr }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 12 }}>
+      {/* How many clients have joined the app (note E — count only, no names). */}
+      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#FDF3F6,#fff)", border: "1px solid var(--rose-soft)" }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,var(--plum),var(--rose))", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+          <Users size={17} color="#fff" />
+        </span>
+        <div style={{ fontSize: 13.5 }}>
+          <b>{mgr.clients.length}</b> לקוחות נרשמו לאפליקציה שלך
+        </div>
+      </div>
+
       <div style={{ position: "relative" }}>
         <Search size={17} style={{ position: "absolute", insetInlineStart: 13, top: 14, color: "var(--muted)" }} />
         <input className="bf-input" style={{ paddingInlineStart: 40 }} placeholder="חיפוש לקוחה לפי שם או טלפון" value={q} onChange={(e) => setQ(e.target.value)} />

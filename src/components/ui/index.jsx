@@ -81,9 +81,9 @@ export function NavBar({ tab, setTab, items }) {
         <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
           <span style={{ position: "relative", display: "inline-flex" }}>
             <Icon size={21} strokeWidth={tab === key ? 2.4 : 1.9} />
-            {badge > 0 && (
+            {(badge === "!" || badge > 0) && (
               <span style={{ position: "absolute", top: -6, insetInlineEnd: -10, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 999, background: "var(--rose)", color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 2px var(--surface)" }}>
-                {badge > 9 ? "9+" : badge}
+                {badge === "!" ? "!" : badge > 9 ? "9+" : badge}
               </span>
             )}
           </span>

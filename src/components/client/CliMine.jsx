@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle } from "lucide-react";
+import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle, Repeat, Plus } from "lucide-react";
 import { SectionTitle, Empty, PaidChip, BitSheet, Sheet } from "../ui";
-import { next7, dateForOffset } from "../../data/mock";
+import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
 export default function CliMine({ cli }) {
   const [payFor, setPayFor] = useState(null);    // appointment being paid
   const [moveAppt, setMoveAppt] = useState(null); // appointment being rescheduled
+  const [askStanding, setAskStanding] = useState(false); // request a weekly slot
 
   // Pull fresh appointments + messages each time this screen opens.
   useEffect(() => { cli.refresh?.(); /* eslint-disable-next-line */ }, []);
@@ -59,6 +60,33 @@ export default function CliMine({ cli }) {
         </div>
       )}
 
+      {/* Standing weekly appointment (V5 note B) */}
+      <SectionTitle icon={Repeat}>תור קבוע שבועי</SectionTitle>
+      {(cli.standing || []).length === 0 ? (
+        <button className="bf-card" onClick={() => setAskStanding(true)} style={{ padding: 13, display: "flex", alignItems: "center", gap: 10, textAlign: "right", cursor: "pointer", borderStyle: "dashed" }}>
+          <span style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,var(--plum),var(--rose))", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Plus size={17} color="#fff" /></span>
+          <div style={{ fontSize: 13.5 }}>
+            <b>בקשת יום ושעה קבועים</b>
+            <div style={{ color: "var(--muted)", fontSize: 12 }}>שמרי לעצמך מועד שבועי קבוע — באישור הסטודיו</div>
+          </div>
+        </button>
+      ) : (
+        <div style={{ display: "grid", gap: 9 }}>
+          {cli.standing.map((st) => (
+            <div key={st.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11 }}>
+              <Repeat size={18} color="var(--plum)" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{st.service_name} · כל {DOW_FULL[st.weekday]} בשעה {st.time}</div>
+                <div style={{ fontSize: 12, color: st.status === "approved" ? "#2E7D52" : "var(--gold)", fontWeight: 700, marginTop: 2 }}>
+                  {st.status === "approved" ? "מאושר ✓ נקבע אוטומטית בכל שבוע" : "ממתין לאישור הסטודיו"}
+                </div>
+              </div>
+              <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelStanding(st.id)}><X size={14} /> ביטול</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <SectionTitle icon={CalendarDays}>תורים קרובים</SectionTitle>
       {upcoming.length === 0 && <Empty>אין לך תורים קרובים — קבעי תור חדש 🤍</Empty>}
       <div style={{ display: "grid", gap: 11 }}>
@@ -107,7 +135,60 @@ export default function CliMine({ cli }) {
 
       {payFor && <BitSheet amount={payFor.servicePrice} onClose={() => setPayFor(null)} onPaid={async () => { await cli.payAppt(payFor.id); setPayFor(null); }} />}
       {moveAppt && <RescheduleSheet appt={moveAppt} cli={cli} onClose={() => setMoveAppt(null)} />}
+      {askStanding && <StandingSheet cli={cli} onClose={() => setAskStanding(false)} />}
     </div>
+  );
+}
+
+// Request a fixed weekly slot: pick a service, a weekday, and a time.
+function StandingSheet({ cli, onClose }) {
+  const [service, setService] = useState(cli.services[0]?.id || null);
+  const [weekday, setWeekday] = useState(0);
+  const [time, setTime] = useState("10:00");
+  const [busy, setBusy] = useState(false);
+  const times = [];
+  for (let h = 8; h <= 20; h++) for (const m of ["00", "30"]) times.push(`${String(h).padStart(2, "0")}:${m}`);
+  const ok = service != null;
+
+  const submit = async () => {
+    setBusy(true);
+    const done = await cli.requestStanding(service, weekday, time);
+    setBusy(false);
+    if (done) onClose();
+  };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>בקשת תור קבוע</h3>
+      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>אותו יום ושעה בכל שבוע — הסטודיו צריך לאשר.</div>
+
+      <label className="bf-label">טיפול</label>
+      <div style={{ display: "grid", gap: 7, marginBottom: 12 }}>
+        {cli.services.map((sv) => (
+          <button key={sv.id} onClick={() => setService(sv.id)} className="bf-card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 10, textAlign: "right", cursor: "pointer", border: service === sv.id ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: sv.grad, flex: "none" }} />
+            <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>{sv.name}</div>
+            <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
+          </button>
+        ))}
+      </div>
+
+      <label className="bf-label">יום בשבוע</label>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        {DOW_FULL.map((name, wd) => (
+          <button key={wd} onClick={() => setWeekday(wd)} className={"bf-slot" + (weekday === wd ? " active" : "")} style={{ flex: "1 0 28%", padding: "8px 4px", fontSize: 13 }}>{name}</button>
+        ))}
+      </div>
+
+      <label className="bf-label">שעה</label>
+      <select className="bf-input" value={time} onChange={(e) => setTime(e.target.value)}>
+        {times.map((t) => <option key={t} value={t}>{t}</option>)}
+      </select>
+
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={!ok || busy} onClick={submit}>
+        {busy ? "שולחת…" : "שליחת בקשה לאישור"}
+      </button>
+    </Sheet>
   );
 }
 

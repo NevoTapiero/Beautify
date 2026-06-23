@@ -12,14 +12,25 @@ export default function CliBook({ cli }) {
   const [pay, setPay] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slots, setSlots] = useState(null);   // null = loading, [] = none free
+  const [parts, setParts] = useState([]);      // selected day-parts: morning/noon/evening
   const days = next7();
   const s = cli.services.find((x) => x.id === service);
+
+  // Split the free hours into morning / noon / evening (note C).
+  const PARTS = [
+    { key: "morning", label: "בוקר", hint: "עד 12:00", test: (h) => h < 12 },
+    { key: "noon",    label: "צהריים", hint: "12:00–17:00", test: (h) => h >= 12 && h < 17 },
+    { key: "evening", label: "ערב", hint: "מ-17:00", test: (h) => h >= 17 },
+  ];
+  const partOf = (tm) => { const h = +tm.split(":")[0]; return PARTS.find((p) => p.test(h))?.key; };
+  const togglePart = (k) => { setTime(null); setParts((p) => p.includes(k) ? p.filter((x) => x !== k) : [...p, k]); };
+  const shownSlots = (slots || []).filter((tm) => parts.includes(partOf(tm)));
 
   // Load the real free slots whenever the chosen day changes.
   useEffect(() => {
     if (offset == null || !s) { setSlots(null); return; }
     let active = true;
-    setSlots(null); setTime(null);
+    setSlots(null); setTime(null); setParts([]);
     availableSlots(cli.studio.id, dateForOffset(offset), s.dur).then((list) => {
       if (active) setSlots(list);
     });
@@ -68,13 +79,32 @@ export default function CliBook({ cli }) {
           <SectionTitle icon={Clock}>בחרי שעה</SectionTitle>
           {slots === null && <div style={{ textAlign: "center", color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>טוען שעות פנויות…</div>}
           {slots && slots.length === 0 && <Empty>אין שעות פנויות ביום זה — נסי יום אחר 🤍</Empty>}
-          {slots && slots.length > 0 && (
+          {slots && slots.length > 0 && (<>
+            {/* Pick part(s) of the day first, then only their hours open up. */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
-              {slots.map((tm) => (
-                <button key={tm} className={"bf-slot" + (time === tm ? " active" : "")} onClick={() => setTime(tm)}>{tm}</button>
-              ))}
+              {PARTS.map((p) => {
+                const n = slots.filter((tm) => partOf(tm) === p.key).length;
+                const on = parts.includes(p.key);
+                return (
+                  <button key={p.key} disabled={!n} onClick={() => togglePart(p.key)}
+                    className={"bf-slot" + (on ? " active" : "")}
+                    style={{ display: "grid", gap: 1, padding: "9px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
+                    <span style={{ fontWeight: 800, fontSize: 14 }}>{p.label}</span>
+                    <span style={{ fontSize: 10.5, opacity: 0.8 }}>{n ? `${n} פנויות` : "אין"}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+            {parts.length === 0
+              ? <div style={{ textAlign: "center", color: "var(--muted)", fontSize: 12.5, padding: "4px 0" }}>בחרי חלק מהיום כדי לראות שעות</div>
+              : (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
+                  {shownSlots.map((tm) => (
+                    <button key={tm} className={"bf-slot" + (time === tm ? " active" : "")} onClick={() => setTime(tm)}>{tm}</button>
+                  ))}
+                </div>
+              )}
+          </>)}
         </>)}
         <button className="bf-btn bf-btn-primary" disabled={offset == null || !time} onClick={() => setStep(3)}>המשך לאישור</button>
       </>)}

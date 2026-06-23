@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2 } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X } from "lucide-react";
 import { SectionTitle, Row, Sheet } from "../ui";
+import { DOW_FULL } from "../../data/mock";
 
 const KEYS = {
   notify_day_start:   { title: "סיכום בתחילת יום", sub: "כל הבוקר — רשימת התורים של היום" },
@@ -71,6 +72,37 @@ export default function MgrSettings({ mgr }) {
           </div>
         ))}
       </div>
+
+      {/* Standing weekly appointments — approve/decline/cancel (V5 note G) */}
+      <SectionTitle icon={Repeat}>תורים קבועים שבועיים</SectionTitle>
+      {(mgr.standing || []).length === 0 ? (
+        <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
+          אין בקשות לתורים קבועים. כשלקוחה תבקש יום ושעה קבועים, הבקשה תופיע כאן לאישורך.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 9 }}>
+          {mgr.standing.map((st) => (
+            <div key={st.id} className="bf-card" style={{ padding: 12, display: "grid", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Repeat size={17} color="var(--plum)" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{st.client_name}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{st.service_name} · כל {DOW_FULL[st.weekday]} בשעה {st.time}</div>
+                </div>
+                {st.status === "approved" && <span className="bf-chip bf-chip-ok"><Check size={12} /> מאושר</span>}
+              </div>
+              {st.status === "pending" ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => mgr.approveStanding(st)}><Check size={15} /> אישור</button>
+                  <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.declineStanding(st)}><X size={15} /> דחייה</button>
+                </div>
+              ) : (
+                <button className="bf-btn bf-btn-ghost bf-btn-sm" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => mgr.cancelStanding(st)}><X size={15} /> ביטול התור הקבוע</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <SectionTitle icon={Bell}>תזכורות אוטומטיות אליי</SectionTitle>
       <Toggle k="notify_day_start" />

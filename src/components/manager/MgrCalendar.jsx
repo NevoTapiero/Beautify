@@ -51,11 +51,19 @@ export default function MgrCalendar({ mgr }) {
         </button>
       </div>
       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
-        {days.map((d) => (
-          <div key={d.offset} className={"bf-day" + (sel === d.offset ? " active" : "")} onClick={() => setSel(d.offset)}>
-            <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
-          </div>
-        ))}
+        {days.map((d) => {
+          // Per-day appointment count (note D) — always shown so the manager
+          // sees how busy each day is at a glance.
+          const count = mgr.appts.filter((a) => a.day === d.offset && a.status !== "reschedule_requested").length;
+          return (
+            <div key={d.offset} className={"bf-day" + (sel === d.offset ? " active" : "")} onClick={() => setSel(d.offset)} style={{ position: "relative" }}>
+              <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
+              <div style={{ marginTop: 3, fontSize: 10, fontWeight: 800, color: count ? "var(--plum)" : "var(--muted)", opacity: count ? 1 : 0.5 }}>
+                {count ? `${count} תורים` : "פנוי"}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
