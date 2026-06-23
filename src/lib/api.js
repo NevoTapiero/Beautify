@@ -1,5 +1,22 @@
 import { supabaseClient, supabaseManager, isSupabaseReady } from "./supabase";
 
+// Each beautician has her own link: beautify-roan.vercel.app/<her-slug>
+// (e.g. /dana). The first path segment IS the studio. When the link has no
+// segment (the bare domain) we fall back to the demo studio. A few reserved
+// words are ignored so app routes never get mistaken for a studio name.
+const RESERVED_SEGMENTS = new Set(["assets", "manifest", "sw", "favicon", "api", "index.html"]);
+
+export function resolveStudioSlug() {
+  try {
+    const seg = (window.location.pathname || "/").split("/").filter(Boolean)[0];
+    if (!seg) return "demo";
+    const slug = decodeURIComponent(seg).toLowerCase();
+    if (RESERVED_SEGMENTS.has(slug) || slug.includes(".")) return "demo";
+    return slug;
+  } catch { return "demo"; }
+}
+
+// Kept for backwards-compat; now resolved from the URL on each call.
 export const STUDIO_SLUG = "demo";
 
 // Returning clients log in with phone + password. Under the hood that's a
@@ -52,8 +69,9 @@ function shapeAppt(row) {
 export async function loadStudioBundle() {
   if (!isSupabaseReady) return null;
   try {
+    const slug = resolveStudioSlug();
     const { data: studio, error: e1 } = await supabaseClient
-      .from("studios").select("*").eq("slug", STUDIO_SLUG).single();
+      .from("studios").select("*").eq("slug", slug).single();
     if (e1 || !studio) throw e1 || new Error("studio not found");
 
     const { data: services, error: e2 } = await supabaseClient

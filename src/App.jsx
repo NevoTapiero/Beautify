@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 
 import STYLE from "./styles";
 import * as api from "./lib/api";
+import { applyStudioPWA } from "./lib/pwa";
 
 import ManagerApp from "./components/manager/ManagerApp";
 import ClientApp from "./components/client/ClientApp";
@@ -64,6 +65,7 @@ export default function App() {
       if (!b) return;
       setStudio(b.studio);
       setServices(b.services);
+      applyStudioPWA(b.studio);   // make the installed app *hers* (name/icon/colors)
     });
     api.getManagerSession().then((u) => { if (u) setManagerUser(u); });
     api.getCurrentClient().then((c) => { if (c) setClient(c); });
@@ -95,7 +97,7 @@ export default function App() {
   // Reload studio + services (after the manager edits her service list).
   const refreshStudio = useCallback(async () => {
     const b = await api.loadStudioBundle();
-    if (b) { setStudio(b.studio); setServices(b.services); }
+    if (b) { setStudio(b.studio); setServices(b.services); applyStudioPWA(b.studio); }
   }, []);
 
   // Refresh each side once its prerequisites (login + studio) are ready.
