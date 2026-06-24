@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown } from "lucide-react";
 import { SectionTitle, Row, Sheet } from "../ui";
 import { DOW_FULL } from "../../data/mock";
 
@@ -25,6 +25,7 @@ export default function MgrSettings({ mgr }) {
     notify_client_1h:   s.notify_client_1h ?? true,
   });
   const [editSvc, setEditSvc] = useState(null);   // service being added/edited
+  const [openStanding, setOpenStanding] = useState(false);   // standing list dropdown (note 48)
 
   const tog = (k) => {
     const next = !state[k];
@@ -73,9 +74,19 @@ export default function MgrSettings({ mgr }) {
         ))}
       </div>
 
-      {/* Standing weekly appointments — approve/decline/cancel (V5 note G) */}
-      <SectionTitle icon={Repeat}>תורים קבועים שבועיים</SectionTitle>
-      {(mgr.standing || []).length === 0 ? (
+      {/* Standing weekly appointments — collapsible dropdown (note 48) */}
+      {(() => {
+        const pending = (mgr.standing || []).filter((s) => s.status === "pending").length;
+        return (
+          <button onClick={() => setOpenStanding((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+            <Repeat size={16} color="var(--plum)" />
+            <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>תורים קבועים שבועיים</span>
+            {pending > 0 && <span className="bf-chip bf-chip-rose">{pending} ממתינות</span>}
+            <ChevronDown size={18} color="var(--muted)" style={{ transform: openStanding ? "rotate(180deg)" : "none", transition: ".18s" }} />
+          </button>
+        );
+      })()}
+      {openStanding && ((mgr.standing || []).length === 0 ? (
         <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
           אין בקשות לתורים קבועים. כשלקוחה תבקש יום ושעה קבועים, הבקשה תופיע כאן לאישורך.
         </div>
@@ -102,7 +113,7 @@ export default function MgrSettings({ mgr }) {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       <SectionTitle icon={Bell}>תזכורות אוטומטיות אליי</SectionTitle>
       <Toggle k="notify_day_start" />

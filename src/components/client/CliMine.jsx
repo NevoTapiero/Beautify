@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle, Repeat, Plus } from "lucide-react";
-import { SectionTitle, Empty, PaidChip, BitSheet, Sheet } from "../ui";
+import { SectionTitle, Empty, PaidChip, BitSheet, Sheet, Confirm } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -8,6 +8,7 @@ export default function CliMine({ cli }) {
   const [payFor, setPayFor] = useState(null);    // appointment being paid
   const [moveAppt, setMoveAppt] = useState(null); // appointment being rescheduled
   const [askStanding, setAskStanding] = useState(false); // request a weekly slot
+  const [confirmCancel, setConfirmCancel] = useState(null); // appt pending cancel confirmation
 
   // Pull fresh appointments + messages each time this screen opens.
   useEffect(() => { cli.refresh?.(); /* eslint-disable-next-line */ }, []);
@@ -39,7 +40,7 @@ export default function CliMine({ cli }) {
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => setMoveAppt(a)}><CalendarDays size={15} /> הזזה לשעה אחרת</button>
-                <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelAppt(a.id)}><X size={15} /> ביטול</button>
+                <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setConfirmCancel(a)}><X size={15} /> ביטול</button>
               </div>
             </div>
           ))}
@@ -109,7 +110,7 @@ export default function CliMine({ cli }) {
                 ? <button className="bf-btn bf-btn-soft bf-btn-sm" disabled style={{ flex: 1, opacity: 1 }}><CheckCircle2 size={15} /> הגעה אושרה</button>
                 : <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => cli.confirmArrival(a.id)}><Check size={15} /> אישור הגעה</button>}
               {!a.paid && <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setPayFor(a)}><Wallet size={15} /> שלמי בביט</button>}
-              <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelAppt(a.id)}><X size={15} /> ביטול</button>
+              <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setConfirmCancel(a)}><X size={15} /> ביטול</button>
             </div>
           </div>
         ))}
@@ -136,6 +137,15 @@ export default function CliMine({ cli }) {
       {payFor && <BitSheet amount={payFor.servicePrice} onClose={() => setPayFor(null)} onPaid={async () => { await cli.payAppt(payFor.id); setPayFor(null); }} />}
       {moveAppt && <RescheduleSheet appt={moveAppt} cli={cli} onClose={() => setMoveAppt(null)} />}
       {askStanding && <StandingSheet cli={cli} onClose={() => setAskStanding(false)} />}
+      {confirmCancel && (
+        <Confirm
+          title="לבטל את התור?"
+          body={`${confirmCancel.serviceName} · ${confirmCancel.dayLabel} בשעה ${confirmCancel.time}`}
+          confirmLabel="כן, בטלי את התור" danger
+          onConfirm={() => cli.cancelAppt(confirmCancel.id)}
+          onClose={() => setConfirmCancel(null)}
+        />
+      )}
     </div>
   );
 }

@@ -95,6 +95,23 @@ export function NavBar({ tab, setTab, items }) {
   );
 }
 
+// Confirmation popup so destructive taps (cancel an appointment, etc.) can't
+// happen by accident (V6 notes 23, 34).
+export function Confirm({ title, body, confirmLabel = "אישור", cancelLabel = "חזרה", danger, onConfirm, onClose }) {
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 6px", fontSize: 20 }}>{title}</h3>
+      {body && <div style={{ color: "var(--muted)", fontSize: 13.5, marginBottom: 16, lineHeight: 1.6 }}>{body}</div>}
+      <button
+        className={"bf-btn " + (danger ? "bf-btn-ghost" : "bf-btn-primary")}
+        style={danger ? { color: "#B23A48", borderColor: "#F0CBD0" } : undefined}
+        onClick={() => { onConfirm(); onClose(); }}
+      >{confirmLabel}</button>
+      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} onClick={onClose}>{cancelLabel}</button>
+    </Sheet>
+  );
+}
+
 // The health declaration / terms text (single source — pending lawyer review).
 export function HealthDeclarationText() {
   return (

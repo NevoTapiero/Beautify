@@ -2,12 +2,20 @@ import React, { useState, useEffect } from "react";
 import { Search, ChevronLeft, Phone, Ban, Trash2, Check, Users } from "lucide-react";
 import { Avatar, Sheet, Row, Empty } from "../ui";
 import { loadClientHistory } from "../../lib/api";
+import { getSeen, setSeen } from "../../lib/seen";
 
 export default function MgrClients({ mgr }) {
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState("active");
   const [open, setOpen] = useState(null);
   const [history, setHistory] = useState(null);
+
+  // How many clients are new since the last visit to this screen (note 42).
+  // Captured once on entry, then marked as seen so the banner — and the nav
+  // badge that shares this key — disappear next time.
+  const sid = mgr.studio?.id;
+  const [newOnEntry] = useState(() => Math.max(0, mgr.clients.length - getSeen(sid, "mgr-clients")));
+  useEffect(() => { setSeen(sid, "mgr-clients", mgr.clients.length); }, [sid, mgr.clients.length]);
 
   // Load the selected client's visit history (note 33).
   useEffect(() => {
@@ -25,15 +33,18 @@ export default function MgrClients({ mgr }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 12 }}>
-      {/* How many clients have joined the app (note E — count only, no names). */}
-      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#FDF3F6,#fff)", border: "1px solid var(--rose-soft)" }}>
-        <span style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,var(--plum),var(--rose))", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-          <Users size={17} color="#fff" />
-        </span>
-        <div style={{ fontSize: 13.5 }}>
-          <b>{mgr.clients.length}</b> לקוחות נרשמו לאפליקציה שלך
+      {/* New-signups alert — only when there are new ones, and it clears after
+          this visit (note 42). The total count lives in the header subtitle. */}
+      {newOnEntry > 0 && (
+        <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#FDF3F6,#fff)", border: "1px solid var(--rose-soft)" }}>
+          <span style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,var(--plum),var(--rose))", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+            <Users size={17} color="#fff" />
+          </span>
+          <div style={{ fontSize: 13.5 }}>
+            <b>{newOnEntry}</b> {newOnEntry === 1 ? "לקוחה חדשה נרשמה" : "לקוחות חדשות נרשמו"} מאז הביקור האחרון
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{ position: "relative" }}>
         <Search size={17} style={{ position: "absolute", insetInlineStart: 13, top: 14, color: "var(--muted)" }} />
@@ -78,26 +89,31 @@ export default function MgrClients({ mgr }) {
             <Row k="סך ביקורים" v={history === null ? "…" : visits} />
           </div>
 
-          {/* Visit history (note 33) */}
-          {history && history.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 7 }}>היסטוריית תורים</div>
-              <div style={{ display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" }}>
-                {history.map((a) => (
-                  <div key={a.id} className="bf-card" style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700 }}>{a.service || "תור"}</div>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>{a.when} · {a.time}{a.price ? ` · ₪${a.price}` : ""}</div>
+          {/* Upcoming appointments (note 43) — not the past history. */}
+          {history !== null && (() => {
+            const upcoming = history.filter((a) => !a.past && a.status !== "completed" && a.status !== "no_show")
+              .sort((x, y) => (x.when + x.time).localeCompare(y.when + y.time));
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 7 }}>תורים עתידיים</div>
+                {upcoming.length === 0
+                  ? <div className="bf-card" style={{ padding: 12, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>אין תורים עתידיים</div>
+                  : (
+                    <div style={{ display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+                      {upcoming.map((a) => (
+                        <div key={a.id} className="bf-card" style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700 }}>{a.service || "תור"}</div>
+                            <div style={{ color: "var(--muted)", fontSize: 12 }}>{a.when} · {a.time}{a.price ? ` · ₪${a.price}` : ""}</div>
+                          </div>
+                          <span className="bf-chip bf-chip-rose">קרוב</span>
+                        </div>
+                      ))}
                     </div>
-                    {a.status === "completed" ? <span className="bf-chip bf-chip-ok"><Check size={11} /> בוצע</span>
-                      : a.status === "no_show" ? <span className="bf-chip" style={{ background: "#F3E3E5", color: "#B23A48" }}>לא הגיעה</span>
-                      : a.past ? <span className="bf-chip bf-chip-wait">עבר</span>
-                      : <span className="bf-chip bf-chip-rose">קרוב</span>}
-                  </div>
-                ))}
+                  )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <a className="bf-btn bf-btn-ghost" href={`tel:${open.phone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>

@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Phone, Clock, X, Check, XCircle } from "lucide-react";
-import { Avatar, Sheet, Row, resolveAppt } from "../ui";
+import { Avatar, Sheet, Row, Confirm, resolveAppt } from "../ui";
 
 // Manager's appointment detail card — shared by Home and Calendar.
 export default function ApptSheet({ appt, mgr, onClose }) {
@@ -8,6 +8,28 @@ export default function ApptSheet({ appt, mgr, onClose }) {
   const done = appt.status === "completed" || appt.status === "no_show";
   // Can only mark done / no-show once the appointment time has passed (note 21).
   const passed = appt.starts_at ? new Date(appt.starts_at) <= new Date() : false;
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  // After an appointment is completed / marked no-show, it's read-only —
+  // details + call only, no reschedule/cancel/reminder (V6 note 38).
+  if (done) return (
+    <Sheet onClose={onClose}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <Avatar name={r.clientName} />
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>{r.clientName}</div>
+          <div style={{ color: "var(--muted)", fontSize: 13 }}>{appt.dayLabel} · {appt.time} · {r.svcName}</div>
+        </div>
+      </div>
+      <div className="bf-card" style={{ padding: 12, marginBottom: 14, display: "grid", gap: 6, fontSize: 13.5 }}>
+        <Row k="שירות" v={`${r.svcName} (${r.svcDur} דקות)`} />
+        <Row k="מחיר" v={`₪${r.svcPrice}`} />
+        <Row k="תשלום" v={appt.paid ? "שולם בביט ✓" : "ישולם במקום"} />
+        <Row k="סטטוס" v={appt.status === "completed" ? "בוצע ✓" : "לא הגיעה"} />
+      </div>
+      <a className="bf-btn bf-btn-ghost" href={`tel:${r.clientPhone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
+    </Sheet>
+  );
 
   return (
     <Sheet onClose={onClose}>
@@ -24,11 +46,10 @@ export default function ApptSheet({ appt, mgr, onClose }) {
         <Row k="מחיר" v={`₪${r.svcPrice}`} />
         <Row k="תשלום" v={appt.paid ? "שולם בביט ✓" : "ישולם במקום"} />
         <Row k="אישור הגעה" v={appt.arrival ? "אושר ✓" : "ממתין"} />
-        {done && <Row k="סטטוס" v={appt.status === "completed" ? "בוצע ✓" : "לא הגיעה"} />}
       </div>
 
       {/* Mark completed / no-show — only after the appointment time passed (notes 38, 21) */}
-      {!done && (passed ? (
+      {passed ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <button className="bf-btn bf-btn-soft" onClick={() => { mgr.setStatus(appt.id, "completed"); onClose(); }}><Check size={16} /> בוצע</button>
           <button className="bf-btn bf-btn-ghost" onClick={() => { mgr.setStatus(appt.id, "no_show"); onClose(); }}><XCircle size={16} /> לא הגיעה</button>
@@ -37,7 +58,7 @@ export default function ApptSheet({ appt, mgr, onClose }) {
         <div style={{ fontSize: 12.5, color: "var(--muted)", textAlign: "center", marginBottom: 10, padding: "8px 0" }}>
           ניתן לסמן "בוצע" או "לא הגיעה" רק לאחר מועד התור
         </div>
-      ))}
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <a className="bf-btn bf-btn-ghost" href={`tel:${r.clientPhone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
@@ -47,9 +68,19 @@ export default function ApptSheet({ appt, mgr, onClose }) {
       <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} onClick={() => { mgr.sendReminder(appt); onClose(); }}>
         שליחת תזכורת ללקוחה
       </button>
-      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { mgr.cancelAppt(appt); onClose(); }}>
+      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => setConfirmCancel(true)}>
         <X size={16} /> ביטול התור
       </button>
+
+      {confirmCancel && (
+        <Confirm
+          title="לבטל את התור?"
+          body={`התור של ${r.clientName} ל${appt.dayLabel} בשעה ${appt.time} יבוטל ותישלח ללקוחה הודעה.`}
+          confirmLabel="כן, בטלי את התור" danger
+          onConfirm={() => { mgr.cancelAppt(appt); onClose(); }}
+          onClose={() => setConfirmCancel(false)}
+        />
+      )}
     </Sheet>
   );
 }

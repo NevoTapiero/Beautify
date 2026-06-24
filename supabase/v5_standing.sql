@@ -43,7 +43,7 @@ end $$;
 -- Create the concrete weekly appointments for the next p_weeks weeks, skipping
 -- past times, already-created occurrences, and slots that collide with another
 -- (non-cancelled) appointment. Times are anchored to Asia/Jerusalem.
-create or replace function materialize_standing(p_id uuid, p_weeks int default 8)
+create or replace function materialize_standing(p_id uuid, p_weeks int default 1)
 returns void language plpgsql security definer as $$
 declare r standing_requests; dur int; d date; ts timestamptz; i int;
 begin
@@ -78,7 +78,7 @@ begin
   if r.id is null then raise exception 'not found'; end if;
   if not is_studio_manager(r.studio_id) then raise exception 'not your studio'; end if;
   update standing_requests set status = 'approved' where id = p_id;
-  perform materialize_standing(p_id, 8);
+  perform materialize_standing(p_id, 1);   -- only the coming week (V6 note 24)
 end $$;
 
 -- Manager declines a pending request (no appointments created).
@@ -114,7 +114,7 @@ declare r standing_requests;
 begin
   if not is_studio_manager(p_studio) then return; end if;
   for r in select * from standing_requests where studio_id = p_studio and status = 'approved' loop
-    perform materialize_standing(r.id, 8);
+    perform materialize_standing(r.id, 1);   -- keep just the coming week booked (V6 note 24)
   end loop;
 end $$;
 
