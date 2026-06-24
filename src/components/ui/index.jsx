@@ -124,6 +124,30 @@ export function HealthDeclarationText() {
   );
 }
 
+// Background for a service swatch — her chosen image, else the gradient (note 43).
+export const serviceBg = (sv) => (sv && sv.img) ? `url(${sv.img}) center/cover` : (sv ? sv.grad : "var(--sand)");
+
+// Sort a gallery list by newest / oldest / most-liked (V6.1 notes 20, 40).
+export function sortGallery(items, sort) {
+  const a = [...(items || [])];
+  if (sort === "likes") a.sort((x, y) => (y.likes || 0) - (x.likes || 0));
+  else if (sort === "old") a.sort((x, y) => new Date(x.created || 0) - new Date(y.created || 0));
+  else a.sort((x, y) => new Date(y.created || 0) - new Date(x.created || 0));
+  return a;
+}
+
+// Small dropdown to choose the gallery sort order.
+export function GallerySort({ value, onChange }) {
+  return (
+    <select className="bf-input" value={value} onChange={(e) => onChange(e.target.value)}
+      style={{ padding: "8px 10px", fontSize: 13, width: "auto" }}>
+      <option value="new">החדשות ביותר</option>
+      <option value="old">הישנות ביותר</option>
+      <option value="likes">הכי אהובות</option>
+    </select>
+  );
+}
+
 export function SectionTitle({ icon: Icon, children, action }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 2 }}>

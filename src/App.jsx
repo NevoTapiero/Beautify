@@ -140,6 +140,11 @@ export default function App() {
     services,
     ping,
     refresh: () => loadManagerData(),
+    uploadServiceImage: async (file) => {
+      const r = await api.uploadServiceImage(studio.id, file);
+      if (r.error) { ping(r.error); return null; }
+      return r.url;
+    },
     addService: async (fields) => { await api.addService(studio.id, fields); ping("השירות נוסף"); await refreshStudio(); },
     updateService: async (id, fields) => { await api.updateService(id, fields); ping("השירות עודכן"); await refreshStudio(); },
     deleteService: async (id) => { await api.deleteService(id); ping("השירות הוסר"); await refreshStudio(); },
@@ -167,6 +172,17 @@ export default function App() {
       if (appt.clientId) await api.sendNotification(studio.id, appt.clientId, {
         type: "reminder", title: "תזכורת לתור", body: `מזכירים את התור שלך ל-${appt.dayLabel} בשעה ${appt.time}.`, appointmentId: appt.id });
       ping("תזכורת נשלחה ללקוחה");
+    },
+    // Send an arrival reminder to every client who hasn't confirmed yet (note 31).
+    remindAll: async (appts) => {
+      let n = 0;
+      for (const appt of appts) {
+        if (!appt.clientId) continue;
+        await api.sendNotification(studio.id, appt.clientId, {
+          type: "reminder", title: "תזכורת לתור", body: `מזכירים את התור שלך ל-${appt.dayLabel} בשעה ${appt.time}.`, appointmentId: appt.id });
+        n++;
+      }
+      ping(n ? `נשלחו ${n} תזכורות ללקוחות` : "אין למי לשלוח תזכורת");
     },
     // Ask one client to move her appointment: grays it out + notifies (notes 27).
     requestReschedule: async (appt) => {

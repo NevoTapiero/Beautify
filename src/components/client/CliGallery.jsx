@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Camera, X, RefreshCw } from "lucide-react";
-import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty } from "../ui";
+import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty, GallerySort, sortGallery } from "../ui";
 
 const STATUS = {
   pending:  { label: "ממתין לאישור", cls: "bf-chip-wait" },
@@ -10,6 +10,7 @@ const STATUS = {
 
 export default function CliGallery({ cli }) {
   const [seg, setSeg] = useState("all");
+  const [sort, setSort] = useState("new");
   const [view, setView] = useState(null);
   const [picked, setPicked] = useState(null);
   const [cap, setCap] = useState("");
@@ -45,8 +46,14 @@ export default function CliGallery({ cli }) {
           </PhotoPicker>
         </div>
         {cli.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה 🤍</Empty>}
+        {cli.gallery.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+            <span style={{ fontSize: 12.5, color: "var(--muted)" }}>סינון:</span>
+            <GallerySort value={sort} onChange={setSort} />
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {cli.gallery.map((g) => <GalleryTile key={g.id} item={g} onLike={cli.toggleLike} onOpen={setView} />)}
+          {sortGallery(cli.gallery, sort).map((g) => <GalleryTile key={g.id} item={g} onLike={cli.toggleLike} onOpen={setView} />)}
         </div>
       </>)}
 

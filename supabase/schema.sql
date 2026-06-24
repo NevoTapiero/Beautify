@@ -499,3 +499,6 @@ language sql security definer stable as $$
   where c.auth_user_id = auth.uid() and sr.status in ('pending','approved')
   order by sr.created_at;
 $$;
+
+-- ===== V6.1: service image (see v6_1_service_image.sql) =====
+alter table services add column if not exists image_url text;

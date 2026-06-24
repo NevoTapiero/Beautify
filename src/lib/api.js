@@ -82,7 +82,7 @@ export async function loadStudioBundle() {
     return {
       studio,
       services: (services || []).map((s) => ({
-        id: s.id, name: s.name, dur: s.duration, price: s.price, grad: s.gradient,
+        id: s.id, name: s.name, dur: s.duration, price: s.price, grad: s.gradient, img: s.image_url,
       })),
     };
   } catch (err) { log("loadStudioBundle", err); return null; }
@@ -99,11 +99,11 @@ export async function updateStudioSettings(studioId, settings) {
 
 // ─── Services (manager-managed, notes 20, 25) ────────────────────────────────
 
-export async function addService(studioId, { name, duration, price, gradient, sort }) {
+export async function addService(studioId, { name, duration, price, gradient, image_url, sort }) {
   if (!isSupabaseReady) return null;
   try {
     const { data, error } = await supabaseManager.from("services")
-      .insert({ studio_id: studioId, name, duration, price, gradient, sort_order: sort || 0, active: true })
+      .insert({ studio_id: studioId, name, duration, price, gradient, image_url: image_url || null, sort_order: sort || 0, active: true })
       .select("*").single();
     if (error) throw error;
     return data;
@@ -649,6 +649,16 @@ export async function uploadManagerPhoto(studioId, studioName, file, caption) {
   } catch (err) { log("uploadManagerPhoto", err); return { error: "העלאת התמונה נכשלה." }; }
 }
 
+// Service cover image (V6.1 note 43) → returns its public URL.
+export async function uploadServiceImage(studioId, file) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${studioId}/services/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseManager, "gallery", path, file);
+    return { url };
+  } catch (err) { log("uploadServiceImage", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
 // Client profile photo (note 9).
 export async function uploadClientAvatar(clientId, file) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
@@ -670,7 +680,7 @@ export async function loadGallery(studioId, myClientId) {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data || []).map((g) => ({
-      id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by,
+      id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by, created: g.created_at,
       likes: (g.gallery_likes || []).length,
       likedByMe: myClientId ? (g.gallery_likes || []).some((l) => l.client_id === myClientId) : false,
     }));

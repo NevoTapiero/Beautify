@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown } from "lucide-react";
-import { SectionTitle, Row, Sheet } from "../ui";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon } from "lucide-react";
+import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg } from "../ui";
 import { DOW_FULL } from "../../data/mock";
 
 const KEYS = {
@@ -63,7 +63,7 @@ export default function MgrSettings({ mgr }) {
       <div style={{ display: "grid", gap: 9 }}>
         {services.map((sv) => (
           <div key={sv.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 11, background: sv.grad, flex: "none" }} />
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: serviceBg(sv), flex: "none" }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 14.5 }}>{sv.name}</div>
               <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
@@ -147,14 +147,24 @@ function ServiceEditor({ svc, mgr, grads, onClose }) {
   const [dur, setDur] = useState(svc.dur || 60);
   const [price, setPrice] = useState(svc.price || 100);
   const [grad, setGrad] = useState(svc.grad || grads[0]);
+  const [img, setImg] = useState(svc.img || null);   // optional cover image (note 43)
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const ok = name.trim() && dur > 0 && price >= 0;
+
+  const pickImage = async (file) => {
+    setUploading(true);
+    const url = await mgr.uploadServiceImage(file);
+    setUploading(false);
+    if (url) setImg(url);
+  };
 
   const save = async () => {
     if (!ok) return;
     setBusy(true);
-    if (editing) await mgr.updateService(svc.id, { name, duration: dur, price, gradient: grad });
-    else await mgr.addService({ name, duration: dur, price, gradient: grad });
+    const fields = { name, duration: dur, price, gradient: grad, image_url: img || null };
+    if (editing) await mgr.updateService(svc.id, fields);
+    else await mgr.addService(fields);
     setBusy(false); onClose();
   };
 
@@ -167,14 +177,30 @@ function ServiceEditor({ svc, mgr, grads, onClose }) {
           <div><label className="bf-label">משך (דקות)</label><input className="bf-input" type="number" inputMode="numeric" value={dur} onChange={(e) => setDur(+e.target.value)} /></div>
           <div><label className="bf-label">מחיר (₪)</label><input className="bf-input" type="number" inputMode="numeric" value={price} onChange={(e) => setPrice(+e.target.value)} /></div>
         </div>
+
+        {/* Cover: an uploaded image, or a color if no image is chosen (note 43). */}
         <div>
-          <label className="bf-label">צבע</label>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {grads.map((g) => (
-              <button key={g} onClick={() => setGrad(g)} aria-label="צבע" style={{ width: 40, height: 40, borderRadius: 11, background: g, border: grad === g ? "3px solid var(--plum)" : "2px solid transparent", cursor: "pointer" }} />
-            ))}
+          <label className="bf-label">תמונת השירות</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 13, background: serviceBg({ img, grad }), flex: "none", border: "1px solid var(--sand)" }} />
+            <PhotoPicker onPick={pickImage} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
+              <button className="bf-btn bf-btn-soft bf-btn-sm"><ImageIcon size={15} /> {uploading ? "מעלה…" : img ? "החלפת תמונה" : "בחירת תמונה"}</button>
+            </PhotoPicker>
+            {img && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setImg(null)}>הסרה</button>}
           </div>
         </div>
+
+        {!img && (
+          <div>
+            <label className="bf-label">צבע</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {grads.map((g) => (
+                <button key={g} onClick={() => setGrad(g)} aria-label="צבע" style={{ width: 40, height: 40, borderRadius: 11, background: g, border: grad === g ? "3px solid var(--plum)" : "2px solid transparent", cursor: "pointer" }} />
+              ))}
+            </div>
+          </div>
+        )}
+
         <button className="bf-btn bf-btn-primary" disabled={!ok || busy} onClick={save}>{busy ? "שומרת…" : (editing ? "שמירה" : "הוספת שירות")}</button>
       </div>
     </Sheet>

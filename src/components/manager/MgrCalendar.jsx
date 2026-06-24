@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Coffee, Plus, Trash2, Clock, Pencil, AlertTriangle, RefreshCw } from "lucide-react";
-import { Sheet, Empty, StatusChip, resolveAppt } from "../ui";
+import { Coffee, Plus, Clock, Pencil, AlertTriangle, RefreshCw } from "lucide-react";
+import { Sheet } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import ApptSheet from "./ApptSheet";
+import DaySchedule from "./DaySchedule";
 
 const hhmm = (t) => (t || "").slice(0, 5);
 const toMin = (t) => { const [h, m] = hhmm(t).split(":").map(Number); return h * 60 + m; };
@@ -43,35 +44,6 @@ export default function MgrCalendar({ mgr }) {
   const appts = mgr.appts.filter((a) => a.day === sel).sort((x, y) => x.time.localeCompare(y.time));
   const breaks = mgr.breaks.filter((b) => b.day === sel);
 
-  // The very next upcoming appointment, across all days, for the highlight +
-  // countdown (note 35). Recomputed each tick so the countdown stays live.
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(id); }, []);
-  const nextAppt = mgr.appts
-    .filter((a) => a.status === "confirmed" && a.starts_at && new Date(a.starts_at) > now)
-    .sort((x, y) => new Date(x.starts_at) - new Date(y.starts_at))[0] || null;
-  const untilText = (startsAt) => {
-    const mins = Math.round((new Date(startsAt) - now) / 60000);
-    if (mins < 60) return `בעוד ${mins} דק׳`;
-    const h = Math.floor(mins / 60), m = mins % 60;
-    return `בעוד ${h} שע׳${m ? ` ${m} דק׳` : ""}`;
-  };
-
-  // Build the full day as 30-minute slots between the open/close hours, so the
-  // manager sees the whole schedule — each slot taken (appointment / break) or
-  // free (notes 36, 37).
-  const dayOpen = effective && effective.is_open;
-  const slots = [];
-  if (dayOpen) {
-    const o = toMin(effective.start_time), c = toMin(effective.end_time);
-    for (let m = o; m < c; m += 30) {
-      const appt = appts.find((a) => toMin(a.time) >= m && toMin(a.time) < m + 30);
-      const cover = appts.find((a) => toMin(a.time) < m && toMin(a.time) + a.serviceDur > m);
-      const brk = breaks.find((b) => toMin(b.time) < m + 30 && toMin(b.endTime) > m);
-      slots.push({ min: m, label: `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`, appt, cover, brk });
-    }
-  }
-
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -110,62 +82,8 @@ export default function MgrCalendar({ mgr }) {
 
       <button className="bf-btn bf-btn-ghost" onClick={() => setAddBreak(true)}><Coffee size={16} /> הוספת הפסקה ליום זה</button>
 
-      {!dayOpen && <Empty>הסטודיו סגור ביום זה</Empty>}
-
-      {dayOpen && (
-        <div style={{ display: "grid", gap: 6 }}>
-          {slots.map((sl) => {
-            const time = <div className="bf-display" style={{ fontSize: 14, fontWeight: 800, color: "var(--muted)", minWidth: 44, textAlign: "center" }}>{sl.label}</div>;
-
-            // A break covering this slot.
-            if (sl.brk && !sl.appt) return (
-              <div key={sl.min} className="bf-card" style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 10, background: "#FBF4EE", borderStyle: "dashed" }}>
-                {time}
-                <Coffee size={15} color="var(--gold)" />
-                <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5, color: "#8A6D3B" }}>{sl.brk.title} · עד {sl.brk.endTime}</div>
-                {toMin(sl.brk.time) >= sl.min && <button onClick={() => mgr.deleteBreak(sl.brk.id)} aria-label="מחק הפסקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B6896A" }}><Trash2 size={15} /></button>}
-              </div>
-            );
-
-            // An appointment starting in this slot.
-            if (sl.appt) {
-              const a = sl.appt, r = resolveAppt(a);
-              const ghost = a.status === "reschedule_requested";
-              const isNext = nextAppt && a.id === nextAppt.id;
-              return (
-                <button key={sl.min} className="bf-card" onClick={() => setOpen(a)}
-                  style={{ padding: "9px 11px", display: "flex", alignItems: "center", gap: 10, textAlign: "right", cursor: "pointer", opacity: ghost ? 0.55 : 1,
-                    border: isNext ? "1.5px solid var(--plum)" : "1px solid var(--sand)", background: isNext ? "linear-gradient(135deg,#FDF3F6,#fff)" : undefined }}>
-                  <div className="bf-display" style={{ fontSize: 15, fontWeight: 800, color: "var(--plum)", minWidth: 44, textAlign: "center" }}>{a.time}</div>
-                  <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad, minHeight: 30 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>{r.clientName}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{r.svcName} · {a.serviceDur} דק׳</div>
-                    {isNext && <div style={{ fontSize: 11.5, color: "var(--plum)", fontWeight: 800, marginTop: 2 }}>⏱ התור הקרוב · {untilText(a.starts_at)}</div>}
-                  </div>
-                  <StatusChip a={a} />
-                </button>
-              );
-            }
-
-            // An appointment that started earlier still runs through this slot.
-            if (sl.cover) return (
-              <div key={sl.min} className="bf-card" style={{ padding: "7px 11px", display: "flex", alignItems: "center", gap: 10, opacity: 0.5 }}>
-                {time}
-                <div style={{ flex: 1, fontSize: 12.5, color: "var(--muted)" }}>תפוס</div>
-              </div>
-            );
-
-            // Free slot.
-            return (
-              <div key={sl.min} style={{ padding: "7px 11px", display: "flex", alignItems: "center", gap: 10, border: "1px dashed var(--sand)", borderRadius: 12 }}>
-                {time}
-                <div style={{ flex: 1, fontSize: 12.5, color: "var(--muted)" }}>פנוי</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <DaySchedule effective={effective} dayAppts={appts} dayBreaks={breaks} allAppts={mgr.appts}
+        onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
 
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
       {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} onClose={() => setAddBreak(false)} />}

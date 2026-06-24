@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle, Repeat, Plus } from "lucide-react";
-import { SectionTitle, Empty, PaidChip, BitSheet, Sheet, Confirm } from "../ui";
+import { SectionTitle, Empty, PaidChip, BitSheet, Sheet, Confirm, serviceBg } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -176,7 +176,7 @@ function StandingSheet({ cli, onClose }) {
       <div style={{ display: "grid", gap: 7, marginBottom: 12 }}>
         {cli.services.map((sv) => (
           <button key={sv.id} onClick={() => setService(sv.id)} className="bf-card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 10, textAlign: "right", cursor: "pointer", border: service === sv.id ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: sv.grad, flex: "none" }} />
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: serviceBg(sv), flex: "none" }} />
             <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>{sv.name}</div>
             <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
           </button>

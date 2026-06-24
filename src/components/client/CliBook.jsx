@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Wallet, Sparkles } from "lucide-react";
-import { Steps, SectionTitle, Back, BitSheet, Row, Empty } from "../ui";
+import { Steps, SectionTitle, Back, BitSheet, Row, Empty, serviceBg } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -54,7 +54,7 @@ export default function CliBook({ cli }) {
         <div style={{ display: "grid", gap: 9 }}>
           {cli.services.map((sv) => (
             <button key={sv.id} className="bf-card" onClick={() => { setService(sv.id); setStep(2); }} style={{ padding: 12, display: "flex", alignItems: "center", gap: 12, textAlign: "right", cursor: "pointer" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 13, background: sv.grad, flex: "none" }} />
+              <div style={{ width: 44, height: 44, borderRadius: 13, background: serviceBg(sv), flex: "none" }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{sv.name}</div>
                 <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דקות</div>
@@ -112,7 +112,7 @@ export default function CliBook({ cli }) {
       {step === 3 && (<>
         <Back onClick={() => setStep(2)} label="פרטי התור" />
         <div className="bf-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ height: 84, background: s?.grad, position: "relative" }}>
+          <div style={{ height: 84, background: serviceBg(s), position: "relative" }}>
             <span style={{ position: "absolute", inset: "0 0 55% 0", background: "linear-gradient(180deg,rgba(255,255,255,.3),transparent)" }} />
           </div>
           <div style={{ padding: 14, display: "grid", gap: 7, fontSize: 14 }}>

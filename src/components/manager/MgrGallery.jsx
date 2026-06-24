@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Camera, Check, X, Pencil, RefreshCw } from "lucide-react";
-import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet } from "../ui";
+import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet, GallerySort, sortGallery } from "../ui";
 
 export default function MgrGallery({ mgr }) {
   const [seg, setSeg] = useState("mine");
+  const [sort, setSort] = useState("new");
   const [view, setView] = useState(null);       // lightbox item
   const [editing, setEditing] = useState(null);  // photo whose caption is being edited
   const [pickedFile, setPickedFile] = useState(null);
@@ -36,8 +37,14 @@ export default function MgrGallery({ mgr }) {
           <button className="bf-btn bf-btn-ghost"><Camera size={17} /> העלאת תמונה או סרטון</button>
         </PhotoPicker>
         {mgr.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה — העלי את העבודה הראשונה 🤍</Empty>}
+        {mgr.gallery.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+            <span style={{ fontSize: 12.5, color: "var(--muted)" }}>סינון:</span>
+            <GallerySort value={sort} onChange={setSort} />
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {mgr.gallery.map((g) => (
+          {sortGallery(mgr.gallery, sort).map((g) => (
             <div key={g.id} style={{ position: "relative" }}>
               <GalleryTile item={g} onOpen={setView} />
               <button aria-label="עריכת תיאור" onClick={(e) => { e.stopPropagation(); setEditing(g); }}

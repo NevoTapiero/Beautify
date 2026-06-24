@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, RefreshCw, Coffee, Moon } from "lucide-react";
-import { SectionTitle, Empty, StatusChip, resolveAppt } from "../ui";
+import { CalendarDays, RefreshCw, Moon } from "lucide-react";
+import { SectionTitle, Confirm } from "../ui";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import { dateForOffset } from "../../data/mock";
 import ApptSheet from "./ApptSheet";
+import DaySchedule from "./DaySchedule";
 
 export default function MgrHome({ mgr, go }) {
   const [open, setOpen] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [closedToday, setClosedToday] = useState(false);
+  const [todayEff, setTodayEff] = useState(null);   // today's working hours, for the slot grid
+  const [remindOpen, setRemindOpen] = useState(false);
 
-  // Is the studio closed today? (note 23)
+  // Today's working hours — drives the closed banner (note 23) + slot grid (note 30).
   useEffect(() => {
     let active = true;
     (async () => {
@@ -18,28 +21,24 @@ export default function MgrHome({ mgr, go }) {
       const [weekly, override] = await Promise.all([
         loadWeeklyHours(mgr.studio.id), getDayOverride(mgr.studio.id, todayStr),
       ]);
-      const eff = override || weekly.find((w) => w.weekday === new Date().getDay());
-      if (active) setClosedToday(!!eff && !eff.is_open);
+      const eff = override || weekly.find((w) => w.weekday === new Date().getDay()) || null;
+      if (active) { setClosedToday(!!eff && !eff.is_open); setTodayEff(eff); }
     })();
     return () => { active = false; };
   }, [mgr.studio.id, mgr.breaks]);
 
   const today = mgr.appts.filter((a) => a.day === 0).sort((x, y) => x.time.localeCompare(y.time));
   const todayBreaks = mgr.breaks.filter((b) => b.day === 0);
-  const needConfirm = today.filter((a) => !a.arrival && a.status === "confirmed").length;
+  const unconfirmed = today.filter((a) => !a.arrival && a.status === "confirmed");
 
   const handleRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
 
-  const Stat = ({ n, l, c }) => (
-    <div className="bf-card" style={{ flex: 1, padding: "12px 10px", textAlign: "center" }}>
+  const Stat = ({ n, l, c, onClick }) => (
+    <div className="bf-card" onClick={onClick} style={{ flex: 1, padding: "12px 10px", textAlign: "center", cursor: onClick ? "pointer" : "default" }}>
       <div className="bf-display" style={{ fontSize: 26, fontWeight: 800, color: c }}>{n}</div>
       <div style={{ fontSize: 11.5, color: "var(--muted)", fontWeight: 600, marginTop: 2 }}>{l}</div>
     </div>
   );
-
-  // Merge appointments + breaks into one time-ordered list.
-  const timeline = [...today.map((a) => ({ ...a, _t: "appt" })), ...todayBreaks.map((b) => ({ ...b, _t: "break" }))]
-    .sort((x, y) => x.time.localeCompare(y.time));
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
@@ -54,7 +53,7 @@ export default function MgrHome({ mgr, go }) {
       )}
       <div style={{ display: "flex", gap: 10 }}>
         <Stat n={today.length} l="תורים היום" c="var(--plum)" />
-        <Stat n={needConfirm} l="טרם אישרו הגעה" c="var(--rose)" />
+        <Stat n={unconfirmed.length} l="טרם אישרו הגעה" c="var(--rose)" onClick={unconfirmed.length ? () => setRemindOpen(true) : undefined} />
         <Stat n={mgr.pending.length} l="תמונות לאישור" c="var(--gold)" />
       </div>
 
@@ -66,29 +65,8 @@ export default function MgrHome({ mgr, go }) {
           </button>
         </div>
 
-        {timeline.length === 0 && <Empty>אין עדיין תורים להיום — יום פנוי 🤍</Empty>}
-        <div style={{ display: "grid", gap: 9 }}>
-          {timeline.map((item) => item._t === "break" ? (
-            <div key={"b" + item.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, background: "#FBF4EE", borderStyle: "dashed" }}>
-              <div className="bf-display" style={{ fontSize: 15, fontWeight: 800, color: "var(--gold)", minWidth: 46, textAlign: "center" }}>{item.time}</div>
-              <Coffee size={16} color="var(--gold)" />
-              <div style={{ flex: 1, fontWeight: 700, fontSize: 14, color: "#8A6D3B" }}>{item.title} · עד {item.endTime}</div>
-            </div>
-          ) : (() => { const r = resolveAppt(item); return (
-            <button key={item.id} className="bf-card" onClick={() => setOpen(item)} style={{ padding: 12, display: "flex", alignItems: "center", gap: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--sand)" }}>
-              <div style={{ textAlign: "center", minWidth: 46 }}>
-                <div className="bf-display" style={{ fontSize: 17, fontWeight: 800, color: "var(--plum)" }}>{item.time}</div>
-                <div style={{ fontSize: 10.5, color: "var(--muted)" }}>{r.svcDur} ד׳</div>
-              </div>
-              <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{r.clientName}</div>
-                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{r.svcName} · ₪{r.svcPrice}</div>
-              </div>
-              <StatusChip a={item} />
-            </button> ); })()
-          )}
-        </div>
+        <DaySchedule effective={todayEff} dayAppts={today} dayBreaks={todayBreaks} allAppts={mgr.appts}
+          onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
       </div>
 
       {mgr.pending.length > 0 && (
@@ -105,6 +83,15 @@ export default function MgrHome({ mgr, go }) {
       )}
 
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
+      {remindOpen && (
+        <Confirm
+          title="לשלוח תזכורת לכולן?"
+          body={`תישלח תזכורת ל-${unconfirmed.length} לקוחות שטרם אישרו הגעה לתורים של היום.`}
+          confirmLabel="שליחת תזכורת לכולן"
+          onConfirm={() => mgr.remindAll(unconfirmed)}
+          onClose={() => setRemindOpen(false)}
+        />
+      )}
     </div>
   );
 }
