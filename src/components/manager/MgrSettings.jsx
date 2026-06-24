@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus } from "lucide-react";
 import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg } from "../ui";
 import { DOW_FULL } from "../../data/mock";
 
@@ -26,6 +26,8 @@ export default function MgrSettings({ mgr }) {
   });
   const [editSvc, setEditSvc] = useState(null);   // service being added/edited
   const [openStanding, setOpenStanding] = useState(false);   // standing list dropdown (note 48)
+  const [editEmp, setEditEmp] = useState(null);   // employee being added/edited (business)
+  const [openInvoices, setOpenInvoices] = useState(false);   // invoices dropdown (business)
 
   const tog = (k) => {
     const next = !state[k];
@@ -47,8 +49,79 @@ export default function MgrSettings({ mgr }) {
 
   const services = mgr.services || [];
 
+  const emps = mgr.employees || [];
+  const invoices = mgr.invoices || [];
+
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {/* Business edition (V1): toggle + employees + invoices */}
+      <SectionTitle icon={Briefcase}>מצב עסק רשום</SectionTitle>
+      <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>גרסת עסק</div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)" }}>חשבוניות אוטומטיות, ניהול עובדות ותשלום באשראי</div>
+        </div>
+        <button onClick={() => mgr.setBusinessMode(!mgr.business)} aria-pressed={mgr.business} style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: mgr.business ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: mgr.business ? "flex-end" : "flex-start", transition: ".18s" }}>
+          <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
+        </button>
+      </div>
+
+      {mgr.business && (<>
+        {/* Employees — managed like services (business feature) */}
+        <SectionTitle icon={Users} action={
+          <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setEditEmp({ name: "", title: "", color: "#D9738F" })}>
+            <UserPlus size={14} /> עובדת
+          </button>
+        }>העובדות שלך</SectionTitle>
+        {emps.length === 0 && (
+          <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
+            עדיין לא הוספת עובדות — הוסיפי כדי שלקוחות יוכלו לבחור קוסמטיקאית בקביעת תור
+          </div>
+        )}
+        <div style={{ display: "grid", gap: 9 }}>
+          {emps.map((e) => (
+            <div key={e.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: e.color, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14 }}>{(e.name || "?").charAt(0)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{e.name}</div>
+                {e.title && <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.title}</div>}
+              </div>
+              <button onClick={() => setEditEmp(e)} aria-label="עריכה" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4 }}><Pencil size={16} /></button>
+              <button onClick={() => mgr.deleteEmployee(e.id)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
+            </div>
+          ))}
+        </div>
+
+        {/* Invoices — collapsible list */}
+        <button onClick={() => setOpenInvoices((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+          <FileText size={16} color="var(--plum)" />
+          <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>חשבוניות שהופקו</span>
+          <span className="bf-chip bf-chip-wait">{invoices.length}</span>
+          <ChevronDown size={18} color="var(--muted)" style={{ transform: openInvoices ? "rotate(180deg)" : "none", transition: ".18s" }} />
+        </button>
+        {openInvoices && (invoices.length === 0 ? (
+          <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
+            עדיין לא הופקו חשבוניות. אפשר להפיק חשבונית מתוך פרטי תור ביומן.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {invoices.map((inv) => (
+              <div key={inv.id} className="bf-card" style={{ padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                <div style={{ fontWeight: 800, color: "var(--plum)", minWidth: 40 }}>#{inv.number}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700 }}>{inv.client_name || "לקוחה"}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{inv.service_name || ""} · {new Date(inv.issued_at).toLocaleDateString("he-IL")}</div>
+                </div>
+                <div className="bf-display" style={{ fontWeight: 800 }}>₪{inv.amount}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+        <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.6, padding: "0 2px" }}>
+          חשבוניות נשמרות וממוספרות באפליקציה. חיבור לחשבונית מס רשמית (חשבונית ירוקה / iCount) יתווסף לאחר פתיחת חשבון אצל הספק.
+        </div>
+      </>)}
+
       {/* Services management (notes 20, 25) */}
       <SectionTitle icon={Sparkles} action={
         <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setEditSvc({ name: "", dur: 60, price: 100, grad: GRADS[services.length % GRADS.length] })}>
@@ -137,7 +210,45 @@ export default function MgrSettings({ mgr }) {
       </button>
 
       {editSvc && <ServiceEditor svc={editSvc} mgr={mgr} grads={GRADS} onClose={() => setEditSvc(null)} />}
+      {editEmp && <EmployeeEditor emp={editEmp} mgr={mgr} onClose={() => setEditEmp(null)} />}
     </div>
+  );
+}
+
+function EmployeeEditor({ emp, mgr, onClose }) {
+  const editing = !!emp.id;
+  const [name, setName] = useState(emp.name || "");
+  const [title, setTitle] = useState(emp.title || "");
+  const [color, setColor] = useState(emp.color || "#D9738F");
+  const [busy, setBusy] = useState(false);
+  const colors = ["#D9738F", "#7C2A53", "#B4893E", "#5E1F40", "#9A4E72", "#C98AA6"];
+  const ok = name.trim();
+
+  const save = async () => {
+    if (!ok) return;
+    setBusy(true);
+    if (editing) await mgr.updateEmployee(emp.id, { name, title, color });
+    else await mgr.addEmployee({ name, title, color });
+    setBusy(false); onClose();
+  };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 14px", fontSize: 20 }}>{editing ? "עריכת עובדת" : "עובדת חדשה"}</h3>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div><label className="bf-label">שם</label><input className="bf-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="לדוגמה: מאיה" /></div>
+        <div><label className="bf-label">תפקיד (לא חובה)</label><input className="bf-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="לדוגמה: מומחית לק ג'ל" /></div>
+        <div>
+          <label className="bf-label">צבע</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {colors.map((c) => (
+              <button key={c} onClick={() => setColor(c)} aria-label="צבע" style={{ width: 38, height: 38, borderRadius: "50%", background: c, border: color === c ? "3px solid var(--ink)" : "2px solid transparent", cursor: "pointer" }} />
+            ))}
+          </div>
+        </div>
+        <button className="bf-btn bf-btn-primary" disabled={!ok || busy} onClick={save}>{busy ? "שומרת…" : (editing ? "שמירה" : "הוספת עובדת")}</button>
+      </div>
+    </Sheet>
   );
 }
 

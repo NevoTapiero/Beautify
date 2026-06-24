@@ -37,6 +37,8 @@ export default function App() {
   const [role, setRole] = useState("manager");
   const [studio, setStudio] = useState(null);
   const [services, setServices] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [mgrInvoices, setMgrInvoices] = useState([]);
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -70,6 +72,7 @@ export default function App() {
       if (!b) return;
       setStudio(b.studio);
       setServices(b.services);
+      setEmployees(b.employees || []);
       applyStudioPWA(b.studio);   // make the installed app *hers* (name/icon/colors)
     });
     api.getManagerSession().then((u) => { if (u) setManagerUser(u); });
@@ -89,6 +92,7 @@ export default function App() {
     setMgrAppts(appts || []); setMgrClients(clients || []);
     setMgrGallery(gallery || []); setMgrPending(pending || []); setMgrBreaks(breaks || []);
     setMgrStanding(standing || []);
+    if ((s || studio)?.business_mode) api.loadInvoices(sid).then((inv) => setMgrInvoices(inv || []));
   }, [studio]);
 
   const loadClientData = useCallback(async (c, s) => {
@@ -107,7 +111,7 @@ export default function App() {
   // Reload studio + services (after the manager edits her service list).
   const refreshStudio = useCallback(async () => {
     const b = await api.loadStudioBundle();
-    if (b) { setStudio(b.studio); setServices(b.services); applyStudioPWA(b.studio); }
+    if (b) { setStudio(b.studio); setServices(b.services); setEmployees(b.employees || []); applyStudioPWA(b.studio); }
   }, []);
 
   // Refresh each side once its prerequisites (login + studio) are ready.
@@ -138,8 +142,26 @@ export default function App() {
     standing: mgrStanding,
     studioName: studio?.name || "הסטודיו",
     services,
+    employees, invoices: mgrInvoices,
+    business: !!studio?.business_mode,
     ping,
     refresh: () => loadManagerData(),
+    setBusinessMode: async (on) => {
+      await api.updateStudioSettings(studio.id, { business_mode: on });
+      setStudio((s) => ({ ...s, business_mode: on }));
+      ping(on ? "מצב עסק הופעל" : "מצב עסק כובה");
+      if (on) loadManagerData();
+    },
+    addEmployee: async (fields) => { await api.addEmployee(studio.id, fields); ping("העובדת נוספה"); await refreshStudio(); },
+    updateEmployee: async (id, fields) => { await api.updateEmployee(id, fields); ping("פרטי העובדת עודכנו"); await refreshStudio(); },
+    deleteEmployee: async (id) => { await api.deleteEmployee(id); ping("העובדת הוסרה"); await refreshStudio(); },
+    issueInvoice: async (appt) => {
+      const r = await api.issueInvoice(appt.id);
+      if (r.error) { ping(r.error); return null; }
+      ping(`הופקה חשבונית #${r.invoice?.number}`);
+      api.loadInvoices(studio.id).then((inv) => setMgrInvoices(inv || []));
+      return r.invoice;
+    },
     uploadServiceImage: async (file) => {
       const r = await api.uploadServiceImage(studio.id, file);
       if (r.error) { ping(r.error); return null; }
@@ -257,6 +279,8 @@ export default function App() {
   const cli = {
     client, studio, services, appts: cliAppts, gallery: cliGallery, uploads: cliUploads, notifications: cliNotifs, breaks: cliBreaks,
     standing: cliStanding,
+    employees,
+    business: !!studio?.business_mode,
     studioName: studio?.name || "הסטודיו",
     register: async ({ name, phone, email, password }) => {
       const r = await api.clientRegister(studio.id, { name, phone, email, password });
@@ -273,8 +297,8 @@ export default function App() {
       return null;
     },
     logout: async () => { await api.clientSignOut(); setClient(null); setCliAppts([]); ping("התנתקת מהחשבון"); },
-    book: async (serviceId, offset, time, paid = false) => {
-      const appt = await api.saveAppointment(studio.id, client.id, serviceId, offset, time, paid);
+    book: async (serviceId, offset, time, paid = false, employeeId = null) => {
+      const appt = await api.saveAppointment(studio.id, client.id, serviceId, offset, time, paid, employeeId);
       if (appt) setCliAppts((p) => [...p, appt]);
       return appt;
     },

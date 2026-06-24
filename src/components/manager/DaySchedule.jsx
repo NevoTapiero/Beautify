@@ -64,7 +64,7 @@ export default function DaySchedule({ effective, dayAppts, dayBreaks, allAppts, 
               <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: r.svcGrad, minHeight: 30 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14.5 }}>{r.clientName}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{r.svcName} · {a.serviceDur} דק׳</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{r.svcName} · {a.serviceDur} דק׳{a.employeeName ? ` · ${a.employeeName}` : ""}</div>
                 {isNext && <div style={{ fontSize: 11.5, color: "var(--plum)", fontWeight: 800, marginTop: 2 }}>⏱ התור הקרוב · {untilText(a.starts_at)}</div>}
               </div>
               <StatusChip a={a} />

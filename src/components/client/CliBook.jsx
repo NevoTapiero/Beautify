@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Wallet, Sparkles } from "lucide-react";
-import { Steps, SectionTitle, Back, BitSheet, Row, Empty, serviceBg } from "../ui";
+import { CalendarDays, Clock, Wallet, Sparkles, User, CreditCard } from "lucide-react";
+import { Steps, SectionTitle, Back, BitSheet, CardSheet, Row, Empty, serviceBg } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -9,8 +9,11 @@ export default function CliBook({ cli }) {
   const [service, setService] = useState(null);
   const [offset, setOffset] = useState(null);
   const [time, setTime] = useState(null);
+  const [employee, setEmployee] = useState(null);   // chosen beautician (business)
   const [pay, setPay] = useState(false);
+  const [payCard, setPayCard] = useState(false);
   const [busy, setBusy] = useState(false);
+  const showEmployees = cli.business && (cli.employees || []).length > 0;
   const [slots, setSlots] = useState(null);   // null = loading, [] = none free
   const [parts, setParts] = useState([]);      // selected day-parts: morning/noon/evening
   const days = next7();
@@ -31,18 +34,18 @@ export default function CliBook({ cli }) {
     if (offset == null || !s) { setSlots(null); return; }
     let active = true;
     setSlots(null); setTime(null); setParts([]);
-    availableSlots(cli.studio.id, dateForOffset(offset), s.dur).then((list) => {
+    availableSlots(cli.studio.id, dateForOffset(offset), s.dur, employee).then((list) => {
       if (active) setSlots(list);
     });
     return () => { active = false; };
-  }, [offset, service]); // eslint-disable-line
+  }, [offset, service, employee]); // eslint-disable-line
 
-  const finish = async (paid) => {
+  const finish = async (paid, msg) => {
     setBusy(true);
-    await cli.book(service, offset, time, paid);
+    await cli.book(service, offset, time, paid, employee);
     setBusy(false);
-    cli.ping(paid ? "התור נקבע ושולם בביט ✓" : "התור נקבע ✓ נתראה!");
-    setPay(false); setStep(1); setService(null); setOffset(null); setTime(null);
+    cli.ping(msg || (paid ? "התור נקבע ושולם ✓" : "התור נקבע ✓ נתראה!"));
+    setPay(false); setPayCard(false); setStep(1); setService(null); setOffset(null); setTime(null); setEmployee(null);
   };
 
   return (
@@ -67,6 +70,19 @@ export default function CliBook({ cli }) {
 
       {step === 2 && (<>
         <Back onClick={() => setStep(1)} label={s?.name} />
+        {showEmployees && (<>
+          <SectionTitle icon={User}>בחרי קוסמטיקאית</SectionTitle>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {cli.employees.map((e) => (
+              <button key={e.id} onClick={() => setEmployee(employee === e.id ? null : e.id)}
+                className={"bf-slot" + (employee === e.id ? " active" : "")} style={{ flex: "1 0 30%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <span style={{ width: 18, height: 18, borderRadius: "50%", background: e.color, flex: "none" }} />
+                {e.name}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: -4 }}>אפשר לבחור קוסמטיקאית מסוימת או להשאיר ריק לכל אחת זמינה</div>
+        </>)}
         <SectionTitle icon={CalendarDays}>בחרי יום</SectionTitle>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
           {days.map((d) => (
@@ -117,16 +133,19 @@ export default function CliBook({ cli }) {
           </div>
           <div style={{ padding: 14, display: "grid", gap: 7, fontSize: 14 }}>
             <Row k="טיפול" v={s?.name} />
+            {employee && <Row k="קוסמטיקאית" v={(cli.employees.find((e) => e.id === employee) || {}).name} />}
             <Row k="מתי" v={`${days[offset].dl} · ${time}`} />
             <Row k="משך" v={`${s?.dur} דקות`} />
             <Row k="מחיר" v={<span className="bf-display" style={{ fontWeight: 800, color: "var(--plum)", fontSize: 17 }}>₪{s?.price}</span>} />
           </div>
         </div>
         <button className="bf-btn bf-btn-primary" disabled={busy} onClick={() => setPay(true)}><Wallet size={17} /> תשלום בביט וקביעת התור</button>
+        {cli.business && <button className="bf-btn bf-btn-soft" disabled={busy} onClick={() => setPayCard(true)}><CreditCard size={17} /> תשלום באשראי</button>}
         <button className="bf-btn bf-btn-ghost" disabled={busy} onClick={() => finish(false)}>אשלם במקום — קבעי תור</button>
       </>)}
 
-      {pay && <BitSheet amount={s?.price} onClose={() => setPay(false)} onPaid={() => finish(true)} />}
+      {pay && <BitSheet amount={s?.price} onClose={() => setPay(false)} onPaid={() => finish(true, "התור נקבע ושולם בביט ✓")} />}
+      {payCard && <CardSheet amount={s?.price} onClose={() => setPayCard(false)} onPaid={() => finish(true, "התור נקבע ושולם באשראי ✓")} />}
     </div>
   );
 }

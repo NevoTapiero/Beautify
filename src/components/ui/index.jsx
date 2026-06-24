@@ -289,6 +289,38 @@ export function BitSheet({ amount, onClose, onPaid }) {
   );
 }
 
+// Credit-card checkout (business edition). Demo only — real clearing needs a
+// provider (Tranzila/Meshulam) + business account, hooked in later like Bit.
+export function CardSheet({ amount, onClose, onPaid }) {
+  const [state, setS] = useState("ready");
+  const [num, setNum] = useState("");
+  const go = () => { setS("processing"); setTimeout(() => setS("done"), 1100); setTimeout(onPaid, 1900); };
+  const ok = num.replace(/\D/g, "").length >= 12;
+  return (
+    <Sheet onClose={state === "processing" ? () => {} : onClose}>
+      <div style={{ textAlign: "center", padding: "6px 0 4px" }}>
+        <div style={{ width: 54, height: 54, borderRadius: 15, background: "linear-gradient(135deg,#7C2A53,#D9738F)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22, margin: "0 auto 12px" }}>₪</div>
+        {state === "ready" && (<>
+          <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 22 }}>תשלום באשראי</h3>
+          <p style={{ color: "var(--muted)", fontSize: 13.5, margin: "0 0 6px" }}>הדגמה — חיבור אמיתי לסליקה יתווסף בהמשך</p>
+          <div className="bf-display" style={{ fontSize: 34, fontWeight: 800, color: "var(--plum)", margin: "8px 0 14px" }}>₪{amount}</div>
+          <input className="bf-input" inputMode="numeric" placeholder="מספר כרטיס" value={num} onChange={(e) => setNum(e.target.value)} style={{ textAlign: "center", marginBottom: 12 }} />
+          <button className="bf-btn bf-btn-primary" disabled={!ok} onClick={go}><ShieldCheck size={17} /> שלמי ₪{amount}</button>
+        </>)}
+        {state === "processing" && (<>
+          <h3 className="bf-display" style={{ margin: "12px 0", fontSize: 20 }}>מעבד תשלום…</h3>
+          <div style={{ width: 34, height: 34, border: "3px solid var(--sand)", borderTopColor: "var(--plum)", borderRadius: "50%", margin: "8px auto 16px", animation: "spin 1s linear infinite" }} />
+        </>)}
+        {state === "done" && (<>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#E7F3EC", display: "flex", alignItems: "center", justifyContent: "center", margin: "8px auto 12px" }}><Check size={30} color="#2E7D52" /></div>
+          <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 22 }}>שולם בהצלחה</h3>
+          <p style={{ color: "var(--muted)", fontSize: 13.5 }}>מעדכן את התור…</p>
+        </>)}
+      </div>
+    </Sheet>
+  );
+}
+
 // Pulls display fields off a (live) appointment row.
 export function resolveAppt(a) {
   return {

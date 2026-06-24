@@ -48,6 +48,8 @@ function shapeAppt(row) {
     clientId: row.clients?.id ?? row.client_id,
     clientName: row.clients?.name,
     clientPhone: row.clients?.phone,
+    employeeId: row.employees?.id ?? row.employee_id,
+    employeeName: row.employees?.name,
     service: row.services?.id ?? row.service_id,
     serviceName: row.services?.name,
     serviceDur: row.services?.duration,
@@ -79,10 +81,18 @@ export async function loadStudioBundle() {
       .eq("active", true).order("sort_order");
     if (e2) throw e2;
 
+    // Employees (business edition). Safe to load always — empty for private studios.
+    const { data: employees } = await supabaseClient
+      .from("employees").select("*").eq("studio_id", studio.id)
+      .eq("active", true).order("sort_order");
+
     return {
       studio,
       services: (services || []).map((s) => ({
         id: s.id, name: s.name, dur: s.duration, price: s.price, grad: s.gradient, img: s.image_url,
+      })),
+      employees: (employees || []).map((e) => ({
+        id: e.id, name: e.name, title: e.title, color: e.color,
       })),
     };
   } catch (err) { log("loadStudioBundle", err); return null; }
@@ -299,7 +309,7 @@ export async function isContactBlocked(studioId, { phone, email }) {
 
 // ─── Appointments ────────────────────────────────────────────────────────────
 
-export async function saveAppointment(studioId, clientId, serviceId, dayOffset, timeStr, paid) {
+export async function saveAppointment(studioId, clientId, serviceId, dayOffset, timeStr, paid, employeeId) {
   if (!isSupabaseReady) return null;
   try {
     const { data, error } = await supabaseClient
@@ -307,8 +317,9 @@ export async function saveAppointment(studioId, clientId, serviceId, dayOffset, 
       .insert({
         studio_id: studioId, client_id: clientId, service_id: serviceId,
         starts_at: toTimestamp(dayOffset, timeStr), status: "confirmed", paid,
+        employee_id: employeeId || null,
       })
-      .select("*, clients(id,name,phone), services(id,name,duration,price,gradient)")
+      .select("*, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .single();
     if (error) throw error;
     return shapeAppt(data);
@@ -323,7 +334,7 @@ export async function loadManagerAppointments(studioId) {
     const end = new Date(start); end.setDate(start.getDate() + 7);
     const { data, error } = await supabaseManager
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, clients(id,name,phone), services(id,name,duration,price,gradient)")
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .eq("studio_id", studioId).neq("status", "cancelled")
       .gte("starts_at", start.toISOString()).lt("starts_at", end.toISOString())
       .order("starts_at");
@@ -338,7 +349,7 @@ export async function loadMyAppointments(clientId) {
   try {
     const { data, error } = await supabaseClient
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, clients(id,name,phone), services(id,name,duration,price,gradient)")
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .eq("client_id", clientId).neq("status", "cancelled")
       .order("starts_at");
     if (error) throw error;
@@ -498,15 +509,66 @@ export async function clearDayOverride(studioId, dateStr) {
 
 // The free start-times for a service of `durationMin` on a given date —
 // computed server-side from working hours minus appointments and breaks.
-export async function availableSlots(studioId, dateStr, durationMin) {
+export async function availableSlots(studioId, dateStr, durationMin, employeeId) {
   if (!isSupabaseReady || !studioId) return [];
   try {
     const { data, error } = await supabaseClient.rpc("available_slots", {
-      p_studio: studioId, p_date: dateStr, p_duration: durationMin,
+      p_studio: studioId, p_date: dateStr, p_duration: durationMin, p_employee: employeeId || null,
     });
     if (error) throw error;
     return data || [];
   } catch (err) { log("availableSlots", err); return []; }
+}
+
+// ─── Employees + invoices (business edition) ─────────────────────────────────
+
+export async function addEmployee(studioId, { name, title, color, sort }) {
+  if (!isSupabaseReady) return null;
+  try {
+    const { data, error } = await supabaseManager.from("employees")
+      .insert({ studio_id: studioId, name, title: title || null, color: color || "#D9738F", sort_order: sort || 0, active: true })
+      .select("*").single();
+    if (error) throw error;
+    return data;
+  } catch (err) { log("addEmployee", err); return null; }
+}
+
+export async function updateEmployee(id, fields) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("employees").update(fields).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("updateEmployee", err); return false; }
+}
+
+export async function deleteEmployee(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("employees").delete().eq("id", id);
+    if (error) await supabaseManager.from("employees").update({ active: false }).eq("id", id);
+    return true;
+  } catch (err) { log("deleteEmployee", err); return false; }
+}
+
+// Issue an invoice for an appointment (sequential per studio, idempotent).
+export async function issueInvoice(appointmentId) {
+  if (!isSupabaseReady) return { error: "אין חיבור" };
+  try {
+    const { data, error } = await supabaseManager.rpc("issue_invoice", { p_appointment: appointmentId });
+    if (error) throw error;
+    return { invoice: data };
+  } catch (err) { log("issueInvoice", err); return { error: "הפקת החשבונית נכשלה" }; }
+}
+
+export async function loadInvoices(studioId) {
+  if (!isSupabaseReady || !studioId) return [];
+  try {
+    const { data, error } = await supabaseManager
+      .from("invoices").select("*").eq("studio_id", studioId).order("number", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) { log("loadInvoices", err); return []; }
 }
 
 // ─── Standing (recurring) weekly appointments (V5 notes B + G) ───────────────
