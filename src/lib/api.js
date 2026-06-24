@@ -683,13 +683,13 @@ const safeName = (n) => (n || "photo").replace(/[^\w.\-]/g, "_");
 // Goes through the share_photo() SECURITY DEFINER function rather than a direct
 // gallery insert: the direct path is blocked by a stale RLS plan in Supabase's
 // API layer, and the function also stops a client forging another's id/status.
-export async function uploadClientPhoto(studioId, client, file, caption) {
+export async function uploadClientPhoto(studioId, client, file, caption, employeeId) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
   try {
     const path = `${studioId}/${client.id}/${Date.now()}_${safeName(file.name)}`;
     const url = await uploadFile(supabaseClient, "gallery", path, file);
     const { data, error } = await supabaseClient.rpc("share_photo", {
-      p_studio: studioId, p_image_url: url, p_caption: caption || "",
+      p_studio: studioId, p_image_url: url, p_caption: caption || "", p_employee: employeeId || null,
     });
     if (error) throw error;
     return { photo: data };
@@ -697,14 +697,14 @@ export async function uploadClientPhoto(studioId, client, file, caption) {
 }
 
 // Manager uploads her own work → immediately 'approved' (note 47).
-export async function uploadManagerPhoto(studioId, studioName, file, caption) {
+export async function uploadManagerPhoto(studioId, studioName, file, caption, employeeId) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
   try {
     const path = `${studioId}/studio/${Date.now()}_${safeName(file.name)}`;
     const url = await uploadFile(supabaseManager, "gallery", path, file);
     const { data, error } = await supabaseManager.from("gallery").insert({
       studio_id: studioId, image_url: url, caption: caption || "עבודה חדשה",
-      uploaded_by: studioName || "הסטודיו", status: "approved",
+      uploaded_by: studioName || "הסטודיו", status: "approved", employee_id: employeeId || null,
     }).select("*").single();
     if (error) throw error;
     return { photo: data };
@@ -743,6 +743,7 @@ export async function loadGallery(studioId, myClientId) {
     if (error) throw error;
     return (data || []).map((g) => ({
       id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by, created: g.created_at,
+      employeeId: g.employee_id,
       likes: (g.gallery_likes || []).length,
       likedByMe: myClientId ? (g.gallery_likes || []).some((l) => l.client_id === myClientId) : false,
     }));
@@ -757,7 +758,7 @@ export async function loadPendingPhotos(studioId) {
       .from("gallery").select("*").eq("studio_id", studioId).eq("status", "pending")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data || []).map((g) => ({ id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by }));
+    return (data || []).map((g) => ({ id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by, employeeId: g.employee_id }));
   } catch (err) { log("loadPendingPhotos", err); return null; }
 }
 

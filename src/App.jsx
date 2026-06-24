@@ -244,10 +244,23 @@ export default function App() {
     approvePhoto: async (id) => { await api.setPhotoStatus(id, "approved"); ping("התמונה אושרה ונוספה לגלריה"); loadManagerData(); },
     rejectPhoto: async (id) => { await api.setPhotoStatus(id, "rejected"); ping("התמונה נדחתה"); loadManagerData(); },
     deletePhoto: async (id) => { await api.deletePhoto(id, true); ping("התמונה נמחקה"); loadManagerData(); },
-    uploadPhoto: async (file, caption) => {
-      const r = await api.uploadManagerPhoto(studio.id, studio?.name, file, caption);
+    uploadPhoto: async (file, caption, employeeId) => {
+      const r = await api.uploadManagerPhoto(studio.id, studio?.name, file, caption, employeeId);
       if (r.error) { ping(r.error); return; }
       ping("העבודה נוספה לגלריה"); loadManagerData();
+    },
+    // Emergency: stop the workday now — cancel today's not-yet-done appointments
+    // and notify those clients (V2: both editions).
+    closeDayNow: async (appts) => {
+      let n = 0;
+      for (const appt of appts) {
+        await api.cancelAppointment(appt.id, true);
+        if (appt.clientId) await api.sendNotification(studio.id, appt.clientId, {
+          type: "cancelled", title: "התור בוטל", body: `עקב סגירת היומן, התור שלך ל-${appt.dayLabel} בשעה ${appt.time} בוטל. נשמח לקבוע מועד חדש.`, appointmentId: appt.id });
+        n++;
+      }
+      ping(n ? `היומן נסגר — בוטלו ${n} תורים והלקוחות עודכנו` : "אין תורים פתוחים לביטול");
+      loadManagerData();
     },
     saveSettings: async (settings) => {
       await api.updateStudioSettings(studio.id, settings);
@@ -306,8 +319,8 @@ export default function App() {
     reschedule: async (apptId, offset, time) => { await api.rescheduleAppointment(apptId, offset, time); ping("התור הוזז בהצלחה ✓"); loadClientData(); },
     confirmArrival: async (id) => { await api.confirmArrival(id); ping("אישרת הגעה — נתראה!"); loadClientData(); },
     payAppt: async (id) => { await api.payAppointment(id); ping("התשלום בוצע ✓"); loadClientData(); },
-    uploadPhoto: async (file, caption) => {
-      const r = await api.uploadClientPhoto(studio.id, client, file, caption);
+    uploadPhoto: async (file, caption, employeeId) => {
+      const r = await api.uploadClientPhoto(studio.id, client, file, caption, employeeId);
       if (r.error) { ping(r.error); return; }
       ping("נשלח לאישור הסטודיו 🤍"); loadClientData();
     },

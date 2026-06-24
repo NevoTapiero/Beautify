@@ -13,6 +13,9 @@ export default function CliMine({ cli }) {
   // Pull fresh appointments + messages each time this screen opens.
   useEffect(() => { cli.refresh?.(); /* eslint-disable-next-line */ }, []);
 
+  // Which cosmetician (business mode only); null employee = the owner.
+  const cosmName = (a) => cli.business ? (a.employeeName || cli.studioName) : null;
+
   const toMove = cli.appts.filter((a) => a.status === "reschedule_requested");
   const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
@@ -102,6 +105,7 @@ export default function CliMine({ cli }) {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{a.serviceName}</div>
                 <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{a.serviceDur} דק׳ · ₪{a.servicePrice}</div>
+                {cosmName(a) && <div style={{ fontSize: 12, color: "var(--plum)", fontWeight: 600, marginTop: 1 }}>עם {cosmName(a)}</div>}
               </div>
               <PaidChip paid={a.paid} />
             </div>

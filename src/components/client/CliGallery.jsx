@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Camera, X, RefreshCw } from "lucide-react";
-import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty, GallerySort, sortGallery } from "../ui";
+import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty, GallerySort, sortGallery, cosmeticians } from "../ui";
 
 const STATUS = {
   pending:  { label: "ממתין לאישור", cls: "bf-chip-wait" },
@@ -14,13 +14,19 @@ export default function CliGallery({ cli }) {
   const [view, setView] = useState(null);
   const [picked, setPicked] = useState(null);
   const [cap, setCap] = useState("");
+  const [pickedEmp, setPickedEmp] = useState(null);   // chosen cosmetician for the upload
+  const [cosm, setCosm] = useState("all");            // gallery filter by cosmetician
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const cosmList = cosmeticians(cli.studioName, cli.employees);
+  const showCosm = cli.business && cosmList.length > 1;
+  const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
+
   const doUpload = async () => {
     setBusy(true);
-    await cli.uploadPhoto(picked, cap);
-    setBusy(false); setPicked(null); setCap("");
+    await cli.uploadPhoto(picked, cap, pickedEmp === "owner" ? null : pickedEmp);
+    setBusy(false); setPicked(null); setCap(""); setPickedEmp(null);
   };
   const doRefresh = async () => { setRefreshing(true); await cli.refresh(); setRefreshing(false); };
 
@@ -52,8 +58,16 @@ export default function CliGallery({ cli }) {
             <GallerySort value={sort} onChange={setSort} />
           </div>
         )}
+        {showCosm && (
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+            <button onClick={() => setCosm("all")} className={"bf-chip " + (cosm === "all" ? "bf-chip-rose" : "bf-chip-wait")} style={{ cursor: "pointer", border: "none" }}>הכל</button>
+            {cosmList.map((c) => (
+              <button key={c.id} onClick={() => setCosm(c.id)} className={"bf-chip " + (cosm === c.id ? "bf-chip-rose" : "bf-chip-wait")} style={{ cursor: "pointer", border: "none" }}>{c.name}</button>
+            ))}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {sortGallery(cli.gallery, sort).map((g) => <GalleryTile key={g.id} item={g} onLike={cli.toggleLike} onOpen={setView} />)}
+          {sortGallery(shown(cli.gallery), sort).map((g) => <GalleryTile key={g.id} item={g} onLike={cli.toggleLike} onOpen={setView} />)}
         </div>
       </>)}
 
@@ -88,7 +102,15 @@ export default function CliGallery({ cli }) {
             : <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(picked)}) center/cover`, marginBottom: 14 }} />}
           <label className="bf-label">תיאור קצר</label>
           <input className="bf-input" placeholder="לדוגמה: אומברה ורוד" value={cap} onChange={(e) => setCap(e.target.value)} />
-          <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy} onClick={doUpload}>
+          {showCosm && (<>
+            <label className="bf-label" style={{ marginTop: 12 }}>מי ביצעה את הטיפול?</label>
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+              {cosmList.map((c) => (
+                <button key={c.id} onClick={() => setPickedEmp(c.id)} className={"bf-slot" + (pickedEmp === c.id ? " active" : "")} style={{ flex: "1 0 30%" }}>{c.name}</button>
+              ))}
+            </div>
+          </>)}
+          <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy || (showCosm && !pickedEmp)} onClick={doUpload}>
             {busy ? "מעלה…" : "שליחה לאישור"}
           </button>
         </Sheet>

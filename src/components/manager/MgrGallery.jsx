@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Camera, Check, X, Pencil, RefreshCw } from "lucide-react";
-import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet, GallerySort, sortGallery } from "../ui";
+import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet, GallerySort, sortGallery, cosmeticians } from "../ui";
 
 export default function MgrGallery({ mgr }) {
   const [seg, setSeg] = useState("mine");
@@ -9,13 +9,19 @@ export default function MgrGallery({ mgr }) {
   const [editing, setEditing] = useState(null);  // photo whose caption is being edited
   const [pickedFile, setPickedFile] = useState(null);
   const [cap, setCap] = useState("");
+  const [pickedEmp, setPickedEmp] = useState(null);
+  const [cosm, setCosm] = useState("all");
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const cosmList = cosmeticians(mgr.studioName, mgr.employees);
+  const showCosm = mgr.business && cosmList.length > 1;
+  const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
+
   const doUpload = async () => {
     setBusy(true);
-    await mgr.uploadPhoto(pickedFile, cap);
-    setBusy(false); setPickedFile(null); setCap("");
+    await mgr.uploadPhoto(pickedFile, cap, pickedEmp === "owner" ? null : pickedEmp);
+    setBusy(false); setPickedFile(null); setCap(""); setPickedEmp(null);
   };
   const doRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
 
@@ -43,8 +49,16 @@ export default function MgrGallery({ mgr }) {
             <GallerySort value={sort} onChange={setSort} />
           </div>
         )}
+        {showCosm && (
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+            <button onClick={() => setCosm("all")} className={"bf-chip " + (cosm === "all" ? "bf-chip-rose" : "bf-chip-wait")} style={{ cursor: "pointer", border: "none" }}>הכל</button>
+            {cosmList.map((c) => (
+              <button key={c.id} onClick={() => setCosm(c.id)} className={"bf-chip " + (cosm === c.id ? "bf-chip-rose" : "bf-chip-wait")} style={{ cursor: "pointer", border: "none" }}>{c.name}</button>
+            ))}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {sortGallery(mgr.gallery, sort).map((g) => (
+          {sortGallery(shown(mgr.gallery), sort).map((g) => (
             <div key={g.id} style={{ position: "relative" }}>
               <GalleryTile item={g} onOpen={setView} />
               <button aria-label="עריכת תיאור" onClick={(e) => { e.stopPropagation(); setEditing(g); }}
@@ -90,7 +104,15 @@ export default function MgrGallery({ mgr }) {
             : <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(pickedFile)}) center/cover`, marginBottom: 14 }} />}
           <label className="bf-label">תיאור קצר</label>
           <input className="bf-input" placeholder="לדוגמה: פרנץ' ורוד" value={cap} onChange={(e) => setCap(e.target.value)} />
-          <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy} onClick={doUpload}>
+          {showCosm && (<>
+            <label className="bf-label" style={{ marginTop: 12 }}>מי ביצעה את הטיפול?</label>
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+              {cosmList.map((c) => (
+                <button key={c.id} onClick={() => setPickedEmp(c.id)} className={"bf-slot" + (pickedEmp === c.id ? " active" : "")} style={{ flex: "1 0 30%" }}>{c.name}</button>
+              ))}
+            </div>
+          </>)}
+          <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy || (showCosm && !pickedEmp)} onClick={doUpload}>
             {busy ? "מעלה…" : "הוספה לגלריה"}
           </button>
         </Sheet>

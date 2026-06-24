@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Coffee, Plus, Clock, Pencil, AlertTriangle, RefreshCw } from "lucide-react";
-import { Sheet } from "../ui";
+import { Sheet, Confirm } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import ApptSheet from "./ApptSheet";
@@ -18,6 +18,7 @@ export default function MgrCalendar({ mgr }) {
   const [addBreak, setAddBreak] = useState(false);
   const [editWeekly, setEditWeekly] = useState(false);
   const [editDay, setEditDay] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const [weekly, setWeekly] = useState([]);
   const [override, setOverride] = useState(null);
@@ -81,10 +82,24 @@ export default function MgrCalendar({ mgr }) {
       </div>
 
       <button className="bf-btn bf-btn-ghost" onClick={() => setAddBreak(true)}><Coffee size={16} /> הוספת הפסקה ליום זה</button>
+      {sel === 0 && appts.some((a) => a.status === "confirmed") && (
+        <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => setConfirmClose(true)}>
+          <AlertTriangle size={16} /> סגירת היומן עכשיו
+        </button>
+      )}
 
       <DaySchedule effective={effective} dayAppts={appts} dayBreaks={breaks} allAppts={mgr.appts}
         onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
 
+      {confirmClose && (
+        <Confirm
+          title="לסגור את היומן עכשיו?"
+          body="כל התורים שטרם בוצעו היום יבוטלו והלקוחות יקבלו על כך הודעה. הפעולה אינה הפיכה."
+          confirmLabel="כן, סגרי את היומן" danger
+          onConfirm={() => mgr.closeDayNow(appts.filter((a) => a.status === "confirmed"))}
+          onClose={() => setConfirmClose(false)}
+        />
+      )}
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
       {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} onClose={() => setAddBreak(false)} />}
       {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} onClose={() => setEditWeekly(false)} onSaved={reload} />}

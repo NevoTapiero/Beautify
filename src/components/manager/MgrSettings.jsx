@@ -28,6 +28,9 @@ export default function MgrSettings({ mgr }) {
   const [openStanding, setOpenStanding] = useState(false);   // standing list dropdown (note 48)
   const [editEmp, setEditEmp] = useState(null);   // employee being added/edited (business)
   const [openInvoices, setOpenInvoices] = useState(false);   // invoices dropdown (business)
+  const [openServices, setOpenServices] = useState(false);   // services dropdown (note 49)
+  const [openEmployees, setOpenEmployees] = useState(false); // employees dropdown (note 50)
+  const [codeGate, setCodeGate] = useState(null);            // {target:true|false} business code prompt
 
   const tog = (k) => {
     const next = !state[k];
@@ -59,20 +62,25 @@ export default function MgrSettings({ mgr }) {
       <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5 }}>גרסת עסק</div>
-          <div style={{ fontSize: 12.5, color: "var(--muted)" }}>חשבוניות אוטומטיות, ניהול עובדות ותשלום באשראי</div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)" }}>חשבוניות אוטומטיות, ניהול עובדות ותשלום באשראי · נדרש קוד</div>
         </div>
-        <button onClick={() => mgr.setBusinessMode(!mgr.business)} aria-pressed={mgr.business} style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: mgr.business ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: mgr.business ? "flex-end" : "flex-start", transition: ".18s" }}>
+        <button onClick={() => setCodeGate({ target: !mgr.business })} aria-pressed={mgr.business} style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: mgr.business ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: mgr.business ? "flex-end" : "flex-start", transition: ".18s" }}>
           <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
         </button>
       </div>
 
       {mgr.business && (<>
-        {/* Employees — managed like services (business feature) */}
-        <SectionTitle icon={Users} action={
-          <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setEditEmp({ name: "", title: "", color: "#D9738F" })}>
-            <UserPlus size={14} /> עובדת
-          </button>
-        }>העובדות שלך</SectionTitle>
+        {/* Employees — collapsible dropdown (note 50) */}
+        <button onClick={() => setOpenEmployees((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+          <Users size={16} color="var(--plum)" />
+          <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>העובדות שלך</span>
+          <span className="bf-chip bf-chip-wait">{emps.length}</span>
+          <ChevronDown size={18} color="var(--muted)" style={{ transform: openEmployees ? "rotate(180deg)" : "none", transition: ".18s" }} />
+        </button>
+        {openEmployees && (<>
+        <button className="bf-btn bf-btn-soft bf-btn-sm" style={{ justifySelf: "start" }} onClick={() => setEditEmp({ name: "", title: "", color: "#D9738F" })}>
+          <UserPlus size={14} /> עובדת חדשה
+        </button>
         {emps.length === 0 && (
           <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
             עדיין לא הוספת עובדות — הוסיפי כדי שלקוחות יוכלו לבחור קוסמטיקאית בקביעת תור
@@ -91,6 +99,7 @@ export default function MgrSettings({ mgr }) {
             </div>
           ))}
         </div>
+        </>)}
 
         {/* Invoices — collapsible list */}
         <button onClick={() => setOpenInvoices((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
@@ -122,30 +131,36 @@ export default function MgrSettings({ mgr }) {
         </div>
       </>)}
 
-      {/* Services management (notes 20, 25) */}
-      <SectionTitle icon={Sparkles} action={
-        <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setEditSvc({ name: "", dur: 60, price: 100, grad: GRADS[services.length % GRADS.length] })}>
-          <Plus size={14} /> שירות
+      {/* Services management — collapsible dropdown (note 49) */}
+      <button onClick={() => setOpenServices((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+        <Sparkles size={16} color="var(--plum)" />
+        <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>השירותים שלך</span>
+        <span className="bf-chip bf-chip-wait">{services.length}</span>
+        <ChevronDown size={18} color="var(--muted)" style={{ transform: openServices ? "rotate(180deg)" : "none", transition: ".18s" }} />
+      </button>
+      {openServices && (<>
+        <button className="bf-btn bf-btn-soft bf-btn-sm" style={{ justifySelf: "start" }} onClick={() => setEditSvc({ name: "", dur: 60, price: 100, grad: GRADS[services.length % GRADS.length] })}>
+          <Plus size={14} /> שירות חדש
         </button>
-      }>השירותים שלך</SectionTitle>
-      {services.length === 0 && (
-        <div className="bf-card" style={{ padding: 16, textAlign: "center", color: "var(--muted)", fontSize: 13, borderStyle: "dashed" }}>
-          עדיין לא הוספת שירותים — הוסיפי כדי שלקוחות יוכלו לקבוע תור
-        </div>
-      )}
-      <div style={{ display: "grid", gap: 9 }}>
-        {services.map((sv) => (
-          <div key={sv.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 11, background: serviceBg(sv), flex: "none" }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{sv.name}</div>
-              <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
-            </div>
-            <button onClick={() => setEditSvc(sv)} aria-label="עריכה" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4 }}><Pencil size={16} /></button>
-            <button onClick={() => mgr.deleteService(sv.id)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
+        {services.length === 0 && (
+          <div className="bf-card" style={{ padding: 16, textAlign: "center", color: "var(--muted)", fontSize: 13, borderStyle: "dashed" }}>
+            עדיין לא הוספת שירותים — הוסיפי כדי שלקוחות יוכלו לקבוע תור
           </div>
-        ))}
-      </div>
+        )}
+        <div style={{ display: "grid", gap: 9 }}>
+          {services.map((sv) => (
+            <div key={sv.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: serviceBg(sv), flex: "none" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{sv.name}</div>
+                <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
+              </div>
+              <button onClick={() => setEditSvc(sv)} aria-label="עריכה" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4 }}><Pencil size={16} /></button>
+              <button onClick={() => mgr.deleteService(sv.id)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
+            </div>
+          ))}
+        </div>
+      </>)}
 
       {/* Standing weekly appointments — collapsible dropdown (note 48) */}
       {(() => {
@@ -211,7 +226,30 @@ export default function MgrSettings({ mgr }) {
 
       {editSvc && <ServiceEditor svc={editSvc} mgr={mgr} grads={GRADS} onClose={() => setEditSvc(null)} />}
       {editEmp && <EmployeeEditor emp={editEmp} mgr={mgr} onClose={() => setEditEmp(null)} />}
+      {codeGate && <CodeGate target={codeGate.target} mgr={mgr} onClose={() => setCodeGate(null)} />}
     </div>
+  );
+}
+
+// Switching between editions requires a code we hand out (notes 51-54).
+function CodeGate({ target, mgr, onClose }) {
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState(false);
+  const needed = target ? "BusinessBeautify" : "PrivateBeautify";
+  const submit = () => {
+    if (code.trim() === needed) { mgr.setBusinessMode(target); onClose(); }
+    else setErr(true);
+  };
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>{target ? "מעבר לגרסת עסק" : "חזרה לגרסה פרטית"}</h3>
+      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>
+        {target ? "הזיני את קוד ההפעלה לעסקים שקיבלת מאיתנו." : "הזיני את הקוד לחזרה לגרסה הפרטית."}
+      </div>
+      <input className="bf-input" value={code} onChange={(e) => { setCode(e.target.value); setErr(false); }} placeholder="קוד" onKeyDown={(e) => e.key === "Enter" && submit()} />
+      {err && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8, fontWeight: 600 }}>קוד שגוי</div>}
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={!code.trim()} onClick={submit}>אישור</button>
+    </Sheet>
   );
 }
 

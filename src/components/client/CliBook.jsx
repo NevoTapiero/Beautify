@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Wallet, Sparkles, User, CreditCard } from "lucide-react";
-import { Steps, SectionTitle, Back, BitSheet, CardSheet, Row, Empty, serviceBg } from "../ui";
+import { Steps, SectionTitle, Back, BitSheet, CardSheet, Row, Empty, serviceBg, cosmeticians } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -13,7 +13,11 @@ export default function CliBook({ cli }) {
   const [pay, setPay] = useState(false);
   const [payCard, setPayCard] = useState(false);
   const [busy, setBusy] = useState(false);
-  const showEmployees = cli.business && (cli.employees || []).length > 0;
+  // Cosmetician choice (business): owner + employees. Required once there's
+  // more than one cosmetician (note 28). "owner" maps to employee_id null.
+  const cosmList = cosmeticians(cli.studioName, cli.employees);
+  const showEmployees = cli.business && cosmList.length > 1;
+  const empArg = employee === "owner" ? null : employee;
   const [slots, setSlots] = useState(null);   // null = loading, [] = none free
   const [parts, setParts] = useState([]);      // selected day-parts: morning/noon/evening
   const days = next7();
@@ -34,7 +38,7 @@ export default function CliBook({ cli }) {
     if (offset == null || !s) { setSlots(null); return; }
     let active = true;
     setSlots(null); setTime(null); setParts([]);
-    availableSlots(cli.studio.id, dateForOffset(offset), s.dur, employee).then((list) => {
+    availableSlots(cli.studio.id, dateForOffset(offset), s.dur, empArg).then((list) => {
       if (active) setSlots(list);
     });
     return () => { active = false; };
@@ -42,7 +46,7 @@ export default function CliBook({ cli }) {
 
   const finish = async (paid, msg) => {
     setBusy(true);
-    await cli.book(service, offset, time, paid, employee);
+    await cli.book(service, offset, time, paid, empArg);
     setBusy(false);
     cli.ping(msg || (paid ? "התור נקבע ושולם ✓" : "התור נקבע ✓ נתראה!"));
     setPay(false); setPayCard(false); setStep(1); setService(null); setOffset(null); setTime(null); setEmployee(null);
@@ -73,15 +77,14 @@ export default function CliBook({ cli }) {
         {showEmployees && (<>
           <SectionTitle icon={User}>בחרי קוסמטיקאית</SectionTitle>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {cli.employees.map((e) => (
-              <button key={e.id} onClick={() => setEmployee(employee === e.id ? null : e.id)}
+            {cosmList.map((e) => (
+              <button key={e.id} onClick={() => setEmployee(e.id)}
                 className={"bf-slot" + (employee === e.id ? " active" : "")} style={{ flex: "1 0 30%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <span style={{ width: 18, height: 18, borderRadius: "50%", background: e.color, flex: "none" }} />
                 {e.name}
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: -4 }}>אפשר לבחור קוסמטיקאית מסוימת או להשאיר ריק לכל אחת זמינה</div>
         </>)}
         <SectionTitle icon={CalendarDays}>בחרי יום</SectionTitle>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
@@ -122,7 +125,7 @@ export default function CliBook({ cli }) {
               )}
           </>)}
         </>)}
-        <button className="bf-btn bf-btn-primary" disabled={offset == null || !time} onClick={() => setStep(3)}>המשך לאישור</button>
+        <button className="bf-btn bf-btn-primary" disabled={offset == null || !time || (showEmployees && !employee)} onClick={() => setStep(3)}>המשך לאישור</button>
       </>)}
 
       {step === 3 && (<>
@@ -133,7 +136,7 @@ export default function CliBook({ cli }) {
           </div>
           <div style={{ padding: 14, display: "grid", gap: 7, fontSize: 14 }}>
             <Row k="טיפול" v={s?.name} />
-            {employee && <Row k="קוסמטיקאית" v={(cli.employees.find((e) => e.id === employee) || {}).name} />}
+            {showEmployees && employee && <Row k="קוסמטיקאית" v={(cosmList.find((e) => e.id === employee) || {}).name} />}
             <Row k="מתי" v={`${days[offset].dl} · ${time}`} />
             <Row k="משך" v={`${s?.dur} דקות`} />
             <Row k="מחיר" v={<span className="bf-display" style={{ fontWeight: 800, color: "var(--plum)", fontSize: 17 }}>₪{s?.price}</span>} />

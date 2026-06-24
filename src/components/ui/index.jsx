@@ -124,6 +124,16 @@ export function HealthDeclarationText() {
   );
 }
 
+// The selectable cosmetician list = the owner (studio) + her employees.
+// The owner is represented with id "owner"; an employee_id of null means the owner.
+export const cosmeticians = (studioName, employees) =>
+  [{ id: "owner", name: studioName, color: "#7C2A53", owner: true }, ...(employees || [])];
+
+// Resolve a cosmetician's display name from an appointment/photo employee_id
+// (null = the owner).
+export const cosmeticianName = (id, employees, studioName) =>
+  id ? ((employees || []).find((e) => e.id === id) || {}).name || "—" : studioName;
+
 // Background for a service swatch — her chosen image, else the gradient (note 43).
 export const serviceBg = (sv) => (sv && sv.img) ? `url(${sv.img}) center/cover` : (sv ? sv.grad : "var(--sand)");
 
