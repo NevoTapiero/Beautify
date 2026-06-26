@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, RefreshCw, Moon } from "lucide-react";
-import { SectionTitle, Confirm } from "../ui";
+import { SectionTitle, Confirm, cosmeticians } from "../ui";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import { dateForOffset } from "../../data/mock";
 import ApptSheet from "./ApptSheet";
@@ -13,22 +13,28 @@ export default function MgrHome({ mgr, go }) {
   const [todayEff, setTodayEff] = useState(null);   // today's working hours, for the slot grid
   const [remindOpen, setRemindOpen] = useState(false);
 
-  // Today's working hours — drives the closed banner (note 23) + slot grid (note 30).
+  // Switch between cosmeticians' schedules on Home (business; note 32). null = owner.
+  const cosmList = cosmeticians(mgr.studioName, mgr.employees);
+  const showCosm = mgr.business && cosmList.length > 1;
+  const [cosmId, setCosmId] = useState(null);
+  const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
+
+  // Selected cosmetician's working hours today — drives the closed banner + slot grid.
   useEffect(() => {
     let active = true;
     (async () => {
       const todayStr = dateForOffset(0);
       const [weekly, override] = await Promise.all([
-        loadWeeklyHours(mgr.studio.id), getDayOverride(mgr.studio.id, todayStr),
+        loadWeeklyHours(mgr.studio.id, cosmId), getDayOverride(mgr.studio.id, todayStr, cosmId),
       ]);
       const eff = override || weekly.find((w) => w.weekday === new Date().getDay()) || null;
       if (active) { setClosedToday(!!eff && !eff.is_open); setTodayEff(eff); }
     })();
     return () => { active = false; };
-  }, [mgr.studio.id, mgr.breaks]);
+  }, [mgr.studio.id, mgr.breaks, cosmId]);
 
-  const today = mgr.appts.filter((a) => a.day === 0).sort((x, y) => x.time.localeCompare(y.time));
-  const todayBreaks = mgr.breaks.filter((b) => b.day === 0);
+  const today = mgr.appts.filter((a) => a.day === 0 && sameCosm(a)).sort((x, y) => x.time.localeCompare(y.time));
+  const todayBreaks = mgr.breaks.filter((b) => b.day === 0 && sameCosm(b));
   const unconfirmed = today.filter((a) => !a.arrival && a.status === "confirmed");
 
   const handleRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
@@ -46,9 +52,20 @@ export default function MgrHome({ mgr, go }) {
         <div className="bf-card" style={{ padding: "13px 15px", display: "flex", alignItems: "center", gap: 11, background: "linear-gradient(135deg,#3A2A40,#5E1F40)", color: "#fff" }}>
           <Moon size={20} />
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>הסטודיו סגור היום</div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{cosmId ? `${(cosmList.find((c) => c.id === cosmId) || {}).name} לא עובדת היום` : "הסטודיו סגור היום"}</div>
             <div style={{ fontSize: 12.5, opacity: .85 }}>לקוחות לא יוכלו לקבוע תור להיום</div>
           </div>
+        </div>
+      )}
+      {showCosm && (
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+          {cosmList.map((c) => (
+            <button key={c.id} onClick={() => setCosmId(c.owner ? null : c.id)}
+              className={"bf-chip " + ((c.owner ? null : c.id) === cosmId ? "bf-chip-rose" : "bf-chip-wait")}
+              style={{ cursor: "pointer", border: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 13, height: 13, borderRadius: "50%", background: c.color }} /> {c.name}
+            </button>
+          ))}
         </div>
       )}
       <div style={{ display: "flex", gap: 10 }}>

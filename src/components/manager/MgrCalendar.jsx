@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Coffee, Plus, Clock, Pencil, AlertTriangle, RefreshCw } from "lucide-react";
-import { Sheet, Confirm } from "../ui";
+import { Sheet, Confirm, cosmeticians } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import ApptSheet from "./ApptSheet";
@@ -23,16 +23,23 @@ export default function MgrCalendar({ mgr }) {
   const [weekly, setWeekly] = useState([]);
   const [override, setOverride] = useState(null);
 
+  // Per-cosmetician schedules (business). null = the owner. The switcher lets
+  // the manager move between each cosmetician's calendar (notes 32, 36).
+  const cosmList = cosmeticians(mgr.studioName, mgr.employees);
+  const showCosm = mgr.business && cosmList.length > 1;
+  const [cosmId, setCosmId] = useState(null);
+  const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
+
   const dateStr = dateForOffset(sel);
   const weekday = days[sel].weekday;
 
   const reload = useCallback(async () => {
     const [w, o] = await Promise.all([
-      loadWeeklyHours(mgr.studio.id),
-      getDayOverride(mgr.studio.id, dateStr),
+      loadWeeklyHours(mgr.studio.id, cosmId),
+      getDayOverride(mgr.studio.id, dateStr, cosmId),
     ]);
     setWeekly(w); setOverride(o);
-  }, [mgr.studio.id, dateStr]);
+  }, [mgr.studio.id, dateStr, cosmId]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -42,8 +49,8 @@ export default function MgrCalendar({ mgr }) {
   const effective = override || weekly.find((w) => w.weekday === weekday) || null;
   const weeklyDefault = weekly.find((w) => w.weekday === weekday) || null;
 
-  const appts = mgr.appts.filter((a) => a.day === sel).sort((x, y) => x.time.localeCompare(y.time));
-  const breaks = mgr.breaks.filter((b) => b.day === sel);
+  const appts = mgr.appts.filter((a) => a.day === sel && sameCosm(a)).sort((x, y) => x.time.localeCompare(y.time));
+  const breaks = mgr.breaks.filter((b) => b.day === sel && sameCosm(b));
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
@@ -52,11 +59,23 @@ export default function MgrCalendar({ mgr }) {
           <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} /> רענון
         </button>
       </div>
+
+      {showCosm && (
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+          {cosmList.map((c) => (
+            <button key={c.id} onClick={() => setCosmId(c.owner ? null : c.id)}
+              className={"bf-chip " + ((c.owner ? null : c.id) === cosmId ? "bf-chip-rose" : "bf-chip-wait")}
+              style={{ cursor: "pointer", border: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 13, height: 13, borderRadius: "50%", background: c.color }} /> {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
         {days.map((d) => {
-          // Per-day appointment count (note D) — always shown so the manager
-          // sees how busy each day is at a glance.
-          const count = mgr.appts.filter((a) => a.day === d.offset && a.status !== "reschedule_requested").length;
+          // Per-day appointment count (note D) — for the selected cosmetician.
+          const count = mgr.appts.filter((a) => a.day === d.offset && a.status !== "reschedule_requested" && sameCosm(a)).length;
           return (
             <div key={d.offset} className={"bf-day" + (sel === d.offset ? " active" : "")} onClick={() => setSel(d.offset)} style={{ position: "relative" }}>
               <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
@@ -101,9 +120,9 @@ export default function MgrCalendar({ mgr }) {
         />
       )}
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
-      {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} onClose={() => setAddBreak(false)} />}
-      {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} onClose={() => setEditWeekly(false)} onSaved={reload} />}
-      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} weeklyDefault={weeklyDefault} hasOverride={!!override} mgr={mgr} onClose={() => setEditDay(false)} onSaved={reload} />}
+      {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} cosmId={cosmId} onClose={() => setAddBreak(false)} />}
+      {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} cosmId={cosmId} onClose={() => setEditWeekly(false)} onSaved={reload} />}
+      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} weeklyDefault={weeklyDefault} hasOverride={!!override} mgr={mgr} cosmId={cosmId} onClose={() => setEditDay(false)} onSaved={reload} />}
     </div>
   );
 }
@@ -133,7 +152,7 @@ function ConflictConfirm({ affected, onConfirm, onClose, busy }) {
   );
 }
 
-function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
+function AddBreakSheet({ day, dayLabel, mgr, cosmId, onClose }) {
   const [start, setStart] = useState("13:00");
   const [end, setEnd] = useState("14:00");
   const [title, setTitle] = useState("הפסקה");
@@ -141,12 +160,12 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
   const [busy, setBusy] = useState(false);
   const valid = end > start;
 
-  const affectedFor = () => mgr.appts.filter((a) => a.day === day && a.status === "confirmed"
+  const affectedFor = () => mgr.appts.filter((a) => a.day === day && a.status === "confirmed" && (a.employeeId ?? null) === cosmId
     && overlaps(toMin(a.time), toMin(a.time) + a.serviceDur, toMin(start), toMin(end)));
 
   const apply = async (affected) => {
     setBusy(true);
-    await mgr.addBreak(day, start, end, title);
+    await mgr.addBreak(day, start, end, title, cosmId);
     if (affected.length) await mgr.rescheduleMany(affected);
     setBusy(false); onClose();
   };
@@ -173,7 +192,7 @@ function AddBreakSheet({ day, dayLabel, mgr, onClose }) {
   );
 }
 
-function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOverride, mgr, onClose, onSaved }) {
+function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOverride, mgr, cosmId, onClose, onSaved }) {
   const [isOpen, setIsOpen] = useState(effective ? effective.is_open : true);
   const [start, setStart] = useState(hhmm(effective?.start_time) || "09:00");
   const [end, setEnd] = useState(hhmm(effective?.end_time) || "19:00");
@@ -183,8 +202,8 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOv
 
   // appointments/breaks that no longer fit the new hours (or all, if closing).
   const computeImpact = () => {
-    const dayAppts = mgr.appts.filter((a) => a.day === day && a.status === "confirmed");
-    const dayBreaks = mgr.breaks.filter((b) => b.day === day);
+    const dayAppts = mgr.appts.filter((a) => a.day === day && a.status === "confirmed" && (a.employeeId ?? null) === cosmId);
+    const dayBreaks = mgr.breaks.filter((b) => b.day === day && (b.employeeId ?? null) === cosmId);
     if (!isOpen) return { affected: dayAppts, staleBreaks: dayBreaks.map((b) => b.id) };
     const o = toMin(start), c = toMin(end);
     const affected = dayAppts.filter((a) => toMin(a.time) < o || toMin(a.time) + a.serviceDur > c);
@@ -203,8 +222,8 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOv
 
   const apply = async ({ affected, staleBreaks }) => {
     setBusy(true);
-    if (matchesWeekly()) await mgr.clearDayOverride(dateStr);
-    else await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end });
+    if (matchesWeekly()) await mgr.clearDayOverride(dateStr, cosmId);
+    else await mgr.setDayOverride(dateStr, { is_open: isOpen, start_time: start, end_time: end }, cosmId);
     if (staleBreaks.length) await mgr.removeBreaks(staleBreaks);
     if (affected.length) await mgr.rescheduleMany(affected);
     setBusy(false); await onSaved(); onClose();
@@ -214,7 +233,7 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOv
     const impact = computeImpact();
     if (impact.affected.length) setConflict(impact); else apply(impact);
   };
-  const reset = async () => { setBusy(true); await mgr.clearDayOverride(dateStr); setBusy(false); await onSaved(); onClose(); };
+  const reset = async () => { setBusy(true); await mgr.clearDayOverride(dateStr, cosmId); setBusy(false); await onSaved(); onClose(); };
 
   return (
     <Sheet onClose={onClose}>
@@ -241,7 +260,7 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOv
   );
 }
 
-function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, onClose, onSaved }) {
+function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, cosmId, onClose, onSaved }) {
   const byDay = (wd) => weekly.find((w) => w.weekday === wd) || { is_open: wd !== 6, start_time: "09:00", end_time: wd === 5 ? "14:00" : "19:00" };
   const [rows, setRows] = useState(() => Array.from({ length: 7 }, (_, wd) => {
     const r = byDay(wd); return { weekday: wd, is_open: r.is_open, start: hhmm(r.start_time), end: hhmm(r.end_time) };
@@ -257,11 +276,13 @@ function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, onClose, onSave
     const affected = []; const staleBreaks = [];
     for (const a of mgr.appts) {
       if (a.status !== "confirmed") continue;
+      if ((a.employeeId ?? null) !== cosmId) continue;
       if (hasSelOverride && a.day === selDay) continue;
       const row = rows[wdForOffset(a.day)];
       if (!row.is_open || toMin(a.time) < toMin(row.start) || toMin(a.time) + a.serviceDur > toMin(row.end)) affected.push(a);
     }
     for (const b of mgr.breaks) {
+      if ((b.employeeId ?? null) !== cosmId) continue;
       if (hasSelOverride && b.day === selDay) continue;
       const row = rows[wdForOffset(b.day)];
       if (!row.is_open || toMin(b.time) < toMin(row.start) || toMin(b.endTime) > toMin(row.end)) staleBreaks.push(b.id);
@@ -271,7 +292,7 @@ function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, onClose, onSave
 
   const apply = async ({ affected, staleBreaks }) => {
     setBusy(true);
-    for (const r of rows) await mgr.setWeeklyHours(r.weekday, { is_open: r.is_open, start_time: r.start, end_time: r.end });
+    for (const r of rows) await mgr.setWeeklyHours(r.weekday, { is_open: r.is_open, start_time: r.start, end_time: r.end }, cosmId);
     if (staleBreaks.length) await mgr.removeBreaks(staleBreaks);
     if (affected.length) await mgr.rescheduleMany(affected);
     setBusy(false); await onSaved(); onClose();

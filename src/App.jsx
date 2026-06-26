@@ -226,15 +226,15 @@ export default function App() {
       if (appts.length) ping(`נשלחו ${appts.length} בקשות הזזה ללקוחות`);
       loadManagerData();
     },
-    addBreak: async (dayOffset, start, end, title) => {
-      await api.addBreak(studio.id, dayOffset, start, end, title);
+    addBreak: async (dayOffset, start, end, title, employeeId) => {
+      await api.addBreak(studio.id, dayOffset, start, end, title, employeeId);
       ping("ההפסקה נוספה"); loadManagerData();
     },
     deleteBreak: async (id) => { await api.deleteBreak(id); ping("ההפסקה הוסרה"); loadManagerData(); },
     removeBreaks: async (ids) => { for (const id of ids) await api.deleteBreak(id); loadManagerData(); },
-    setWeeklyHours: async (weekday, fields) => { await api.setWeeklyHours(studio.id, weekday, fields); ping("שעות העבודה נשמרו"); },
-    setDayOverride: async (dateStr, fields) => { await api.setDayOverride(studio.id, dateStr, fields); ping("שעות היום עודכנו"); },
-    clearDayOverride: async (dateStr) => { await api.clearDayOverride(studio.id, dateStr); ping("היום חזר לברירת המחדל"); },
+    setWeeklyHours: async (weekday, fields, employeeId) => { await api.setWeeklyHours(studio.id, weekday, fields, employeeId); ping("שעות העבודה נשמרו"); },
+    setDayOverride: async (dateStr, fields, employeeId) => { await api.setDayOverride(studio.id, dateStr, fields, employeeId); ping("שעות היום עודכנו"); },
+    clearDayOverride: async (dateStr, employeeId) => { await api.clearDayOverride(studio.id, dateStr, employeeId); ping("היום חזר לברירת המחדל"); },
     blockClient: async (c) => {
       await api.setClientBlocked(c.id, !c.blocked);
       ping(c.blocked ? "החסימה הוסרה" : "הלקוחה נחסמה"); loadManagerData();

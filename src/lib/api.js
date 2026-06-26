@@ -429,17 +429,17 @@ export async function loadBreaks(studioId) {
       const d = new Date(b.starts_at), e = new Date(b.ends_at);
       const day = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
       const fmt = (x) => x.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
-      return { id: b.id, title: b.title, day, time: fmt(d), endTime: fmt(e), starts_at: b.starts_at, _break: true };
+      return { id: b.id, title: b.title, day, time: fmt(d), endTime: fmt(e), starts_at: b.starts_at, employeeId: b.employee_id, _break: true };
     });
   } catch (err) { log("loadBreaks", err); return null; }
 }
 
-export async function addBreak(studioId, dayOffset, startStr, endStr, title) {
+export async function addBreak(studioId, dayOffset, startStr, endStr, title, employeeId) {
   if (!isSupabaseReady) return null;
   try {
     const { data, error } = await supabaseManager
       .from("breaks")
-      .insert({ studio_id: studioId, starts_at: toTimestamp(dayOffset, startStr), ends_at: toTimestamp(dayOffset, endStr), title: title || "הפסקה" })
+      .insert({ studio_id: studioId, starts_at: toTimestamp(dayOffset, startStr), ends_at: toTimestamp(dayOffset, endStr), title: title || "הפסקה", employee_id: employeeId || null })
       .select("*").single();
     if (error) throw error;
     return data;
@@ -458,51 +458,65 @@ export async function deleteBreak(id) {
 // ─── Working hours (notes 15, 20) ────────────────────────────────────────────
 
 // Weekly defaults: 7 rows (weekday 0=Sun .. 6=Sat).
-export async function loadWeeklyHours(studioId) {
+// Null-safe employee_id filter: .eq for an id, .is(null) for the owner.
+const byEmployee = (q, employeeId) => employeeId ? q.eq("employee_id", employeeId) : q.is("employee_id", null);
+
+export async function loadWeeklyHours(studioId, employeeId) {
   if (!isSupabaseReady || !studioId) return [];
   try {
-    const { data, error } = await supabaseClient
-      .from("work_hours").select("*").eq("studio_id", studioId).order("weekday");
+    const { data, error } = await byEmployee(
+      supabaseClient.from("work_hours").select("*").eq("studio_id", studioId), employeeId
+    ).order("weekday");
     if (error) throw error;
     return data || [];
   } catch (err) { log("loadWeeklyHours", err); return []; }
 }
 
-export async function setWeeklyHours(studioId, weekday, fields) {
+// Per-cosmetician: delete the existing row then insert (avoids upsert-with-NULL
+// conflict edge cases). employeeId null = the owner.
+export async function setWeeklyHours(studioId, weekday, fields, employeeId) {
   if (!isSupabaseReady) return false;
   try {
+    await byEmployee(
+      supabaseManager.from("work_hours").delete().eq("studio_id", studioId).eq("weekday", weekday), employeeId
+    );
     const { error } = await supabaseManager.from("work_hours")
-      .upsert({ studio_id: studioId, weekday, ...fields }, { onConflict: "studio_id,weekday" });
+      .insert({ studio_id: studioId, weekday, employee_id: employeeId || null, ...fields });
     if (error) throw error;
     return true;
   } catch (err) { log("setWeeklyHours", err); return false; }
 }
 
 // Per-date override (replaces the weekly default for one date).
-export async function getDayOverride(studioId, dateStr) {
+export async function getDayOverride(studioId, dateStr, employeeId) {
   if (!isSupabaseReady) return null;
   try {
-    const { data } = await supabaseClient.from("work_overrides")
-      .select("*").eq("studio_id", studioId).eq("date", dateStr).maybeSingle();
+    const { data } = await byEmployee(
+      supabaseClient.from("work_overrides").select("*").eq("studio_id", studioId).eq("date", dateStr), employeeId
+    ).maybeSingle();
     return data || null;
   } catch (err) { log("getDayOverride", err); return null; }
 }
 
-export async function setDayOverride(studioId, dateStr, fields) {
+export async function setDayOverride(studioId, dateStr, fields, employeeId) {
   if (!isSupabaseReady) return false;
   try {
+    await byEmployee(
+      supabaseManager.from("work_overrides").delete().eq("studio_id", studioId).eq("date", dateStr), employeeId
+    );
     const { error } = await supabaseManager.from("work_overrides")
-      .upsert({ studio_id: studioId, date: dateStr, ...fields }, { onConflict: "studio_id,date" });
+      .insert({ studio_id: studioId, date: dateStr, employee_id: employeeId || null, ...fields });
     if (error) throw error;
     return true;
   } catch (err) { log("setDayOverride", err); return false; }
 }
 
-export async function clearDayOverride(studioId, dateStr) {
+export async function clearDayOverride(studioId, dateStr, employeeId) {
   if (!isSupabaseReady) return false;
   try {
-    await supabaseManager.from("work_overrides").delete()
-      .eq("studio_id", studioId).eq("date", dateStr);
+    await byEmployee(
+      supabaseManager.from("work_overrides").delete().eq("studio_id", studioId).eq("date", dateStr), employeeId
+    );
     return true;
   } catch (err) { log("clearDayOverride", err); return false; }
 }
