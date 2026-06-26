@@ -575,6 +575,27 @@ export async function issueInvoice(appointmentId) {
   } catch (err) { log("issueInvoice", err); return { error: "הפקת החשבונית נכשלה" }; }
 }
 
+// Verify the manager's password (used to exit employee-app mode). Re-signs in
+// the same manager account; returns true on success.
+export async function verifyManagerPassword(email, password) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.auth.signInWithPassword({ email, password });
+    return !error;
+  } catch { return false; }
+}
+
+// Light fetch of active employees (used by the employee-app to detect a remote
+// disconnect — if her row is gone/inactive, the device unlocks).
+export async function loadEmployees(studioId) {
+  if (!isSupabaseReady || !studioId) return [];
+  try {
+    const { data } = await supabaseClient.from("employees")
+      .select("id,name,title,color").eq("studio_id", studioId).eq("active", true).order("sort_order");
+    return data || [];
+  } catch { return []; }
+}
+
 export async function loadInvoices(studioId) {
   if (!isSupabaseReady || !studioId) return [];
   try {

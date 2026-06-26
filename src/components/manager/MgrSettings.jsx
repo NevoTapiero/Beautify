@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus } from "lucide-react";
-import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg } from "../ui";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus, Smartphone, Lock } from "lucide-react";
+import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg, Confirm } from "../ui";
 import { DOW_FULL } from "../../data/mock";
 
 const KEYS = {
@@ -31,6 +31,7 @@ export default function MgrSettings({ mgr }) {
   const [openServices, setOpenServices] = useState(false);   // services dropdown (note 49)
   const [openEmployees, setOpenEmployees] = useState(false); // employees dropdown (note 50)
   const [codeGate, setCodeGate] = useState(null);            // {target:true|false} business code prompt
+  const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
 
   const tog = (k) => {
     const next = !state[k];
@@ -129,6 +130,25 @@ export default function MgrSettings({ mgr }) {
         <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.6, padding: "0 2px" }}>
           חשבוניות נשמרות וממוספרות באפליקציה. חיבור לחשבונית מס רשמית (חשבונית ירוקה / iCount) יתווסף לאחר פתיחת חשבון אצל הספק.
         </div>
+
+        {/* Employee-app mode: lock this device to one employee's view (Phase 3) */}
+        <SectionTitle icon={Smartphone}>אפליקציית עובדת</SectionTitle>
+        <div className="bf-card" style={{ padding: 13, fontSize: 12.5, color: "var(--muted)", lineHeight: 1.6 }}>
+          נעלי את המכשיר הזה לתצוגת עובדת מסוימת (למשל בטלפון של העובדת). היציאה חזרה לתצוגת מנהלת תדרוש את סיסמת המנהלת.
+        </div>
+        {emps.length === 0 ? (
+          <div className="bf-card" style={{ padding: 13, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>הוסיפי עובדות כדי לנעול אליהן את האפליקציה</div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {emps.map((e) => (
+              <button key={e.id} className="bf-card" onClick={() => setLockEmp(e)} style={{ padding: 11, display: "flex", alignItems: "center", gap: 11, cursor: "pointer", textAlign: "right", width: "100%" }}>
+                <div style={{ width: 30, height: 30, borderRadius: "50%", background: e.color, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>{(e.name || "?").charAt(0)}</div>
+                <span style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>{e.name}</span>
+                <Lock size={15} color="var(--muted)" />
+              </button>
+            ))}
+          </div>
+        )}
       </>)}
 
       {/* Services management — collapsible dropdown (note 49) */}
@@ -227,6 +247,15 @@ export default function MgrSettings({ mgr }) {
       {editSvc && <ServiceEditor svc={editSvc} mgr={mgr} grads={GRADS} onClose={() => setEditSvc(null)} />}
       {editEmp && <EmployeeEditor emp={editEmp} mgr={mgr} onClose={() => setEditEmp(null)} />}
       {codeGate && <CodeGate target={codeGate.target} mgr={mgr} onClose={() => setCodeGate(null)} />}
+      {lockEmp && (
+        <Confirm
+          title={`לנעול את המכשיר ל${lockEmp.name}?`}
+          body="המכשיר יציג רק את תצוגת העובדת (יומן, גלריה ופרופיל). יציאה חזרה לניהול תדרוש את סיסמת המנהלת."
+          confirmLabel="נעילה לתצוגת עובדת"
+          onConfirm={() => mgr.lockToEmployee(lockEmp.id)}
+          onClose={() => setLockEmp(null)}
+        />
+      )}
     </div>
   );
 }

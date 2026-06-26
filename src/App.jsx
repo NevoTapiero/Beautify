@@ -39,6 +39,11 @@ export default function App() {
   const [services, setServices] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [mgrInvoices, setMgrInvoices] = useState([]);
+  // Employee-app lock (V2 Phase 3): when set, this device shows only that
+  // employee's restricted view. Persisted per device so it survives reloads.
+  const [employeeLock, setEmployeeLock] = useState(() => {
+    try { return localStorage.getItem("bf-emp-lock") || null; } catch { return null; }
+  });
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -114,6 +119,10 @@ export default function App() {
     if (b) { setStudio(b.studio); setServices(b.services); setEmployees(b.employees || []); applyStudioPWA(b.studio); }
   }, []);
 
+  // Lock / unlock this device to a single employee's view (Phase 3).
+  const lockToEmployee = useCallback((id) => { setEmployeeLock(id); try { localStorage.setItem("bf-emp-lock", id); } catch { /* ignore */ } }, []);
+  const clearEmployeeLock = useCallback(() => { setEmployeeLock(null); try { localStorage.removeItem("bf-emp-lock"); } catch { /* ignore */ } }, []);
+
   // Refresh each side once its prerequisites (login + studio) are ready.
   useEffect(() => { if (managerUser && studio) loadManagerData(); }, [managerUser, studio, loadManagerData]);
   useEffect(() => { if (client && studio) loadClientData(); }, [client, studio, loadClientData]);
@@ -135,6 +144,19 @@ export default function App() {
     return () => { window.clearInterval(id); window.removeEventListener("focus", check); };
   }, [client, ping]);
 
+  // Remote disconnect: if the manager removes this employee, the locked device
+  // unlocks itself (Phase 3). Polls + checks on focus.
+  useEffect(() => {
+    if (!employeeLock || !studio) return;
+    const check = async () => {
+      const list = await api.loadEmployees(studio.id);
+      if (!list.some((e) => e.id === employeeLock)) { clearEmployeeLock(); ping("החיבור נותק על ידי המנהלת"); }
+    };
+    const id = window.setInterval(check, 20000);
+    window.addEventListener("focus", check);
+    return () => { window.clearInterval(id); window.removeEventListener("focus", check); };
+  }, [employeeLock, studio, clearEmployeeLock, ping]);
+
   // ─── Manager actions ─────────────────────────────────────────────
   const mgr = {
     user: managerUser,
@@ -144,6 +166,15 @@ export default function App() {
     services,
     employees, invoices: mgrInvoices,
     business: !!studio?.business_mode,
+    // Employee-app lock (Phase 3)
+    lockedEmployeeId: employeeLock,
+    lockedEmployee: employeeLock ? (employees.find((e) => e.id === employeeLock) || null) : null,
+    lockToEmployee,
+    unlockManager: async (password) => {
+      const ok = await api.verifyManagerPassword(managerUser?.email, password);
+      if (ok) { clearEmployeeLock(); ping("חזרת לתצוגת מנהלת"); }
+      return ok;
+    },
     ping,
     refresh: () => loadManagerData(),
     setBusinessMode: async (on) => {

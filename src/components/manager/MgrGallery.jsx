@@ -14,13 +14,16 @@ export default function MgrGallery({ mgr }) {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
-  const showCosm = mgr.business && cosmList.length > 1;
+  const showCosm = !locked && mgr.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
 
   const doUpload = async () => {
     setBusy(true);
-    await mgr.uploadPhoto(pickedFile, cap, pickedEmp === "owner" ? null : pickedEmp);
+    // In employee mode the photo is tagged to the locked employee automatically.
+    const emp = locked ? mgr.lockedEmployeeId : (pickedEmp === "owner" ? null : pickedEmp);
+    await mgr.uploadPhoto(pickedFile, cap, emp);
     setBusy(false); setPickedFile(null); setCap(""); setPickedEmp(null);
   };
   const doRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
@@ -29,15 +32,15 @@ export default function MgrGallery({ mgr }) {
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div className="bf-seg" style={{ flex: 1 }}>
-          <button className={seg === "mine" ? "active" : ""} onClick={() => setSeg("mine")}>הגלריה שלי ({mgr.gallery.length})</button>
-          <button className={seg === "pend" ? "active" : ""} onClick={() => setSeg("pend")}>לאישור ({mgr.pending.length})</button>
+          <button className={(locked || seg === "mine") ? "active" : ""} onClick={() => setSeg("mine")}>{locked ? "הגלריה" : `הגלריה שלי (${mgr.gallery.length})`}</button>
+          {!locked && <button className={seg === "pend" ? "active" : ""} onClick={() => setSeg("pend")}>לאישור ({mgr.pending.length})</button>}
         </div>
         <button onClick={doRefresh} disabled={refreshing} aria-label="רענון" style={{ background: "none", border: "1px solid var(--sand)", borderRadius: 12, padding: 9, cursor: "pointer", color: "var(--plum)" }}>
           <RefreshCw size={16} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
         </button>
       </div>
 
-      {seg === "mine" && (<>
+      {(locked || seg === "mine") && (<>
         <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPickedFile(f); setCap(""); }}
           onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB). המקסימום 50MB — נסי סרטון קצר יותר.`)}>
           <button className="bf-btn bf-btn-ghost"><Camera size={17} /> העלאת תמונה או סרטון</button>
@@ -61,16 +64,18 @@ export default function MgrGallery({ mgr }) {
           {sortGallery(shown(mgr.gallery), sort).map((g) => (
             <div key={g.id} style={{ position: "relative" }}>
               <GalleryTile item={g} onOpen={setView} />
-              <button aria-label="עריכת תיאור" onClick={(e) => { e.stopPropagation(); setEditing(g); }}
-                style={{ position: "absolute", insetInlineStart: 7, top: 7, width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: "rgba(255,255,255,.85)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Pencil size={14} color="var(--plum)" />
-              </button>
+              {!locked && (
+                <button aria-label="עריכת תיאור" onClick={(e) => { e.stopPropagation(); setEditing(g); }}
+                  style={{ position: "absolute", insetInlineStart: 7, top: 7, width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: "rgba(255,255,255,.85)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Pencil size={14} color="var(--plum)" />
+                </button>
+              )}
             </div>
           ))}
         </div>
       </>)}
 
-      {seg === "pend" && (<>
+      {!locked && seg === "pend" && (<>
         {mgr.pending.length === 0 && <Empty>אין תמונות שממתינות לאישור 🤍</Empty>}
         <div style={{ display: "grid", gap: 12 }}>
           {mgr.pending.map((p) => (
@@ -92,7 +97,7 @@ export default function MgrGallery({ mgr }) {
         </div>
       </>)}
 
-      {view && <Lightbox item={view} onClose={() => setView(null)} onEdit={(it) => { setView(null); setEditing(it); }} onDelete={(it) => mgr.deletePhoto(it.id)} />}
+      {view && <Lightbox item={view} onClose={() => setView(null)} onEdit={locked ? undefined : (it) => { setView(null); setEditing(it); }} onDelete={locked ? undefined : (it) => mgr.deletePhoto(it.id)} />}
 
       {editing && <CaptionEditor photo={editing} mgr={mgr} onClose={() => setEditing(null)} />}
 

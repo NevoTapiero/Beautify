@@ -25,9 +25,10 @@ export default function MgrCalendar({ mgr }) {
 
   // Per-cosmetician schedules (business). null = the owner. The switcher lets
   // the manager move between each cosmetician's calendar (notes 32, 36).
+  const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3): read-only schedule
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
-  const [cosmId, setCosmId] = useState(null);
+  const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
 
   const dateStr = dateForOffset(sel);
@@ -96,12 +97,18 @@ export default function MgrCalendar({ mgr }) {
             {override && <span style={{ color: "var(--gold)", marginInlineStart: 6 }}>· חריג ליום זה</span>}
           </div>
         </div>
-        <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditDay(true)}><Pencil size={13} /> יום זה</button>
-        <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditWeekly(true)}>שבועי</button>
+        {!locked && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditDay(true)}><Pencil size={13} /> יום זה</button>}
+        {!locked && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditWeekly(true)}>שבועי</button>}
       </div>
 
-      <button className="bf-btn bf-btn-ghost" onClick={() => setAddBreak(true)}><Coffee size={16} /> הוספת הפסקה ליום זה</button>
-      {sel === 0 && appts.some((a) => a.status === "confirmed") && (
+      {locked && cosmId !== mgr.lockedEmployeeId && (
+        <div className="bf-card" style={{ padding: "10px 12px", fontSize: 12.5, color: "var(--muted)", textAlign: "center" }}>
+          את צופה בלו"ז של {(cosmList.find((c) => (c.owner ? null : c.id) === cosmId) || {}).name} — לצפייה בלבד
+        </div>
+      )}
+
+      {!locked && <button className="bf-btn bf-btn-ghost" onClick={() => setAddBreak(true)}><Coffee size={16} /> הוספת הפסקה ליום זה</button>}
+      {!locked && sel === 0 && appts.some((a) => a.status === "confirmed") && (
         <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => setConfirmClose(true)}>
           <AlertTriangle size={16} /> סגירת היומן עכשיו
         </button>

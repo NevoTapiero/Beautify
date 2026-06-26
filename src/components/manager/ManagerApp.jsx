@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Home, CalendarDays, Users, Image as ImageIcon, Settings } from "lucide-react";
+import { Home, CalendarDays, Users, Image as ImageIcon, Settings, User } from "lucide-react";
 import { NavBar } from "../ui";
 import { getSeen, setSeen } from "../../lib/seen";
 import ManagerLogin from "./ManagerLogin";
@@ -8,6 +8,7 @@ import MgrCalendar from "./MgrCalendar";
 import MgrClients from "./MgrClients";
 import MgrGallery from "./MgrGallery";
 import MgrSettings from "./MgrSettings";
+import EmployeeProfile from "./EmployeeProfile";
 
 export default function ManagerApp({ mgr, ping }) {
   const [tab, setTab] = useState("home");
@@ -34,14 +35,20 @@ export default function ManagerApp({ mgr, ping }) {
     </div>
   );
 
+  // Employee-app mode (Phase 3): restricted view locked to one employee.
+  const locked = !!mgr.lockedEmployeeId;
+  const empName = mgr.lockedEmployee?.name || "עובדת";
+  const safeTab = locked && (tab === "clients" || tab === "settings") ? "home" : tab;
+
   const titles = {
-    home:     [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
-    cal:      ["יומן תורים", "ניהול הלו\"ז שלך"],
+    home:     locked ? [`שלום, ${empName}`, "הלו\"ז שלך"] : [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
+    cal:      ["יומן תורים", locked ? "הלו\"ז שלך ושל הצוות" : "ניהול הלו\"ז שלך"],
     clients:  ["הלקוחות שלך", `${mgr.clients.length} לקוחות רשומות`],
-    gallery:  ["הגלריה שלך", "תיק העבודות שלך"],
+    gallery:  ["הגלריה", locked ? "עבודות הסטודיו" : "תיק העבודות שלך"],
     settings: ["הגדרות", "אוטומציות והעדפות"],
+    profile:  ["הפרופיל שלי", empName],
   };
-  const t = titles[tab];
+  const t = titles[safeTab];
 
   return (
     <>
@@ -50,13 +57,17 @@ export default function ManagerApp({ mgr, ping }) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {tab === "home"     && <MgrHome mgr={mgr} go={setTab} />}
-        {tab === "cal"      && <MgrCalendar mgr={mgr} />}
-        {tab === "clients"  && <MgrClients mgr={mgr} />}
-        {tab === "gallery"  && <MgrGallery mgr={mgr} />}
-        {tab === "settings" && <MgrSettings mgr={mgr} />}
+        {safeTab === "home"     && <MgrHome mgr={mgr} go={setTab} />}
+        {safeTab === "cal"      && <MgrCalendar mgr={mgr} />}
+        {safeTab === "clients"  && !locked && <MgrClients mgr={mgr} />}
+        {safeTab === "gallery"  && <MgrGallery mgr={mgr} />}
+        {safeTab === "settings" && !locked && <MgrSettings mgr={mgr} />}
+        {safeTab === "profile"  && <EmployeeProfile mgr={mgr} />}
       </div>
-      <NavBar tab={tab} setTab={setTab} items={[
+      <NavBar tab={safeTab} setTab={setTab} items={locked ? [
+        ["home", Home, "בית"], ["cal", CalendarDays, "יומן"],
+        ["gallery", ImageIcon, "גלריה"], ["profile", User, "פרופיל"],
+      ] : [
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן", newAppts ? "!" : 0],
         ["clients", Users, "לקוחות", newClients],
         ["gallery", ImageIcon, "גלריה", mgr.pending.length], ["settings", Settings, "הגדרות", pendingStanding],
