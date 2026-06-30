@@ -34,6 +34,7 @@ export default function MgrSettings({ mgr }) {
   const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
   const [openNotif, setOpenNotif] = useState(false);         // notifications dropdown (note 44)
   const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
+  const [nameDraft, setNameDraft] = useState(mgr.studioName);// studio-name editor (V4 note 45)
 
   const tog = (k) => {
     const next = !state[k];
@@ -238,6 +239,13 @@ export default function MgrSettings({ mgr }) {
         <ChevronDown size={18} color="var(--muted)" style={{ transform: openMore ? "rotate(180deg)" : "none", transition: ".18s" }} />
       </button>
       {openMore && (<>
+        <div className="bf-card" style={{ padding: 13, display: "grid", gap: 9 }}>
+          <label className="bf-label">שם הסטודיו</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input className="bf-input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם הסטודיו" />
+            <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ width: "auto", whiteSpace: "nowrap" }} disabled={!nameDraft.trim() || nameDraft === mgr.studioName} onClick={() => mgr.saveSettings({ name: nameDraft.trim() })}>שמירה</button>
+          </div>
+        </div>
         <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
           <Briefcase size={18} color="var(--plum)" />
           <div style={{ flex: 1 }}>

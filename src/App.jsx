@@ -72,6 +72,7 @@ export default function App() {
   const [mgrStanding, setMgrStanding] = useState([]);
   const [scheduleReqs, setScheduleReqs] = useState([]);   // employee schedule-change requests (3b)
   const [empNotifs, setEmpNotifs] = useState([]);         // notifications for the locked employee
+  const [myVisits, setMyVisits] = useState(0);            // locked employee's completed-appointments count
 
   // ─── Initial load: studio, then restore any existing sessions ─────
   useEffect(() => {
@@ -157,6 +158,7 @@ export default function App() {
       const list = await api.loadEmployees(studio.id);
       if (!list.some((e) => e.id === employeeLock)) { clearEmployeeLock(); ping("החיבור נותק על ידי המנהלת"); return; }
       api.loadEmployeeNotifications(studio.id, employeeLock).then((n) => setEmpNotifs(n || []));
+      api.countEmployeeVisits(employeeLock).then((c) => setMyVisits(c));
     };
     check();
     const id = window.setInterval(check, 20000);
@@ -349,8 +351,14 @@ export default function App() {
       ping("הבקשה נדחתה"); loadManagerData();
     },
     markEmployeeNotifRead: async (id) => {
-      await api.markNotificationRead(id);
+      await api.markNotificationReadMgr(id);   // manager auth — fixes the can't-mark-read bug (V4)
       if (employeeLock) api.loadEmployeeNotifications(studio.id, employeeLock).then((n) => setEmpNotifs(n || []));
+    },
+    myVisits,
+    updateMyNotifPref: async (fields) => {
+      if (!employeeLock) return;
+      await api.updateEmployee(employeeLock, fields);
+      await refreshStudio();
     },
     // Standing weekly appointments (V5)
     approveStanding: async (s) => {

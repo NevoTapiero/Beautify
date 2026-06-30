@@ -93,6 +93,7 @@ export async function loadStudioBundle() {
       })),
       employees: (employees || []).map((e) => ({
         id: e.id, name: e.name, title: e.title, color: e.color, avatar: e.avatar_url,
+        notify_day_start: e.notify_day_start, notify_appt: e.notify_appt,
       })),
     };
   } catch (err) { log("loadStudioBundle", err); return null; }
@@ -754,6 +755,29 @@ export async function markNotificationRead(id) {
     if (error) throw error;
     return true;
   } catch (err) { log("markNotificationRead", err); return false; }
+}
+
+// Manager-auth mark-read — used by the employee app (which runs as the manager
+// session) so employee notifications can actually be marked read (V4 bug fix).
+export async function markNotificationReadMgr(id) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("notifications").update({ read: true }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("markNotificationReadMgr", err); return false; }
+}
+
+// How many appointments a cosmetician has actually done (V4 note 59).
+export async function countEmployeeVisits(employeeId) {
+  if (!isSupabaseReady || !employeeId) return 0;
+  try {
+    const { count, error } = await supabaseManager
+      .from("appointments").select("id", { count: "exact", head: true })
+      .eq("employee_id", employeeId).in("status", ["completed"]);
+    if (error) throw error;
+    return count || 0;
+  } catch (err) { log("countEmployeeVisits", err); return 0; }
 }
 
 // ─── Gallery + photos ────────────────────────────────────────────────────────

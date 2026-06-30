@@ -40,6 +40,13 @@ export default function ManagerApp({ mgr, ping }) {
   const empName = mgr.lockedEmployee?.name || "עובדת";
   const safeTab = locked && (tab === "clients" || tab === "settings") ? "home" : tab;
 
+  // Calendar badge: manager → pending employee schedule requests (note 34);
+  // employee → her unread schedule-approval notifications (notes 50, 54).
+  const schedReqCount = (mgr.scheduleReqs || []).length;
+  const empSchedUnread = (mgr.employeeNotifications || []).filter((n) => !n.read && (n.type === "approved" || n.type === "declined")).length;
+  const calBadge = locked ? empSchedUnread : (schedReqCount > 0 ? schedReqCount : (newAppts ? "!" : 0));
+  const empPending = locked ? (mgr.pending || []).filter((p) => p.employeeId === mgr.lockedEmployeeId).length : 0;
+
   const titles = {
     home:     locked ? [`שלום, ${empName}`, "הלו\"ז שלך"] : [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
     cal:      ["יומן תורים", locked ? "הלו\"ז שלך ושל הצוות" : "ניהול הלו\"ז שלך"],
@@ -65,10 +72,10 @@ export default function ManagerApp({ mgr, ping }) {
         {safeTab === "profile"  && <EmployeeProfile mgr={mgr} />}
       </div>
       <NavBar tab={safeTab} setTab={setTab} items={locked ? [
-        ["home", Home, "בית"], ["cal", CalendarDays, "יומן"],
-        ["gallery", ImageIcon, "גלריה"], ["profile", User, "פרופיל"],
+        ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],
+        ["gallery", ImageIcon, "גלריה", empPending], ["profile", User, "פרופיל"],
       ] : [
-        ["home", Home, "בית"], ["cal", CalendarDays, "יומן", newAppts ? "!" : 0],
+        ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],
         ["clients", Users, "לקוחות", newClients],
         ["gallery", ImageIcon, "גלריה", mgr.pending.length], ["settings", Settings, "הגדרות", pendingStanding],
       ]} />

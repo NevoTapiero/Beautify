@@ -1,6 +1,20 @@
 import React, { useState } from "react";
-import { Lock, ShieldCheck, Camera } from "lucide-react";
+import { Lock, ShieldCheck, Camera, Bell, CalendarCheck } from "lucide-react";
 import { Sheet, PhotoPicker } from "../ui";
+
+function NotifToggle({ label, sub, on, onToggle }) {
+  return (
+    <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5 }}>{label}</div>
+        <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sub}</div>
+      </div>
+      <button onClick={() => onToggle(!on)} aria-pressed={on} style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: on ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: on ? "flex-end" : "flex-start", transition: ".18s" }}>
+        <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
+      </button>
+    </div>
+  );
+}
 
 // Profile shown in employee-app mode (Phase 3): client-style, no logout.
 // The only way back to the manager view is the manager's password.
@@ -28,7 +42,20 @@ export default function EmployeeProfile({ mgr }) {
         </div>
       </div>
 
-      <div className="bf-card" style={{ padding: 13, fontSize: 13.5, color: "var(--muted)", lineHeight: 1.6 }}>
+      <div className="bf-card" style={{ padding: 13, display: "flex", alignItems: "center", gap: 11 }}>
+        <CalendarCheck size={20} color="var(--plum)" />
+        <div style={{ fontSize: 13.5 }}><b>{mgr.myVisits || 0}</b> תורים ביצעת עד היום</div>
+      </div>
+
+      {/* Notification preferences (note 60) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 2 }}>
+        <Bell size={16} color="var(--plum)" />
+        <h2 style={{ margin: 0, fontSize: 15.5, fontWeight: 800 }}>התראות</h2>
+      </div>
+      <NotifToggle label="סיכום יומי" sub="רשימת התורים שלך בתחילת היום" on={emp?.notify_day_start !== false} onToggle={(v) => mgr.updateMyNotifPref({ notify_day_start: v })} />
+      <NotifToggle label="תור חדש" sub="התראה כשנקבע לך תור חדש" on={emp?.notify_appt !== false} onToggle={(v) => mgr.updateMyNotifPref({ notify_appt: v })} />
+
+      <div className="bf-card" style={{ padding: 13, fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>
         זוהי תצוגת העובדת — היומן והעבודות שלך. ניהול הסטודיו זמין למנהלת בלבד.
       </div>
 

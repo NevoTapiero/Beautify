@@ -15,6 +15,7 @@ export default function MgrGallery({ mgr }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
+  const myPending = locked ? (mgr.pending || []).filter((p) => p.employeeId === mgr.lockedEmployeeId) : [];
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = !locked && mgr.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
@@ -35,15 +36,37 @@ export default function MgrGallery({ mgr }) {
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div className="bf-seg" style={{ flex: 1 }}>
-          <button className={(locked || seg === "mine") ? "active" : ""} onClick={() => setSeg("mine")}>{locked ? "הגלריה" : `הגלריה שלי (${mgr.gallery.length})`}</button>
-          {!locked && <button className={seg === "pend" ? "active" : ""} onClick={() => setSeg("pend")}>לאישור ({mgr.pending.length})</button>}
+          {locked ? (<>
+            <button className={seg !== "myreq" ? "active" : ""} onClick={() => setSeg("mine")}>הגלריה</button>
+            <button className={seg === "myreq" ? "active" : ""} onClick={() => setSeg("myreq")}>הבקשות שלי ({myPending.length})</button>
+          </>) : (<>
+            <button className={seg === "mine" ? "active" : ""} onClick={() => setSeg("mine")}>הגלריה שלי ({mgr.gallery.length})</button>
+            <button className={seg === "pend" ? "active" : ""} onClick={() => setSeg("pend")}>לאישור ({mgr.pending.length})</button>
+          </>)}
         </div>
         <button onClick={doRefresh} disabled={refreshing} aria-label="רענון" style={{ background: "none", border: "1px solid var(--sand)", borderRadius: 12, padding: 9, cursor: "pointer", color: "var(--plum)" }}>
           <RefreshCw size={16} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
         </button>
       </div>
 
-      {(locked || seg === "mine") && (<>
+      {/* Employee's own pending uploads (note 63) */}
+      {locked && seg === "myreq" && (
+        <div style={{ display: "grid", gap: 10 }}>
+          {myPending.length === 0 && <Empty>לא שלחת בקשות תמונה. תמונה שתשלחי תופיע כאן עד לאישור המנהלת.</Empty>}
+          {myPending.map((p) => (
+            <div key={p.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
+              <div onClick={() => setView(p)} style={{ width: 54, height: 54, borderRadius: 12, background: p.img ? `url(${p.img}) center/cover` : "var(--rose-soft)", flex: "none", cursor: "pointer" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{p.cap}</div>
+                <span className="bf-chip bf-chip-wait" style={{ marginTop: 4 }}>ממתין לאישור</span>
+              </div>
+              <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.deletePhoto(p.id)}><X size={15} /> ביטול</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {seg === "mine" && (<>
         <PhotoPicker accept="image/*,video/*" onPick={(f) => { setPickedFile(f); setCap(""); }}
           onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB). המקסימום 50MB — נסי סרטון קצר יותר.`)}>
           <button className="bf-btn bf-btn-ghost"><Camera size={17} /> העלאת תמונה או סרטון</button>

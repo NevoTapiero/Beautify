@@ -117,6 +117,15 @@ export default function MgrCalendar({ mgr }) {
         </div>
       )}
 
+      {/* Employee: schedule-approval notifications live here, not on Home (note 54) */}
+      {locked && (mgr.employeeNotifications || []).filter((n) => !n.read && (n.type === "approved" || n.type === "declined")).map((n) => (
+        <button key={n.id} onClick={() => mgr.markEmployeeNotifRead(n.id)} className="bf-card" style={{ padding: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--rose-soft)", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{n.title}</div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>{n.body}</div>
+          <div style={{ fontSize: 11, color: "var(--rose)", marginTop: 5, fontWeight: 700 }}>הקישי לסימון כנקרא</div>
+        </button>
+      ))}
+
       {/* Schedule-change requests (Phase 3b) */}
       {pendingReqs.length > 0 && (
         <div style={{ display: "grid", gap: 8 }}>

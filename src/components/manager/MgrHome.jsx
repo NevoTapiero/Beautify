@@ -16,7 +16,7 @@ export default function MgrHome({ mgr, go }) {
   // Switch between cosmeticians' schedules on Home (business; note 32). null = owner.
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
-  const [cosmId, setCosmId] = useState(null);
+  const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);   // default to own schedule (note 51)
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
 
   // Selected cosmetician's working hours today — drives the closed banner + slot grid.
@@ -46,7 +46,12 @@ export default function MgrHome({ mgr, go }) {
     </div>
   );
 
-  const empNotifs = mgr.lockedEmployeeId ? (mgr.employeeNotifications || []).filter((n) => !n.read) : [];
+  // Home shows only appointment notifications; schedule-approval ones live on
+  // the Calendar (notes 50, 54).
+  const empNotifs = mgr.lockedEmployeeId
+    ? (mgr.employeeNotifications || []).filter((n) => !n.read && n.type !== "approved" && n.type !== "declined")
+    : [];
+  const schedReqCount = (mgr.scheduleReqs || []).length;
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
@@ -85,10 +90,13 @@ export default function MgrHome({ mgr, go }) {
           ))}
         </div>
       )}
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Stat n={today.length} l="תורים היום" c="var(--plum)" />
         <Stat n={unconfirmed.length} l="טרם אישרו הגעה" c="var(--rose)" onClick={unconfirmed.length ? () => setRemindOpen(true) : undefined} />
-        <Stat n={mgr.pending.length} l="תמונות לאישור" c="var(--gold)" />
+        {/* Employees don't approve photos — hide that tile for them (note 55) */}
+        {!mgr.lockedEmployeeId && <Stat n={mgr.pending.length} l="תמונות לאישור" c="var(--gold)" />}
+        {/* Manager: employee schedule requests → jump to the calendar (note 31) */}
+        {!mgr.lockedEmployeeId && mgr.business && <Stat n={schedReqCount} l="בקשות עובדות" c="#6B4E7A" onClick={schedReqCount ? () => go("cal") : undefined} />}
       </div>
 
       <div>

@@ -720,3 +720,7 @@ create policy schedule_requests_all on schedule_requests for all
 -- Notifications can target an employee (not only a client).
 alter table notifications alter column client_id drop not null;
 alter table notifications add column if not exists employee_id uuid references employees(id) on delete cascade;
+
+-- ===== BUSINESS V4: employee notification prefs =====
+alter table employees add column if not exists notify_day_start boolean not null default true;
+alter table employees add column if not exists notify_appt boolean not null default true;
