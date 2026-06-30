@@ -670,6 +670,59 @@ export async function topupStanding(studioId) {
   catch (err) { log("topupStanding", err); }
 }
 
+// ─── Schedule-change requests + employee notifications (Phase 3b) ────────────
+
+export async function createScheduleRequest(studioId, employeeId, kind, payload, label) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("schedule_requests")
+      .insert({ studio_id: studioId, employee_id: employeeId, kind, payload, label });
+    if (error) throw error;
+    return true;
+  } catch (err) { log("createScheduleRequest", err); return false; }
+}
+
+export async function loadScheduleRequests(studioId) {
+  if (!isSupabaseReady || !studioId) return [];
+  try {
+    const { data, error } = await supabaseManager.from("schedule_requests")
+      .select("*").eq("studio_id", studioId).eq("status", "pending").order("created_at");
+    if (error) throw error;
+    return data || [];
+  } catch (err) { log("loadScheduleRequests", err); return []; }
+}
+
+export async function setScheduleRequestStatus(id, status) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("schedule_requests").update({ status }).eq("id", id);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("setScheduleRequestStatus", err); return false; }
+}
+
+// Notification targeted at an employee (e.g. her request was approved/declined).
+export async function sendEmployeeNotification(studioId, employeeId, { type, title, body }) {
+  if (!isSupabaseReady) return false;
+  try {
+    const { error } = await supabaseManager.from("notifications")
+      .insert({ studio_id: studioId, employee_id: employeeId, client_id: null, type: type || "message", title, body });
+    if (error) throw error;
+    return true;
+  } catch (err) { log("sendEmployeeNotification", err); return false; }
+}
+
+export async function loadEmployeeNotifications(studioId, employeeId) {
+  if (!isSupabaseReady || !studioId || !employeeId) return [];
+  try {
+    const { data, error } = await supabaseManager.from("notifications")
+      .select("*").eq("studio_id", studioId).eq("employee_id", employeeId)
+      .order("created_at", { ascending: false }).limit(20);
+    if (error) throw error;
+    return (data || []).map((n) => ({ id: n.id, type: n.type, title: n.title, body: n.body, read: n.read }));
+  } catch (err) { log("loadEmployeeNotifications", err); return []; }
+}
+
 // ─── Notifications (notes 26, 37) ────────────────────────────────────────────
 
 export async function sendNotification(studioId, clientId, { type, title, body, appointmentId }) {

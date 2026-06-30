@@ -26,11 +26,17 @@ export default function MgrCalendar({ mgr }) {
 
   // Per-cosmetician schedules (business). null = the owner. The switcher lets
   // the manager move between each cosmetician's calendar (notes 32, 36).
-  const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3): read-only schedule
+  const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
   const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
+  // An employee may edit only HER OWN schedule, and those edits become requests
+  // the manager approves (Phase 3b). The manager edits directly.
+  const ownSchedule = locked && cosmId === mgr.lockedEmployeeId;
+  const canEdit = !locked || ownSchedule;
+  const requestMode = locked;   // when an employee edits, create an approval request
+  const pendingReqs = (mgr.scheduleReqs || []).filter((r) => (r.employee_id ?? null) === cosmId);
 
   const dateStr = dateForOffset(sel);
   const weekday = days[sel].weekday;
@@ -57,7 +63,7 @@ export default function MgrCalendar({ mgr }) {
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        {!locked
+        {canEdit
           ? <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "1px solid var(--sand)", borderRadius: 10, cursor: "pointer", color: "var(--plum)", padding: "6px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, fontFamily: "inherit" }}>
               <MoreVertical size={15} /> פעולות לו"ז
             </button>
@@ -111,6 +117,29 @@ export default function MgrCalendar({ mgr }) {
         </div>
       )}
 
+      {/* Schedule-change requests (Phase 3b) */}
+      {pendingReqs.length > 0 && (
+        <div style={{ display: "grid", gap: 8 }}>
+          {pendingReqs.map((r) => (
+            <div key={r.id} className="bf-card" style={{ padding: 11, border: "1px solid #E0D2E6", background: "#F6F1F8", display: "grid", gap: 9 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Clock size={15} color="#6B4E7A" />
+                <div style={{ flex: 1, fontSize: 13.5 }}>
+                  <b>{locked ? "ממתין לאישור המנהלת" : "בקשת שינוי לו\"ז"}</b>
+                  <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{r.label}</div>
+                </div>
+              </div>
+              {!locked && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => mgr.approveScheduleRequest(r)}>אישור</button>
+                  <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.declineScheduleRequest(r)}>דחייה</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       <DaySchedule effective={effective} dayAppts={appts} dayBreaks={breaks} allAppts={mgr.appts}
         onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
 
@@ -132,16 +161,20 @@ export default function MgrCalendar({ mgr }) {
       {confirmClose && (
         <Confirm
           title="לסגור את היומן עכשיו?"
-          body="כל התורים שטרם בוצעו היום יבוטלו והלקוחות יקבלו על כך הודעה. הפעולה אינה הפיכה."
-          confirmLabel="כן, סגרי את היומן" danger
-          onConfirm={() => mgr.closeDayNow(appts.filter((a) => a.status === "confirmed"))}
+          body={requestMode ? "התורים שטרם בוצעו היום יבוטלו לאחר אישור המנהלת, והלקוחות יקבלו הודעה." : "כל התורים שטרם בוצעו היום יבוטלו והלקוחות יקבלו על כך הודעה. הפעולה אינה הפיכה."}
+          confirmLabel={requestMode ? "שליחת בקשה לסגירת היומן" : "כן, סגרי את היומן"} danger
+          onConfirm={() => {
+            const live = appts.filter((a) => a.status === "confirmed");
+            if (requestMode) mgr.createScheduleRequest("closeday", { appts: live.map((a) => ({ id: a.id, clientId: a.clientId, dayLabel: a.dayLabel, time: a.time })) }, "סגירת היומן היום");
+            else mgr.closeDayNow(live);
+          }}
           onClose={() => setConfirmClose(false)}
         />
       )}
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
-      {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} cosmId={cosmId} onClose={() => setAddBreak(false)} />}
-      {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} cosmId={cosmId} onClose={() => setEditWeekly(false)} onSaved={reload} />}
-      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} weeklyDefault={weeklyDefault} hasOverride={!!override} mgr={mgr} cosmId={cosmId} onClose={() => setEditDay(false)} onSaved={reload} />}
+      {addBreak && <AddBreakSheet day={sel} dayLabel={days[sel].dl} mgr={mgr} cosmId={cosmId} requestMode={requestMode} onClose={() => setAddBreak(false)} />}
+      {editWeekly && <WeeklyHoursSheet weekly={weekly} selDay={sel} hasSelOverride={!!override} mgr={mgr} cosmId={cosmId} requestMode={requestMode} onClose={() => setEditWeekly(false)} onSaved={reload} />}
+      {editDay && <DayHoursSheet day={sel} dateStr={dateStr} dayLabel={DOW_FULL[weekday]} effective={effective} weeklyDefault={weeklyDefault} hasOverride={!!override} mgr={mgr} cosmId={cosmId} requestMode={requestMode} onClose={() => setEditDay(false)} onSaved={reload} />}
     </div>
   );
 }
@@ -171,7 +204,7 @@ function ConflictConfirm({ affected, onConfirm, onClose, busy }) {
   );
 }
 
-function AddBreakSheet({ day, dayLabel, mgr, cosmId, onClose }) {
+function AddBreakSheet({ day, dayLabel, mgr, cosmId, requestMode, onClose }) {
   const [start, setStart] = useState("13:00");
   const [end, setEnd] = useState("14:00");
   const [title, setTitle] = useState("הפסקה");
@@ -190,6 +223,7 @@ function AddBreakSheet({ day, dayLabel, mgr, cosmId, onClose }) {
   };
   const save = () => {
     if (!valid) return;
+    if (requestMode) { mgr.createScheduleRequest("break", { day, start, end, title }, `הוספת הפסקה ${dayLabel} ${start}–${end}`); onClose(); return; }
     const affected = affectedFor();
     if (affected.length) setConflict(affected); else apply([]);
   };
@@ -205,13 +239,13 @@ function AddBreakSheet({ day, dayLabel, mgr, cosmId, onClose }) {
         <div><label className="bf-label">עד שעה</label><TimeSelect value={end} onChange={setEnd} /></div>
       </div>
       {!valid && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>שעת הסיום צריכה להיות אחרי ההתחלה</div>}
-      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={!valid || busy} onClick={save}><Plus size={16} /> הוספת הפסקה</button>
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={!valid || busy} onClick={save}><Plus size={16} /> {requestMode ? "שליחת בקשה" : "הוספת הפסקה"}</button>
       {conflict && <ConflictConfirm affected={conflict} busy={busy} onClose={() => setConflict(null)} onConfirm={() => apply(conflict)} />}
     </Sheet>
   );
 }
 
-function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOverride, mgr, cosmId, onClose, onSaved }) {
+function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOverride, mgr, cosmId, requestMode, onClose, onSaved }) {
   const [isOpen, setIsOpen] = useState(effective ? effective.is_open : true);
   const [start, setStart] = useState(hhmm(effective?.start_time) || "09:00");
   const [end, setEnd] = useState(hhmm(effective?.end_time) || "19:00");
@@ -249,6 +283,11 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOv
   };
   const save = () => {
     if (!valid) return;
+    if (requestMode) {
+      const lbl = `שעות ${dayLabel}: ${isOpen ? `${start}–${end}` : "סגור"}`;
+      mgr.createScheduleRequest("day", matchesWeekly() ? { dateStr, clear: true } : { dateStr, is_open: isOpen, start_time: start, end_time: end }, lbl);
+      onClose(); return;
+    }
     const impact = computeImpact();
     if (impact.affected.length) setConflict(impact); else apply(impact);
   };
@@ -272,14 +311,14 @@ function DayHoursSheet({ day, dateStr, dayLabel, effective, weeklyDefault, hasOv
         </div>
       )}
       {!valid && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>שעת הסיום צריכה להיות אחרי ההתחלה</div>}
-      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy || !valid} onClick={save}>{busy ? "שומרת…" : "שמירה ליום זה"}</button>
-      {hasOverride && <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={reset}>חזרה לשעות הקבועות</button>}
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy || !valid} onClick={save}>{busy ? "שומרת…" : requestMode ? "שליחת בקשה" : "שמירה ליום זה"}</button>
+      {hasOverride && !requestMode && <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={reset}>חזרה לשעות הקבועות</button>}
       {conflict && <ConflictConfirm affected={conflict.affected} busy={busy} onClose={() => setConflict(null)} onConfirm={() => apply(conflict)} />}
     </Sheet>
   );
 }
 
-function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, cosmId, onClose, onSaved }) {
+function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, cosmId, requestMode, onClose, onSaved }) {
   const byDay = (wd) => weekly.find((w) => w.weekday === wd) || { is_open: wd !== 6, start_time: "09:00", end_time: wd === 5 ? "14:00" : "19:00" };
   const [rows, setRows] = useState(() => Array.from({ length: 7 }, (_, wd) => {
     const r = byDay(wd); return { weekday: wd, is_open: r.is_open, start: hhmm(r.start_time), end: hhmm(r.end_time) };
@@ -317,6 +356,10 @@ function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, cosmId, onClose
     setBusy(false); await onSaved(); onClose();
   };
   const save = () => {
+    if (requestMode) {
+      mgr.createScheduleRequest("weekly", { rows: rows.map((r) => ({ weekday: r.weekday, is_open: r.is_open, start_time: r.start, end_time: r.end })) }, "עדכון שעות עבודה שבועיות");
+      onClose(); return;
+    }
     const impact = computeImpact();
     if (impact.affected.length) setConflict(impact); else apply(impact);
   };
@@ -343,7 +386,7 @@ function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, cosmId, onClose
           </div>
         ))}
       </div>
-      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy} onClick={save}>{busy ? "שומרת…" : "שמירה"}</button>
+      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={busy} onClick={save}>{busy ? "שומרת…" : requestMode ? "שליחת בקשה" : "שמירה"}</button>
       {conflict && <ConflictConfirm affected={conflict.affected} busy={busy} onClose={() => setConflict(null)} onConfirm={() => apply(conflict)} />}
     </Sheet>
   );

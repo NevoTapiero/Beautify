@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, RefreshCw, Moon } from "lucide-react";
+import { CalendarDays, RefreshCw, Moon, Bell } from "lucide-react";
 import { SectionTitle, Confirm, cosmeticians } from "../ui";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import { dateForOffset } from "../../data/mock";
@@ -46,8 +46,25 @@ export default function MgrHome({ mgr, go }) {
     </div>
   );
 
+  const empNotifs = mgr.lockedEmployeeId ? (mgr.employeeNotifications || []).filter((n) => !n.read) : [];
+
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {/* Employee notifications (Phase 3b) */}
+      {empNotifs.length > 0 && (
+        <div style={{ display: "grid", gap: 9 }}>
+          {empNotifs.map((n) => (
+            <button key={n.id} onClick={() => mgr.markEmployeeNotifRead(n.id)} className="bf-card" style={{ padding: 12, textAlign: "right", cursor: "pointer", border: "1px solid var(--rose-soft)", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <Bell size={14} color="var(--rose)" />
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{n.title}</div>
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 3 }}>{n.body}</div>
+              <div style={{ fontSize: 11, color: "var(--rose)", marginTop: 6, fontWeight: 700 }}>הקישי לסימון כנקרא</div>
+            </button>
+          ))}
+        </div>
+      )}
       {closedToday && (
         <div className="bf-card" style={{ padding: "13px 15px", display: "flex", alignItems: "center", gap: 11, background: "linear-gradient(135deg,#3A2A40,#5E1F40)", color: "#fff" }}>
           <Moon size={20} />

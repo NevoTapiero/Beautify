@@ -70,6 +70,8 @@ export default function App() {
   const [cliBreaks, setCliBreaks] = useState([]);
   const [cliStanding, setCliStanding] = useState([]);
   const [mgrStanding, setMgrStanding] = useState([]);
+  const [scheduleReqs, setScheduleReqs] = useState([]);   // employee schedule-change requests (3b)
+  const [empNotifs, setEmpNotifs] = useState([]);         // notifications for the locked employee
 
   // ─── Initial load: studio, then restore any existing sessions ─────
   useEffect(() => {
@@ -97,7 +99,10 @@ export default function App() {
     setMgrAppts(appts || []); setMgrClients(clients || []);
     setMgrGallery(gallery || []); setMgrPending(pending || []); setMgrBreaks(breaks || []);
     setMgrStanding(standing || []);
-    if ((s || studio)?.business_mode) api.loadInvoices(sid).then((inv) => setMgrInvoices(inv || []));
+    if ((s || studio)?.business_mode) {
+      api.loadInvoices(sid).then((inv) => setMgrInvoices(inv || []));
+      api.loadScheduleRequests(sid).then((rq) => setScheduleReqs(rq || []));
+    }
   }, [studio]);
 
   const loadClientData = useCallback(async (c, s) => {
@@ -150,8 +155,10 @@ export default function App() {
     if (!employeeLock || !studio) return;
     const check = async () => {
       const list = await api.loadEmployees(studio.id);
-      if (!list.some((e) => e.id === employeeLock)) { clearEmployeeLock(); ping("החיבור נותק על ידי המנהלת"); }
+      if (!list.some((e) => e.id === employeeLock)) { clearEmployeeLock(); ping("החיבור נותק על ידי המנהלת"); return; }
+      api.loadEmployeeNotifications(studio.id, employeeLock).then((n) => setEmpNotifs(n || []));
     };
+    check();
     const id = window.setInterval(check, 20000);
     window.addEventListener("focus", check);
     return () => { window.clearInterval(id); window.removeEventListener("focus", check); };
@@ -312,6 +319,38 @@ export default function App() {
       await api.updateStudioSettings(studio.id, settings);
       setStudio((s) => ({ ...s, ...settings }));   // keep local copy in sync so toggles persist across screens
       ping("ההגדרה נשמרה");
+    },
+    // Employee schedule-change approval flow (Phase 3b)
+    scheduleReqs,
+    employeeNotifications: empNotifs,
+    createScheduleRequest: async (kind, payload, label) => {
+      const ok = await api.createScheduleRequest(studio.id, employeeLock, kind, payload, label);
+      ping(ok ? "הבקשה נשלחה לאישור המנהלת" : "שליחת הבקשה נכשלה");
+      loadManagerData();
+    },
+    approveScheduleRequest: async (req) => {
+      const p = req.payload || {};
+      if (req.kind === "weekly") { for (const r of (p.rows || [])) await api.setWeeklyHours(studio.id, r.weekday, { is_open: r.is_open, start_time: r.start_time, end_time: r.end_time }, req.employee_id); }
+      else if (req.kind === "day") { if (p.clear) await api.clearDayOverride(studio.id, p.dateStr, req.employee_id); else await api.setDayOverride(studio.id, p.dateStr, { is_open: p.is_open, start_time: p.start_time, end_time: p.end_time }, req.employee_id); }
+      else if (req.kind === "break") { await api.addBreak(studio.id, p.day, p.start, p.end, p.title, req.employee_id); }
+      else if (req.kind === "closeday") {
+        for (const a of (p.appts || [])) {
+          await api.cancelAppointment(a.id, true);
+          if (a.clientId) await api.sendNotification(studio.id, a.clientId, { type: "cancelled", title: "התור בוטל", body: `עקב סגירת היומן, התור שלך ל-${a.dayLabel} בשעה ${a.time} בוטל.`, appointmentId: a.id });
+        }
+      }
+      await api.setScheduleRequestStatus(req.id, "approved");
+      await api.sendEmployeeNotification(studio.id, req.employee_id, { type: "approved", title: "הבקשה אושרה", body: `${req.label || "השינוי בלו\"ז"} אושר על ידי המנהלת.` });
+      ping("הבקשה אושרה והשינוי הוחל"); loadManagerData();
+    },
+    declineScheduleRequest: async (req) => {
+      await api.setScheduleRequestStatus(req.id, "declined");
+      await api.sendEmployeeNotification(studio.id, req.employee_id, { type: "declined", title: "הבקשה נדחתה", body: `${req.label || "השינוי בלו\"ז"} לא אושר על ידי המנהלת.` });
+      ping("הבקשה נדחתה"); loadManagerData();
+    },
+    markEmployeeNotifRead: async (id) => {
+      await api.markNotificationRead(id);
+      if (employeeLock) api.loadEmployeeNotifications(studio.id, employeeLock).then((n) => setEmpNotifs(n || []));
     },
     // Standing weekly appointments (V5)
     approveStanding: async (s) => {
