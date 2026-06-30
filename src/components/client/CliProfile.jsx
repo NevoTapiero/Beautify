@@ -43,6 +43,14 @@ export default function CliProfile({ cli }) {
         </div>
         <span className="bf-chip bf-chip-wait">בקרוב</span>
       </div>
+      <div className="bf-card" style={{ padding: 13, display: "flex", alignItems: "center", gap: 11 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#7C2A53,#D9738F)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>₪</div>
+        <div style={{ flex: 1, fontSize: 14 }}>
+          <b>כרטיס אשראי</b>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>חיבור סליקה מאובטח · Google Pay ו-Apple Pay בהמשך</div>
+        </div>
+        <span className="bf-chip bf-chip-wait">בקרוב</span>
+      </div>
 
       <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={cli.logout}>
         <LogOut size={16} /> התנתקות

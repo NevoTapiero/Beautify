@@ -280,6 +280,21 @@ export default function App() {
       if (r.error) { ping(r.error); return; }
       ping("העבודה נוספה לגלריה"); loadManagerData();
     },
+    // Employee (locked) uploads → pending for the manager to approve (V3 note 64).
+    uploadEmployeePhoto: async (file, caption) => {
+      const emp = employees.find((e) => e.id === employeeLock);
+      if (!emp) return;
+      const r = await api.uploadEmployeePhoto(studio.id, emp, file, caption);
+      if (r.error) { ping(r.error); return; }
+      ping("נשלח לאישור המנהלת 🤍"); loadManagerData();
+    },
+    // Employee updates her own profile photo (V3 note 60).
+    uploadMyAvatar: async (file) => {
+      if (!employeeLock) return;
+      const r = await api.uploadEmployeeAvatar(employeeLock, file);
+      if (r.error) { ping(r.error); return; }
+      ping("תמונת הפרופיל עודכנה"); await refreshStudio();
+    },
     // Emergency: stop the workday now — cancel today's not-yet-done appointments
     // and notify those clients (V2: both editions).
     closeDayNow: async (appts) => {

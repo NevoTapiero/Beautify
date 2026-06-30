@@ -693,3 +693,6 @@ begin
     v_slot := v_slot + interval '15 minutes';
   end loop;
 end $$;
+
+-- ===== BUSINESS V3: employee avatar =====
+alter table employees add column if not exists avatar_url text;

@@ -21,9 +21,12 @@ export default function MgrGallery({ mgr }) {
 
   const doUpload = async () => {
     setBusy(true);
-    // In employee mode the photo is tagged to the locked employee automatically.
-    const emp = locked ? mgr.lockedEmployeeId : (pickedEmp === "owner" ? null : pickedEmp);
-    await mgr.uploadPhoto(pickedFile, cap, emp);
+    if (locked) {
+      // Employee uploads go for approval, like a client (note 64).
+      await mgr.uploadEmployeePhoto(pickedFile, cap);
+    } else {
+      await mgr.uploadPhoto(pickedFile, cap, pickedEmp === "owner" ? null : pickedEmp);
+    }
     setBusy(false); setPickedFile(null); setCap(""); setPickedEmp(null);
   };
   const doRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
@@ -118,7 +121,7 @@ export default function MgrGallery({ mgr }) {
             </div>
           </>)}
           <button className="bf-btn bf-btn-primary" style={{ marginTop: 14 }} disabled={busy || (showCosm && !pickedEmp)} onClick={doUpload}>
-            {busy ? "מעלה…" : "הוספה לגלריה"}
+            {busy ? "מעלה…" : locked ? "שליחה לאישור" : "הוספה לגלריה"}
           </button>
         </Sheet>
       )}

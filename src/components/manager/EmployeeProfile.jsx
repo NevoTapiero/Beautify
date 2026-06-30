@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Lock, ShieldCheck } from "lucide-react";
-import { Sheet } from "../ui";
+import { Lock, ShieldCheck, Camera } from "lucide-react";
+import { Sheet, PhotoPicker } from "../ui";
 
 // Profile shown in employee-app mode (Phase 3): client-style, no logout.
 // The only way back to the manager view is the manager's password.
@@ -12,7 +12,16 @@ export default function EmployeeProfile({ mgr }) {
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-        <div style={{ width: 56, height: 56, borderRadius: "50%", background: emp?.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22 }}>{initial}</div>
+        <PhotoPicker onPick={(f) => mgr.uploadMyAvatar(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
+          <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
+            {emp?.avatar
+              ? <img src={emp.avatar} alt={emp.name} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />
+              : <div style={{ width: 56, height: 56, borderRadius: "50%", background: emp?.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22 }}>{initial}</div>}
+            <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 22, height: 22, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>
+              <Camera size={11} color="#fff" />
+            </span>
+          </button>
+        </PhotoPicker>
         <div>
           <div className="bf-display" style={{ fontSize: 21, fontWeight: 800 }}>{emp?.name || "עובדת"}</div>
           {emp?.title && <div style={{ color: "var(--muted)", fontSize: 13 }}>{emp.title}</div>}

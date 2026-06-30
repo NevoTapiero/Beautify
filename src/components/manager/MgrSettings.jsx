@@ -32,6 +32,8 @@ export default function MgrSettings({ mgr }) {
   const [openEmployees, setOpenEmployees] = useState(false); // employees dropdown (note 50)
   const [codeGate, setCodeGate] = useState(null);            // {target:true|false} business code prompt
   const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
+  const [openNotif, setOpenNotif] = useState(false);         // notifications dropdown (note 44)
+  const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
 
   const tog = (k) => {
     const next = !state[k];
@@ -58,18 +60,6 @@ export default function MgrSettings({ mgr }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
-      {/* Business edition (V1): toggle + employees + invoices */}
-      <SectionTitle icon={Briefcase}>מצב עסק רשום</SectionTitle>
-      <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>גרסת עסק</div>
-          <div style={{ fontSize: 12.5, color: "var(--muted)" }}>חשבוניות אוטומטיות, ניהול עובדות ותשלום באשראי · נדרש קוד</div>
-        </div>
-        <button onClick={() => setCodeGate({ target: !mgr.business })} aria-pressed={mgr.business} style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: mgr.business ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: mgr.business ? "flex-end" : "flex-start", transition: ".18s" }}>
-          <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
-        </button>
-      </div>
-
       {mgr.business && (<>
         {/* Employees — collapsible dropdown (note 50) */}
         <button onClick={() => setOpenEmployees((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
@@ -100,6 +90,25 @@ export default function MgrSettings({ mgr }) {
             </div>
           ))}
         </div>
+
+        {/* Employee-app mode lives under the employees dropdown (note 45) */}
+        {emps.length > 0 && (<>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 4 }}>
+            <Smartphone size={15} color="var(--plum)" />
+            <span style={{ fontWeight: 800, fontSize: 14 }}>אפליקציית עובדת</span>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
+            נעלי את המכשיר הזה לתצוגת עובדת מסוימת. היציאה חזרה לתצוגת מנהלת תדרוש את סיסמת המנהלת.
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {emps.map((e) => (
+              <button key={e.id} className="bf-card" onClick={() => setLockEmp(e)} style={{ padding: 10, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "right", width: "100%" }}>
+                <Lock size={14} color="var(--muted)" />
+                <span style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>נעילה לתצוגה של {e.name}</span>
+              </button>
+            ))}
+          </div>
+        </>)}
         </>)}
 
         {/* Invoices — collapsible list */}
@@ -130,25 +139,6 @@ export default function MgrSettings({ mgr }) {
         <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.6, padding: "0 2px" }}>
           חשבוניות נשמרות וממוספרות באפליקציה. חיבור לחשבונית מס רשמית (חשבונית ירוקה / iCount) יתווסף לאחר פתיחת חשבון אצל הספק.
         </div>
-
-        {/* Employee-app mode: lock this device to one employee's view (Phase 3) */}
-        <SectionTitle icon={Smartphone}>אפליקציית עובדת</SectionTitle>
-        <div className="bf-card" style={{ padding: 13, fontSize: 12.5, color: "var(--muted)", lineHeight: 1.6 }}>
-          נעלי את המכשיר הזה לתצוגת עובדת מסוימת (למשל בטלפון של העובדת). היציאה חזרה לתצוגת מנהלת תדרוש את סיסמת המנהלת.
-        </div>
-        {emps.length === 0 ? (
-          <div className="bf-card" style={{ padding: 13, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>הוסיפי עובדות כדי לנעול אליהן את האפליקציה</div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {emps.map((e) => (
-              <button key={e.id} className="bf-card" onClick={() => setLockEmp(e)} style={{ padding: 11, display: "flex", alignItems: "center", gap: 11, cursor: "pointer", textAlign: "right", width: "100%" }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", background: e.color, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>{(e.name || "?").charAt(0)}</div>
-                <span style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>{e.name}</span>
-                <Lock size={15} color="var(--muted)" />
-              </button>
-            ))}
-          </div>
-        )}
       </>)}
 
       {/* Services management — collapsible dropdown (note 49) */}
@@ -223,22 +213,47 @@ export default function MgrSettings({ mgr }) {
         </div>
       ))}
 
-      <SectionTitle icon={Bell}>תזכורות אוטומטיות אליי</SectionTitle>
-      <Toggle k="notify_day_start" />
-      <Toggle k="notify_after_break" />
-      <SectionTitle icon={Users}>תזכורות אוטומטיות ללקוחות</SectionTitle>
-      <Toggle k="notify_client_24h" />
-      <Toggle k="notify_client_1h" />
-      <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.6, padding: "0 2px" }}>
-        ההתראות נשמרות אוטומטית. שליחת SMS בפועל תופעל לאחר חיבור ספק SMS.
-      </div>
+      {/* Notifications — collapsible dropdown (note 44) */}
+      <button onClick={() => setOpenNotif((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+        <Bell size={16} color="var(--plum)" />
+        <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>התראות אוטומטיות</span>
+        <ChevronDown size={18} color="var(--muted)" style={{ transform: openNotif ? "rotate(180deg)" : "none", transition: ".18s" }} />
+      </button>
+      {openNotif && (<>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--muted)", padding: "0 2px" }}>אליי</div>
+        <Toggle k="notify_day_start" />
+        <Toggle k="notify_after_break" />
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--muted)", padding: "0 2px" }}>ללקוחות</div>
+        <Toggle k="notify_client_24h" />
+        <Toggle k="notify_client_1h" />
+        <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.6, padding: "0 2px" }}>
+          ההתראות נשמרות אוטומטית. שליחת SMS בפועל תופעל לאחר חיבור ספק SMS.
+        </div>
+      </>)}
 
-      <SectionTitle icon={Sparkles}>פרטי הסטודיו</SectionTitle>
-      <div className="bf-card" style={{ padding: 12, display: "grid", gap: 6, fontSize: 13.5 }}>
-        <Row k="שם" v={mgr.studioName} />
-        <Row k="שירותים פעילים" v={`${services.length || "—"}`} />
-        <Row k="ערכת צבע" v="ויין · בלאש" />
-      </div>
+      {/* Additional settings — edition switch lives here (note 46) */}
+      <button onClick={() => setOpenMore((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+        <Sparkles size={16} color="var(--plum)" />
+        <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>הגדרות נוספות</span>
+        <ChevronDown size={18} color="var(--muted)" style={{ transform: openMore ? "rotate(180deg)" : "none", transition: ".18s" }} />
+      </button>
+      {openMore && (<>
+        <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Briefcase size={18} color="var(--plum)" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>{mgr.business ? "גרסת עסק פעילה" : "גרסה פרטית"}</div>
+            <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{mgr.business ? "מעבר לגרסה פרטית · נדרש קוד" : "מעבר לגרסת עסק · נדרש קוד"}</div>
+          </div>
+          <button onClick={() => setCodeGate({ target: !mgr.business })} aria-pressed={mgr.business} style={{ width: 46, height: 27, borderRadius: 999, border: "none", cursor: "pointer", padding: 3, background: mgr.business ? "linear-gradient(135deg,var(--plum),var(--rose))" : "var(--sand)", display: "flex", justifyContent: mgr.business ? "flex-end" : "flex-start", transition: ".18s" }}>
+            <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
+          </button>
+        </div>
+        <div className="bf-card" style={{ padding: 12, display: "grid", gap: 6, fontSize: 13.5 }}>
+          <Row k="שם" v={mgr.studioName} />
+          <Row k="שירותים פעילים" v={`${services.length || "—"}`} />
+          <Row k="ערכת צבע" v="ויין · בלאש" />
+        </div>
+      </>)}
 
       <button className="bf-btn bf-btn-ghost" style={{ marginTop: 6, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={mgr.logout}>
         <LogOut size={16} /> התנתקות

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Coffee, Plus, Clock, Pencil, AlertTriangle, RefreshCw } from "lucide-react";
+import { Coffee, Plus, Clock, Pencil, AlertTriangle, RefreshCw, MoreVertical } from "lucide-react";
 import { Sheet, Confirm, cosmeticians } from "../ui";
 import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
@@ -19,6 +19,7 @@ export default function MgrCalendar({ mgr }) {
   const [editWeekly, setEditWeekly] = useState(false);
   const [editDay, setEditDay] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [weekly, setWeekly] = useState([]);
   const [override, setOverride] = useState(null);
@@ -55,7 +56,12 @@ export default function MgrCalendar({ mgr }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {!locked
+          ? <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "1px solid var(--sand)", borderRadius: 10, cursor: "pointer", color: "var(--plum)", padding: "6px 8px", display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, fontFamily: "inherit" }}>
+              <MoreVertical size={15} /> פעולות לו"ז
+            </button>
+          : <span />}
         <button onClick={doRefresh} disabled={refreshing} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4, display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, fontFamily: "inherit" }}>
           <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} /> רענון
         </button>
@@ -97,8 +103,6 @@ export default function MgrCalendar({ mgr }) {
             {override && <span style={{ color: "var(--gold)", marginInlineStart: 6 }}>· חריג ליום זה</span>}
           </div>
         </div>
-        {!locked && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditDay(true)}><Pencil size={13} /> יום זה</button>}
-        {!locked && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setEditWeekly(true)}>שבועי</button>}
       </div>
 
       {locked && cosmId !== mgr.lockedEmployeeId && (
@@ -107,16 +111,24 @@ export default function MgrCalendar({ mgr }) {
         </div>
       )}
 
-      {!locked && <button className="bf-btn bf-btn-ghost" onClick={() => setAddBreak(true)}><Coffee size={16} /> הוספת הפסקה ליום זה</button>}
-      {!locked && sel === 0 && appts.some((a) => a.status === "confirmed") && (
-        <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => setConfirmClose(true)}>
-          <AlertTriangle size={16} /> סגירת היומן עכשיו
-        </button>
-      )}
-
       <DaySchedule effective={effective} dayAppts={appts} dayBreaks={breaks} allAppts={mgr.appts}
         onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
 
+      {menuOpen && (
+        <Sheet onClose={() => setMenuOpen(false)}>
+          <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>פעולות לו"ז · {DOW_FULL[weekday]}</h3>
+          <div style={{ display: "grid", gap: 10 }}>
+            <button className="bf-btn bf-btn-ghost" onClick={() => { setMenuOpen(false); setEditDay(true); }}><Pencil size={16} /> שינוי שעות היום</button>
+            <button className="bf-btn bf-btn-ghost" onClick={() => { setMenuOpen(false); setEditWeekly(true); }}><Clock size={16} /> שעות עבודה שבועיות</button>
+            <button className="bf-btn bf-btn-ghost" onClick={() => { setMenuOpen(false); setAddBreak(true); }}><Coffee size={16} /> הוספת הפסקה</button>
+            {sel === 0 && appts.some((a) => a.status === "confirmed") && (
+              <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { setMenuOpen(false); setConfirmClose(true); }}>
+                <AlertTriangle size={16} /> סגירת היומן עכשיו
+              </button>
+            )}
+          </div>
+        </Sheet>
+      )}
       {confirmClose && (
         <Confirm
           title="לסגור את היומן עכשיו?"

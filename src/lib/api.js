@@ -92,7 +92,7 @@ export async function loadStudioBundle() {
         id: s.id, name: s.name, dur: s.duration, price: s.price, grad: s.gradient, img: s.image_url,
       })),
       employees: (employees || []).map((e) => ({
-        id: e.id, name: e.name, title: e.title, color: e.color,
+        id: e.id, name: e.name, title: e.title, color: e.color, avatar: e.avatar_url,
       })),
     };
   } catch (err) { log("loadStudioBundle", err); return null; }
@@ -744,6 +744,33 @@ export async function uploadManagerPhoto(studioId, studioName, file, caption, em
     if (error) throw error;
     return { photo: data };
   } catch (err) { log("uploadManagerPhoto", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// Employee profile photo (business V3) → uploads + saves on the employee row.
+export async function uploadEmployeeAvatar(employeeId, file) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `employees/${employeeId}/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseManager, "avatars", path, file);
+    await supabaseManager.from("employees").update({ avatar_url: url }).eq("id", employeeId);
+    return { url };
+  } catch (err) { log("uploadEmployeeAvatar", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// Employee uploads a gallery photo — like a client, it lands as 'pending' for
+// the manager to approve (business V3 note 64). Tagged to the employee.
+export async function uploadEmployeePhoto(studioId, employee, file, caption) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${studioId}/employees/${employee.id}/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseManager, "gallery", path, file);
+    const { error } = await supabaseManager.from("gallery").insert({
+      studio_id: studioId, image_url: url, caption: caption || "עבודה חדשה",
+      uploaded_by: employee.name, status: "pending", employee_id: employee.id,
+    });
+    if (error) throw error;
+    return {};
+  } catch (err) { log("uploadEmployeePhoto", err); return { error: "העלאת התמונה נכשלה." }; }
 }
 
 // Service cover image (V6.1 note 43) → returns its public URL.
