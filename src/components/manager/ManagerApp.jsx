@@ -24,6 +24,15 @@ export default function ManagerApp({ mgr, ping }) {
   const pendingStanding = (mgr.standing || []).filter((s) => s.status === "pending").length;
   useEffect(() => { if (tab === "cal") setSeen(sid, "mgr-appts", apptCount); }, [tab, apptCount, sid]);
   useEffect(() => { if (tab === "clients") setSeen(sid, "mgr-clients", clientCount); }, [tab, clientCount, sid]);
+  // Employee: "!" on her calendar when a new appointment is booked for her (note 54).
+  const lockedId = mgr.lockedEmployeeId;
+  const empApptCount = (mgr.appts || []).filter((a) => (a.employeeId ?? null) === lockedId).length;
+  const newEmpAppt = !!lockedId && empApptCount > getSeen(sid, "emp-appts");
+  useEffect(() => { if (lockedId && tab === "cal") setSeen(sid, "emp-appts", empApptCount); }, [lockedId, tab, empApptCount, sid]);
+  // Employee gallery "!" only when one of her photos was approved (notes 59-60).
+  // The banner + seen-clearing live in MgrGallery.
+  const empApprCount = (mgr.gallery || []).filter((g) => g.employeeId === lockedId).length;
+  const newEmpAppr = !!lockedId && empApprCount > getSeen(sid, "emp-gal-appr");
 
   if (!mgr.user) return <ManagerLogin onLogin={mgr.login} />;
 
@@ -44,8 +53,10 @@ export default function ManagerApp({ mgr, ping }) {
   // employee → her unread schedule-approval notifications (notes 50, 54).
   const schedReqCount = (mgr.scheduleReqs || []).length;
   const empSchedUnread = (mgr.employeeNotifications || []).filter((n) => !n.read && (n.type === "approved" || n.type === "declined")).length;
-  const calBadge = locked ? empSchedUnread : (schedReqCount > 0 ? schedReqCount : (newAppts ? "!" : 0));
-  const empPending = locked ? (mgr.pending || []).filter((p) => p.employeeId === mgr.lockedEmployeeId).length : 0;
+  // Employee sees a "!" (not a number) for new appointments / approved requests;
+  // manager sees the pending-requests count (notes 54, 55).
+  const calBadge = locked ? ((empSchedUnread > 0 || newEmpAppt) ? "!" : 0) : (schedReqCount > 0 ? schedReqCount : (newAppts ? "!" : 0));
+  const galBadgeEmp = newEmpAppr ? "!" : 0;   // employee gallery badge (note 59)
 
   const titles = {
     home:     locked ? [`שלום, ${empName}`, "הלו\"ז שלך"] : [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
@@ -73,7 +84,7 @@ export default function ManagerApp({ mgr, ping }) {
       </div>
       <NavBar tab={safeTab} setTab={setTab} items={locked ? [
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],
-        ["gallery", ImageIcon, "גלריה", empPending], ["profile", User, "פרופיל"],
+        ["gallery", ImageIcon, "גלריה", galBadgeEmp], ["profile", User, "פרופיל"],
       ] : [
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],
         ["clients", Users, "לקוחות", newClients],

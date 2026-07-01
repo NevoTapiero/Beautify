@@ -38,6 +38,12 @@ export default function MgrCalendar({ mgr }) {
   const requestMode = locked;   // when an employee edits, create an approval request
   const pendingReqs = (mgr.scheduleReqs || []).filter((r) => (r.employee_id ?? null) === cosmId);
 
+  // Employee: schedule-approval notifications show as a one-time banner and are
+  // auto-marked-read — no manual confirmation (note 55).
+  const schedNotifs = locked ? (mgr.employeeNotifications || []).filter((n) => !n.read && (n.type === "approved" || n.type === "declined")) : [];
+  const [schedBanner] = useState(() => schedNotifs);
+  useEffect(() => { schedNotifs.forEach((n) => mgr.markEmployeeNotifRead(n.id)); /* eslint-disable-next-line */ }, []);
+
   const dateStr = dateForOffset(sel);
   const weekday = days[sel].weekday;
 
@@ -75,13 +81,18 @@ export default function MgrCalendar({ mgr }) {
 
       {showCosm && (
         <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-          {cosmList.map((c) => (
-            <button key={c.id} onClick={() => setCosmId(c.owner ? null : c.id)}
-              className={"bf-chip " + ((c.owner ? null : c.id) === cosmId ? "bf-chip-rose" : "bf-chip-wait")}
-              style={{ cursor: "pointer", border: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 13, height: 13, borderRadius: "50%", background: c.color }} /> {c.name}
-            </button>
-          ))}
+          {cosmList.map((c) => {
+            // "!" on an employee's chip when she has a pending request (note 34).
+            const hasReq = !c.owner && !locked && (mgr.scheduleReqs || []).some((r) => r.employee_id === c.id);
+            return (
+              <button key={c.id} onClick={() => setCosmId(c.owner ? null : c.id)}
+                className={"bf-chip " + ((c.owner ? null : c.id) === cosmId ? "bf-chip-rose" : "bf-chip-wait")}
+                style={{ cursor: "pointer", border: "none", display: "inline-flex", alignItems: "center", gap: 5, position: "relative" }}>
+                <span style={{ width: 13, height: 13, borderRadius: "50%", background: c.color }} /> {c.name}
+                {hasReq && <span style={{ marginInlineStart: 3, width: 16, height: 16, borderRadius: "50%", background: "var(--rose)", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>!</span>}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -117,13 +128,12 @@ export default function MgrCalendar({ mgr }) {
         </div>
       )}
 
-      {/* Employee: schedule-approval notifications live here, not on Home (note 54) */}
-      {locked && (mgr.employeeNotifications || []).filter((n) => !n.read && (n.type === "approved" || n.type === "declined")).map((n) => (
-        <button key={n.id} onClick={() => mgr.markEmployeeNotifRead(n.id)} className="bf-card" style={{ padding: 11, textAlign: "right", cursor: "pointer", border: "1px solid var(--rose-soft)", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
+      {/* Employee: one-time schedule-approval banner (note 54, 55) */}
+      {locked && schedBanner.map((n) => (
+        <div key={n.id} className="bf-card" style={{ padding: 11, border: "1px solid var(--rose-soft)", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
           <div style={{ fontWeight: 700, fontSize: 13.5 }}>{n.title}</div>
           <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>{n.body}</div>
-          <div style={{ fontSize: 11, color: "var(--rose)", marginTop: 5, fontWeight: 700 }}>הקישי לסימון כנקרא</div>
-        </button>
+        </div>
       ))}
 
       {/* Schedule-change requests (Phase 3b) */}

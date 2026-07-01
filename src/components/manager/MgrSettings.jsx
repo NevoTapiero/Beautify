@@ -34,7 +34,8 @@ export default function MgrSettings({ mgr }) {
   const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
   const [openNotif, setOpenNotif] = useState(false);         // notifications dropdown (note 44)
   const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
-  const [nameDraft, setNameDraft] = useState(mgr.studioName);// studio-name editor (V4 note 45)
+  const [nameDraft, setNameDraft] = useState(mgr.studioName);// name editor (V5 note 44)
+  const [editName, setEditName] = useState(false);
 
   const tog = (k) => {
     const next = !state[k];
@@ -239,13 +240,6 @@ export default function MgrSettings({ mgr }) {
         <ChevronDown size={18} color="var(--muted)" style={{ transform: openMore ? "rotate(180deg)" : "none", transition: ".18s" }} />
       </button>
       {openMore && (<>
-        <div className="bf-card" style={{ padding: 13, display: "grid", gap: 9 }}>
-          <label className="bf-label">שם הסטודיו</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input className="bf-input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם הסטודיו" />
-            <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ width: "auto", whiteSpace: "nowrap" }} disabled={!nameDraft.trim() || nameDraft === mgr.studioName} onClick={() => mgr.saveSettings({ name: nameDraft.trim() })}>שמירה</button>
-          </div>
-        </div>
         <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
           <Briefcase size={18} color="var(--plum)" />
           <div style={{ flex: 1 }}>
@@ -256,8 +250,21 @@ export default function MgrSettings({ mgr }) {
             <span style={{ width: 21, height: 21, borderRadius: "50%", background: "#fff", display: "block" }} />
           </button>
         </div>
-        <div className="bf-card" style={{ padding: 12, display: "grid", gap: 6, fontSize: 13.5 }}>
-          <Row k="שם" v={mgr.studioName} />
+        <div className="bf-card" style={{ padding: 12, display: "grid", gap: 8, fontSize: 13.5 }}>
+          {editName ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input className="bf-input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם" autoFocus />
+              <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ width: "auto", whiteSpace: "nowrap" }} disabled={!nameDraft.trim()} onClick={() => { mgr.saveSettings({ name: nameDraft.trim() }); setEditName(false); }}>שמירה</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <span style={{ color: "var(--muted)" }}>שם</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontWeight: 700 }}>{mgr.studioName}</span>
+                <button onClick={() => { setNameDraft(mgr.studioName); setEditName(true); }} aria-label="עריכת שם" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}><Pencil size={14} /></button>
+              </span>
+            </div>
+          )}
           <Row k="שירותים פעילים" v={`${services.length || "—"}`} />
           <Row k="ערכת צבע" v="ויין · בלאש" />
         </div>

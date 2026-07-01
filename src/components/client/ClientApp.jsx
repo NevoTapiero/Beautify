@@ -18,6 +18,13 @@ export default function ClientApp({ cli }) {
   const newPhotos = Math.max(0, galleryCount - getSeen(sid, "cli-gallery"));
   useEffect(() => { if (tab === "gallery") setSeen(sid, "cli-gallery", galleryCount); }, [tab, galleryCount, sid]);
 
+  // "!" on the gallery tab when one of her uploads was just approved/rejected
+  // (note 20). The transient banner + clearing live in CliGallery.
+  const apprCount = (cli.uploads || []).filter((u) => u.status === "approved").length;
+  const rejCount = (cli.uploads || []).filter((u) => u.status === "rejected").length;
+  const newResolved = Math.max(0, apprCount - getSeen(sid, "cli-appr")) + Math.max(0, rejCount - getSeen(sid, "cli-rej"));
+  const galleryBadge = newResolved > 0 ? "!" : newPhotos;
+
   // Wait for the studio before showing anything that needs it (auth + booking).
   if (!cli.studio) return (
     <div className="bf-screen" style={{ display: "grid", placeItems: "center", padding: 40 }}>
@@ -28,7 +35,9 @@ export default function ClientApp({ cli }) {
   if (!cli.client) return <ClientAuth cli={cli} />;
 
   const me = cli.client;
-  const unread = (cli.notifications || []).filter((n) => !n.read).length
+  // Reschedule requests already show as a move/cancel card, so don't also count
+  // their notification (note 23).
+  const unread = (cli.notifications || []).filter((n) => !n.read && n.type !== "reschedule").length
     + (cli.appts || []).filter((a) => a.status === "reschedule_requested").length;
   const titles = {
     book:    ["קביעת תור", cli.studioName],
@@ -52,7 +61,7 @@ export default function ClientApp({ cli }) {
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["book", Plus, "תור חדש"], ["mine", CalendarDays, "התורים שלי", unread],
-        ["gallery", ImageIcon, "גלריה", newPhotos], ["profile", User, "פרופיל"],
+        ["gallery", ImageIcon, "גלריה", galleryBadge], ["profile", User, "פרופיל"],
       ]} />
     </>
   );

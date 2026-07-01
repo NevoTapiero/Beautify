@@ -21,7 +21,9 @@ export default function CliMine({ cli }) {
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
   const past = cli.appts.filter((a) => a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0))
     .sort((x, y) => y.day - x.day).slice(0, 3);
-  const unread = cli.notifications.filter((n) => !n.read);
+  // Reschedule requests already appear as a move/cancel card above, so hide
+  // their (redundant) notification from the messages list (note 23).
+  const unread = cli.notifications.filter((n) => !n.read && n.type !== "reschedule");
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>

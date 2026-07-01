@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Camera, X, RefreshCw } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Camera, X, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty, GallerySort, sortGallery, cosmeticians } from "../ui";
+import { getSeen, setSeen } from "../../lib/seen";
 
 const STATUS = {
   pending:  { label: "ממתין לאישור", cls: "bf-chip-wait" },
@@ -23,6 +24,17 @@ export default function CliGallery({ cli }) {
   const showCosm = cli.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
 
+  // One-time banner when her uploads were just approved/rejected (note 20).
+  // Captured on entry, then marked seen so it clears when she leaves the screen.
+  const sid = cli.studio?.id;
+  const apprCount = (cli.uploads || []).filter((u) => u.status === "approved").length;
+  const rejCount = (cli.uploads || []).filter((u) => u.status === "rejected").length;
+  const [banner] = useState(() => ({
+    appr: Math.max(0, apprCount - getSeen(sid, "cli-appr")),
+    rej: Math.max(0, rejCount - getSeen(sid, "cli-rej")),
+  }));
+  useEffect(() => { setSeen(sid, "cli-appr", apprCount); setSeen(sid, "cli-rej", rejCount); }, [sid, apprCount, rejCount]);
+
   const doUpload = async () => {
     setBusy(true);
     await cli.uploadPhoto(picked, cap, pickedEmp === "owner" ? null : pickedEmp);
@@ -32,6 +44,18 @@ export default function CliGallery({ cli }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {banner.appr > 0 && (
+        <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 9, background: "#E7F3EC", border: "1px solid #BFE3CC" }}>
+          <CheckCircle2 size={18} color="#2E7D52" />
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#256B45" }}>{banner.appr > 1 ? `${banner.appr} מהתמונות שלך אושרו ונוספו לגלריה 🤍` : "התמונה שלך אושרה ונוספה לגלריה 🤍"}</div>
+        </div>
+      )}
+      {banner.rej > 0 && (
+        <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 9, background: "#FBEDEF", border: "1px solid #F0CBD0" }}>
+          <XCircle size={18} color="#B23A48" />
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#B23A48" }}>{banner.rej > 1 ? `${banner.rej} מהתמונות שלך לא אושרו` : "התמונה שלך לא אושרה"}</div>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div className="bf-seg" style={{ flex: 1 }}>
           <button className={seg === "all" ? "active" : ""} onClick={() => setSeg("all")}>הגלריה ({cli.gallery.length})</button>

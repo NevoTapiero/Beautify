@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Camera, Check, X, Pencil, RefreshCw } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Camera, Check, X, Pencil, RefreshCw, CheckCircle2 } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet, GallerySort, sortGallery, cosmeticians } from "../ui";
+import { getSeen, setSeen } from "../../lib/seen";
 
 export default function MgrGallery({ mgr }) {
   const [seg, setSeg] = useState("mine");
@@ -16,6 +17,13 @@ export default function MgrGallery({ mgr }) {
 
   const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
   const myPending = locked ? (mgr.pending || []).filter((p) => p.employeeId === mgr.lockedEmployeeId) : [];
+
+  // One-time "your photo was approved" banner for the employee (notes 59-60):
+  // captured on entry, then marked seen so it clears on the next screen.
+  const sid = mgr.studio?.id;
+  const myApprCount = locked ? (mgr.gallery || []).filter((g) => g.employeeId === mgr.lockedEmployeeId).length : 0;
+  const [apprBanner] = useState(() => locked ? Math.max(0, myApprCount - getSeen(sid, "emp-gal-appr")) : 0);
+  useEffect(() => { if (locked) setSeen(sid, "emp-gal-appr", myApprCount); }, [locked, sid, myApprCount]);
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = !locked && mgr.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
@@ -34,6 +42,12 @@ export default function MgrGallery({ mgr }) {
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {apprBanner > 0 && (
+        <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 9, background: "#E7F3EC", border: "1px solid #BFE3CC" }}>
+          <CheckCircle2 size={18} color="#2E7D52" />
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#256B45" }}>{apprBanner > 1 ? `${apprBanner} מהתמונות שלך אושרו ונוספו לגלריה 🤍` : "התמונה שלך אושרה ונוספה לגלריה 🤍"}</div>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div className="bf-seg" style={{ flex: 1 }}>
           {locked ? (<>

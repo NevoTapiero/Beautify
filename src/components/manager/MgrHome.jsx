@@ -93,8 +93,9 @@ export default function MgrHome({ mgr, go }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Stat n={today.length} l="תורים היום" c="var(--plum)" />
         <Stat n={unconfirmed.length} l="טרם אישרו הגעה" c="var(--rose)" onClick={unconfirmed.length ? () => setRemindOpen(true) : undefined} />
-        {/* Employees don't approve photos — hide that tile for them (note 55) */}
-        {!mgr.lockedEmployeeId && <Stat n={mgr.pending.length} l="תמונות לאישור" c="var(--gold)" />}
+        {/* Employees don't approve photos — hide that tile for them (note 55).
+            Clicking it opens the gallery approval screen (note 31). */}
+        {!mgr.lockedEmployeeId && <Stat n={mgr.pending.length} l="תמונות לאישור" c="var(--gold)" onClick={mgr.pending.length ? () => go("gallery") : undefined} />}
         {/* Manager: employee schedule requests → jump to the calendar (note 31) */}
         {!mgr.lockedEmployeeId && mgr.business && <Stat n={schedReqCount} l="בקשות עובדות" c="#6B4E7A" onClick={schedReqCount ? () => go("cal") : undefined} />}
       </div>
@@ -110,19 +111,6 @@ export default function MgrHome({ mgr, go }) {
         <DaySchedule effective={todayEff} dayAppts={today} dayBreaks={todayBreaks} allAppts={mgr.appts}
           onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
       </div>
-
-      {mgr.pending.length > 0 && (
-        <div className="bf-card" style={{ padding: 14, display: "flex", alignItems: "center", gap: 12, background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
-          <div style={{ display: "flex", flex: 1, alignItems: "center", gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 11, background: mgr.pending[0].img ? `url(${mgr.pending[0].img}) center/cover` : "var(--rose-soft)" }} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{mgr.pending.length} תמונות מחכות לאישורך</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>לקוחות שיתפו את התוצאה</div>
-            </div>
-          </div>
-          <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => go("gallery")}>לאישור</button>
-        </div>
-      )}
 
       {open && <ApptSheet appt={open} mgr={mgr} onClose={() => setOpen(null)} />}
       {remindOpen && (
