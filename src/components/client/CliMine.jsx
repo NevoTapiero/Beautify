@@ -21,12 +21,24 @@ export default function CliMine({ cli }) {
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
   const past = cli.appts.filter((a) => a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0))
     .sort((x, y) => y.day - x.day).slice(0, 3);
-  // Reschedule requests already appear as a move/cancel card above, so hide
-  // their (redundant) notification from the messages list (note 23).
-  const unread = cli.notifications.filter((n) => !n.read && n.type !== "reschedule");
+  // Reschedule requests already appear as a move/cancel card above, and standing
+  // approvals show as a one-time banner, so keep both out of the messages list.
+  const unread = cli.notifications.filter((n) => !n.read && n.type !== "reschedule" && n.type !== "standing");
+
+  // Standing-approval notification: one-time banner, auto-marked-read (note 25).
+  const stdNew = cli.notifications.filter((n) => !n.read && n.type === "standing");
+  const [stdBanner] = useState(() => stdNew);
+  useEffect(() => { stdNew.forEach((n) => cli.markNotifRead(n.id)); /* eslint-disable-next-line */ }, []);
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
+      {/* One-time standing-approval banner (note 25) */}
+      {stdBanner.map((n) => (
+        <div key={n.id} className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 9, background: "#E7F3EC", border: "1px solid #BFE3CC" }}>
+          <CheckCircle2 size={18} color="#2E7D52" />
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#256B45" }}>{n.body || n.title}</div>
+        </div>
+      ))}
       {/* Appointments the studio asked to move (notes 27) */}
       {toMove.length > 0 && (<>
         <SectionTitle icon={AlertTriangle}>תורים להזזה</SectionTitle>
@@ -116,7 +128,8 @@ export default function CliMine({ cli }) {
                 ? <button className="bf-btn bf-btn-soft bf-btn-sm" disabled style={{ flex: 1, opacity: 1 }}><CheckCircle2 size={15} /> הגעה אושרה</button>
                 : <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => cli.confirmArrival(a.id)}><Check size={15} /> אישור הגעה</button>}
               {!a.paid && <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setPayFor(a)}><Wallet size={15} /> שלמי בביט</button>}
-              <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setConfirmCancel(a)}><X size={15} /> ביטול</button>
+              {/* A paid appointment can no longer be cancelled by the client (note 24) */}
+              {!a.paid && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setConfirmCancel(a)}><X size={15} /> ביטול</button>}
             </div>
           </div>
         ))}

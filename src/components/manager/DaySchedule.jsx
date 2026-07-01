@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Coffee, Trash2 } from "lucide-react";
-import { Empty, StatusChip, resolveAppt } from "../ui";
+import { Empty, StatusChip, resolveAppt, Confirm } from "../ui";
 
 const hhmm = (t) => (t || "").slice(0, 5);
 const toMin = (t) => { const [h, m] = hhmm(t).split(":").map(Number); return h * 60 + m; };
@@ -10,6 +10,7 @@ const toMin = (t) => { const [h, m] = hhmm(t).split(":").map(Number); return h *
 // appointment with a live countdown (V6 notes 35-37, reused on Home note 30).
 export default function DaySchedule({ effective, dayAppts, dayBreaks, allAppts, onOpenAppt, onDeleteBreak }) {
   const [now, setNow] = useState(() => new Date());
+  const [confirmDel, setConfirmDel] = useState(null);   // break pending delete-confirmation (note 56)
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(id); }, []);
 
   const nextAppt = (allAppts || [])
@@ -47,7 +48,7 @@ export default function DaySchedule({ effective, dayAppts, dayBreaks, allAppts, 
             <Coffee size={15} color="var(--gold)" />
             <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5, color: "#8A6D3B" }}>{sl.brk.title} · עד {sl.brk.endTime}</div>
             {onDeleteBreak && toMin(sl.brk.time) >= sl.min && (
-              <button onClick={() => onDeleteBreak(sl.brk.id)} aria-label="מחק הפסקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B6896A" }}><Trash2 size={15} /></button>
+              <button onClick={() => setConfirmDel(sl.brk)} aria-label="מחק הפסקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B6896A" }}><Trash2 size={15} /></button>
             )}
           </div>
         );
@@ -86,6 +87,15 @@ export default function DaySchedule({ effective, dayAppts, dayBreaks, allAppts, 
           </div>
         );
       })}
+      {confirmDel && (
+        <Confirm
+          title="למחוק את ההפסקה?"
+          body={`${confirmDel.title} · ${confirmDel.time}–${confirmDel.endTime}`}
+          confirmLabel="מחיקת ההפסקה" danger
+          onConfirm={() => onDeleteBreak(confirmDel.id)}
+          onClose={() => setConfirmDel(null)}
+        />
+      )}
     </div>
   );
 }

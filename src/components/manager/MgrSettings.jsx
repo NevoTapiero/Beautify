@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus, Smartphone, Lock } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
 import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg, Confirm } from "../ui";
 import { DOW_FULL } from "../../data/mock";
 
@@ -36,6 +36,7 @@ export default function MgrSettings({ mgr }) {
   const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
   const [nameDraft, setNameDraft] = useState(mgr.studioName);// name editor (V5 note 44)
   const [editName, setEditName] = useState(false);
+  const [aboutDraft, setAboutDraft] = useState(mgr.studio?.about || "");   // owner "about me" (V6 note 47)
 
   const tog = (k) => {
     const next = !state[k];
@@ -240,6 +241,27 @@ export default function MgrSettings({ mgr }) {
         <ChevronDown size={18} color="var(--muted)" style={{ transform: openMore ? "rotate(180deg)" : "none", transition: ".18s" }} />
       </button>
       {openMore && (<>
+        {/* Owner profile photo + about me (notes 46, 47) */}
+        <div className="bf-card" style={{ padding: 13, display: "grid", gap: 11 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <PhotoPicker onPick={(f) => mgr.uploadStudioLogo(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
+              <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
+                {mgr.studio?.logo_url
+                  ? <img src={mgr.studio.logo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
+                  : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.studioName || "?").charAt(0)}</div>}
+                <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="#fff" /></span>
+              </button>
+            </PhotoPicker>
+            <div style={{ flex: 1, fontSize: 13.5 }}>
+              <div style={{ fontWeight: 700 }}>תמונת פרופיל</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>מופיעה ללקוחות ב"עלינו"</div>
+            </div>
+          </div>
+          <label className="bf-label">על עצמי</label>
+          <textarea className="bf-input" rows={3} value={aboutDraft} onChange={(e) => setAboutDraft(e.target.value)} placeholder="כמה מילים על עצמך שהלקוחות יראו…" style={{ resize: "vertical", fontFamily: "inherit" }} />
+          <button className="bf-btn bf-btn-soft bf-btn-sm" style={{ justifySelf: "start" }} disabled={aboutDraft === (mgr.studio?.about || "")} onClick={() => mgr.saveSettings({ about: aboutDraft })}>שמירת "על עצמי"</button>
+        </div>
+
         <div className="bf-card" style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12 }}>
           <Briefcase size={18} color="var(--plum)" />
           <div style={{ flex: 1 }}>

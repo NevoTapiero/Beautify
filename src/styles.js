@@ -2,6 +2,7 @@ const STYLE = `
 @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&family=Frank+Ruhl+Libre:wght@400;500;700;900&display=swap');
 .bf-root *{ box-sizing:border-box; }
 .bf-root{
+  color-scheme:light;   /* never invert in device/browser dark mode (note 3) */
   --ink:#2A1A2E; --plum:#7C2A53; --plum-deep:#5E1F40; --rose:#D9738F;
   --rose-soft:#F4C9D4; --blush:#FBEFEA; --sand:#EADDD4; --gold:#B4893E;
   --surface:#FFFFFF; --muted:#9A8490;
@@ -117,6 +118,14 @@ const STYLE = `
 .bf-hint{ font-size:12.5px; color:var(--muted); margin-top:10px; text-align:center; }
 @keyframes spin{ to{ transform:rotate(360deg) } }
 @media (prefers-reduced-motion: reduce){ .bf-root *{ animation:none !important; transition:none !important; } }
+
+/* On phones the app fills the screen instead of floating as a framed card (note 3). */
+@media (max-width:560px){
+  .bf-root{ padding:6px 6px 0; min-height:100dvh; }
+  .bf-hint{ display:none; }
+  .bf-phone{ width:100%; max-width:100%; height:auto; flex:1 1 auto; max-height:none;
+    border-radius:18px; box-shadow:0 0 0 1px var(--sand); }
+}
 `;
 
 export default STYLE;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Wallet, Sparkles, User, CreditCard } from "lucide-react";
-import { Steps, SectionTitle, Back, BitSheet, CardSheet, Row, Empty, serviceBg, cosmeticians } from "../ui";
+import { CalendarDays, Clock, Wallet, Sparkles, User, CreditCard, Heart } from "lucide-react";
+import { Steps, SectionTitle, Back, BitSheet, CardSheet, Row, Empty, serviceBg, cosmeticians, Sheet, Avatar } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -12,6 +12,7 @@ export default function CliBook({ cli }) {
   const [employee, setEmployee] = useState(null);   // chosen beautician (business)
   const [pay, setPay] = useState(false);
   const [payCard, setPayCard] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // Cosmetician choice (business): owner + employees. Required once there's
   // more than one cosmetician (note 28). "owner" maps to employee_id null.
@@ -70,6 +71,7 @@ export default function CliBook({ cli }) {
             </button>
           ))}
         </div>
+        <button className="bf-btn bf-btn-ghost" style={{ marginTop: 4 }} onClick={() => setAboutOpen(true)}><Heart size={16} /> עלינו</button>
       </>)}
 
       {step === 2 && (<>
@@ -149,6 +151,42 @@ export default function CliBook({ cli }) {
 
       {pay && <BitSheet amount={s?.price} onClose={() => setPay(false)} onPaid={() => finish(true, "התור נקבע ושולם בביט ✓")} />}
       {payCard && <CardSheet amount={s?.price} onClose={() => setPayCard(false)} onPaid={() => finish(true, "התור נקבע ושולם באשראי ✓")} />}
+      {aboutOpen && <AboutSheet cli={cli} onClose={() => setAboutOpen(false)} />}
     </div>
+  );
+}
+
+// "עלינו" — the team's photos; tap one to read her "about me" (note 29).
+function AboutSheet({ cli, onClose }) {
+  const team = [
+    { id: "owner", name: cli.studioName, avatar: cli.studio?.logo_url, about: cli.studio?.about, color: "#7C2A53" },
+    ...(cli.employees || []),
+  ];
+  const [sel, setSel] = useState(null);
+  const person = team.find((t) => t.id === sel);
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>עלינו</h3>
+      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>הצוות שלנו — הקישי על תמונה כדי להכיר</div>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
+        {team.map((t) => (
+          <button key={t.id} onClick={() => setSel(sel === t.id ? null : t.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "grid", gap: 6, justifyItems: "center", width: 76 }}>
+            {t.avatar
+              ? <img src={t.avatar} alt={t.name} style={{ width: 60, height: 60, borderRadius: "50%", objectFit: "cover", border: sel === t.id ? "3px solid var(--rose)" : "2px solid var(--sand)" }} />
+              : <div style={{ width: 60, height: 60, borderRadius: "50%", background: t.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22, border: sel === t.id ? "3px solid var(--rose)" : "2px solid transparent" }}>{(t.name || "?").charAt(0)}</div>}
+            <div style={{ fontSize: 12, fontWeight: 700, textAlign: "center" }}>{t.name}</div>
+          </button>
+        ))}
+      </div>
+      {person && (
+        <div className="bf-card" style={{ padding: 13, marginTop: 14 }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>{person.name}{person.title ? ` · ${person.title}` : ""}</div>
+          <div style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {person.about || "עוד לא נכתב תיאור."}
+          </div>
+        </div>
+      )}
+    </Sheet>
   );
 }

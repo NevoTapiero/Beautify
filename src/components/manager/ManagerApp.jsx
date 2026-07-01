@@ -31,6 +31,9 @@ export default function ManagerApp({ mgr, ping }) {
   const empApptCount = (mgr.appts || []).filter((a) => (a.employeeId ?? null) === lockedId).length;
   const newEmpAppt = !!lockedId && empApptCount > getSeen(sid, "emp-appts");
   useEffect(() => { if (lockedId && tab === "cal") setSeen(sid, "emp-appts", empApptCount); }, [lockedId, tab, empApptCount, sid]);
+  // Employee always lands on HER OWN schedule when entering Home/Calendar; if she
+  // viewed someone else and comes back, it resets to hers (note 52).
+  useEffect(() => { if (lockedId && (tab === "home" || tab === "cal")) setCosmId(lockedId); }, [lockedId, tab]);
   // Employee gallery "!" only when one of her photos was approved (notes 59-60).
   // The banner + seen-clearing live in MgrGallery.
   const empApprCount = (mgr.gallery || []).filter((g) => g.employeeId === lockedId).length;

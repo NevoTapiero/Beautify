@@ -93,7 +93,7 @@ export async function loadStudioBundle() {
       })),
       employees: (employees || []).map((e) => ({
         id: e.id, name: e.name, title: e.title, color: e.color, avatar: e.avatar_url,
-        notify_day_start: e.notify_day_start, notify_appt: e.notify_appt,
+        notify_day_start: e.notify_day_start, notify_appt: e.notify_appt, about: e.about,
       })),
     };
   } catch (err) { log("loadStudioBundle", err); return null; }
@@ -850,6 +850,31 @@ export async function uploadEmployeePhoto(studioId, employee, file, caption) {
   } catch (err) { log("uploadEmployeePhoto", err); return { error: "העלאת התמונה נכשלה." }; }
 }
 
+// Owner (studio) profile photo — reuses the studio's logo_url (V6 note 46).
+export async function uploadStudioLogo(studioId, file) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${studioId}/logo/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseManager, "avatars", path, file);
+    await supabaseManager.from("studios").update({ logo_url: url }).eq("id", studioId);
+    return { url };
+  } catch (err) { log("uploadStudioLogo", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// Employee likes a gallery photo (via manager auth). Not her own (checked in UI).
+export async function toggleEmployeeLike(galleryId, employeeId, currentlyLiked) {
+  if (!isSupabaseReady || !employeeId) return currentlyLiked;
+  try {
+    if (currentlyLiked) {
+      await supabaseManager.from("gallery_likes").delete()
+        .eq("gallery_id", galleryId).eq("employee_id", employeeId);
+      return false;
+    }
+    await supabaseManager.from("gallery_likes").insert({ gallery_id: galleryId, employee_id: employeeId });
+    return true;
+  } catch (err) { log("toggleEmployeeLike", err); return currentlyLiked; }
+}
+
 // Service cover image (V6.1 note 43) → returns its public URL.
 export async function uploadServiceImage(studioId, file) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
@@ -872,11 +897,11 @@ export async function uploadClientAvatar(clientId, file) {
 }
 
 // Loads approved photos for the public gallery + like counts + liked-by-me.
-export async function loadGallery(studioId, myClientId) {
+export async function loadGallery(studioId, myClientId, myEmployeeId) {
   if (!isSupabaseReady || !studioId) return null;
   try {
     const { data, error } = await supabaseClient
-      .from("gallery").select("*, gallery_likes(client_id)")
+      .from("gallery").select("*, gallery_likes(*)")   // "*" tolerates the employee_id column not existing yet
       .eq("studio_id", studioId).eq("status", "approved")
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -884,7 +909,9 @@ export async function loadGallery(studioId, myClientId) {
       id: g.id, img: g.image_url, cap: g.caption, by: g.uploaded_by, created: g.created_at,
       employeeId: g.employee_id,
       likes: (g.gallery_likes || []).length,
-      likedByMe: myClientId ? (g.gallery_likes || []).some((l) => l.client_id === myClientId) : false,
+      likedByMe: myEmployeeId
+        ? (g.gallery_likes || []).some((l) => l.employee_id === myEmployeeId)
+        : (myClientId ? (g.gallery_likes || []).some((l) => l.client_id === myClientId) : false),
     }));
   } catch (err) { log("loadGallery", err); return null; }
 }

@@ -103,7 +103,7 @@ export default function MgrGallery({ mgr }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {sortGallery(shown(mgr.gallery), sort).map((g) => (
             <div key={g.id} style={{ position: "relative" }}>
-              <GalleryTile item={g} onOpen={setView} />
+              <GalleryTile item={g} onOpen={setView} onLike={locked && g.employeeId !== mgr.lockedEmployeeId ? mgr.employeeLike : undefined} />
               {!locked && (
                 <button aria-label="עריכת תיאור" onClick={(e) => { e.stopPropagation(); setEditing(g); }}
                   style={{ position: "absolute", insetInlineStart: 7, top: 7, width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: "rgba(255,255,255,.85)", display: "flex", alignItems: "center", justifyContent: "center" }}>

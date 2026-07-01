@@ -14,16 +14,12 @@ export default function ClientApp({ cli }) {
   // Gallery badge (note A): how many studio photos are new since she last
   // looked. NOTE: must run before any early return (Rules of Hooks).
   const sid = cli.studio?.id;
-  const galleryCount = (cli.gallery || []).length;
-  const newPhotos = Math.max(0, galleryCount - getSeen(sid, "cli-gallery"));
-  useEffect(() => { if (tab === "gallery") setSeen(sid, "cli-gallery", galleryCount); }, [tab, galleryCount, sid]);
-
-  // "!" on the gallery tab when one of her uploads was just approved/rejected
-  // (note 20). The transient banner + clearing live in CliGallery.
+  // Gallery tab shows only a "!" — and only when one of HER uploads was just
+  // approved/rejected (notes 20, 25: no number badges, no false positives).
   const apprCount = (cli.uploads || []).filter((u) => u.status === "approved").length;
   const rejCount = (cli.uploads || []).filter((u) => u.status === "rejected").length;
   const newResolved = Math.max(0, apprCount - getSeen(sid, "cli-appr")) + Math.max(0, rejCount - getSeen(sid, "cli-rej"));
-  const galleryBadge = newResolved > 0 ? "!" : newPhotos;
+  const galleryBadge = newResolved > 0 ? "!" : 0;
 
   // Wait for the studio before showing anything that needs it (auth + booking).
   if (!cli.studio) return (
@@ -35,10 +31,11 @@ export default function ClientApp({ cli }) {
   if (!cli.client) return <ClientAuth cli={cli} />;
 
   const me = cli.client;
-  // Reschedule requests already show as a move/cancel card, so don't also count
-  // their notification (note 23).
-  const unread = (cli.notifications || []).filter((n) => !n.read && n.type !== "reschedule").length
+  // "mine" tab: "!" (never a number). Reschedule + standing notifications are
+  // shown as their own transient cards, so they don't count here (notes 23, 25).
+  const unreadCount = (cli.notifications || []).filter((n) => !n.read && n.type !== "reschedule" && n.type !== "standing").length
     + (cli.appts || []).filter((a) => a.status === "reschedule_requested").length;
+  const unread = unreadCount > 0 ? "!" : 0;
   const titles = {
     book:    ["קביעת תור", cli.studioName],
     mine:    ["התורים שלי", me.name],

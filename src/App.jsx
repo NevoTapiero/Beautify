@@ -94,7 +94,7 @@ export default function App() {
     await api.topupStanding(sid);   // keep recurring appointments rolling forward
     const [appts, clients, gallery, pending, breaks, standing] = await Promise.all([
       api.loadManagerAppointments(sid), api.loadClients(sid),
-      api.loadGallery(sid, null), api.loadPendingPhotos(sid), api.loadBreaks(sid),
+      api.loadGallery(sid, null, employeeLock), api.loadPendingPhotos(sid), api.loadBreaks(sid),
       api.managerStanding(sid),
     ]);
     setMgrAppts(appts || []); setMgrClients(clients || []);
@@ -104,7 +104,7 @@ export default function App() {
       api.loadInvoices(sid).then((inv) => setMgrInvoices(inv || []));
       api.loadScheduleRequests(sid).then((rq) => setScheduleReqs(rq || []));
     }
-  }, [studio]);
+  }, [studio, employeeLock]);
 
   const loadClientData = useCallback(async (c, s) => {
     const cl = c || client; const sid = (s || studio)?.id;
@@ -206,6 +206,23 @@ export default function App() {
       const r = await api.uploadServiceImage(studio.id, file);
       if (r.error) { ping(r.error); return null; }
       return r.url;
+    },
+    // Owner profile photo (V6 note 46)
+    uploadStudioLogo: async (file) => {
+      const r = await api.uploadStudioLogo(studio.id, file);
+      if (r.error) { ping(r.error); return; }
+      setStudio((s) => ({ ...s, logo_url: r.url })); ping("תמונת הפרופיל עודכנה");
+    },
+    // Employee likes a gallery photo (V6 note 59) — updates count optimistically.
+    employeeLike: async (g) => {
+      const liked = await api.toggleEmployeeLike(g.id, employeeLock, g.likedByMe);
+      setMgrGallery((prev) => prev.map((x) => x.id === g.id ? { ...x, likedByMe: liked, likes: x.likes + (liked ? 1 : -1) } : x));
+    },
+    // Employee writes her "about me" (V6 note 62)
+    updateMyAbout: async (text) => {
+      if (!employeeLock) return;
+      await api.updateEmployee(employeeLock, { about: text });
+      await refreshStudio(); ping("נשמר");
     },
     addService: async (fields) => { await api.addService(studio.id, fields); ping("השירות נוסף"); await refreshStudio(); },
     updateService: async (id, fields) => { await api.updateService(id, fields); ping("השירות עודכן"); await refreshStudio(); },

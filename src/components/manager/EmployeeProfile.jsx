@@ -21,6 +21,7 @@ function NotifToggle({ label, sub, on, onToggle }) {
 export default function EmployeeProfile({ mgr }) {
   const emp = mgr.lockedEmployee;
   const [gate, setGate] = useState(false);
+  const [aboutDraft, setAboutDraft] = useState(emp?.about || "");
   const initial = (emp?.name || "?").charAt(0);
 
   return (
@@ -54,6 +55,13 @@ export default function EmployeeProfile({ mgr }) {
       </div>
       <NotifToggle label="סיכום יומי" sub="רשימת התורים שלך בתחילת היום" on={emp?.notify_day_start !== false} onToggle={(v) => mgr.updateMyNotifPref({ notify_day_start: v })} />
       <NotifToggle label="תור חדש" sub="התראה כשנקבע לך תור חדש" on={emp?.notify_appt !== false} onToggle={(v) => mgr.updateMyNotifPref({ notify_appt: v })} />
+
+      {/* About me (note 62) — shown to clients under "עלינו" */}
+      <div className="bf-card" style={{ padding: 13, display: "grid", gap: 9 }}>
+        <label className="bf-label">על עצמי</label>
+        <textarea className="bf-input" rows={3} value={aboutDraft} onChange={(e) => setAboutDraft(e.target.value)} placeholder="כמה מילים על עצמך שהלקוחות יראו…" style={{ resize: "vertical", fontFamily: "inherit" }} />
+        <button className="bf-btn bf-btn-soft bf-btn-sm" style={{ justifySelf: "start" }} disabled={aboutDraft === (emp?.about || "")} onClick={() => mgr.updateMyAbout(aboutDraft)}>שמירה</button>
+      </div>
 
       <div className="bf-card" style={{ padding: 13, fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>
         זוהי תצוגת העובדת — היומן והעבודות שלך. ניהול הסטודיו זמין למנהלת בלבד.
