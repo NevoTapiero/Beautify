@@ -12,6 +12,8 @@ import EmployeeProfile from "./EmployeeProfile";
 
 export default function ManagerApp({ mgr, ping }) {
   const [tab, setTab] = useState("home");
+  // Selected cosmetician, shared between Home and Calendar (V6). null = owner.
+  const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);
 
   // Badges (V5): a "!" when new appointments came in, a count of new client
   // signups, the pending photo count, and pending standing-slot requests.
@@ -55,7 +57,10 @@ export default function ManagerApp({ mgr, ping }) {
   const empSchedUnread = (mgr.employeeNotifications || []).filter((n) => !n.read && (n.type === "approved" || n.type === "declined")).length;
   // Employee sees a "!" (not a number) for new appointments / approved requests;
   // manager sees the pending-requests count (notes 54, 55).
-  const calBadge = locked ? ((empSchedUnread > 0 || newEmpAppt) ? "!" : 0) : (schedReqCount > 0 ? schedReqCount : (newAppts ? "!" : 0));
+  // V6: nav icons show only "!" — never number badges — on both sides.
+  const calBadge = locked
+    ? ((empSchedUnread > 0 || newEmpAppt) ? "!" : 0)
+    : ((newAppts || schedReqCount > 0) ? "!" : 0);
   const galBadgeEmp = newEmpAppr ? "!" : 0;   // employee gallery badge (note 59)
 
   const titles = {
@@ -75,8 +80,8 @@ export default function ManagerApp({ mgr, ping }) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {safeTab === "home"     && <MgrHome mgr={mgr} go={setTab} />}
-        {safeTab === "cal"      && <MgrCalendar mgr={mgr} />}
+        {safeTab === "home"     && <MgrHome mgr={mgr} go={setTab} cosmId={cosmId} setCosmId={setCosmId} />}
+        {safeTab === "cal"      && <MgrCalendar mgr={mgr} cosmId={cosmId} setCosmId={setCosmId} />}
         {safeTab === "clients"  && !locked && <MgrClients mgr={mgr} />}
         {safeTab === "gallery"  && <MgrGallery mgr={mgr} />}
         {safeTab === "settings" && !locked && <MgrSettings mgr={mgr} />}
@@ -87,8 +92,8 @@ export default function ManagerApp({ mgr, ping }) {
         ["gallery", ImageIcon, "גלריה", galBadgeEmp], ["profile", User, "פרופיל"],
       ] : [
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],
-        ["clients", Users, "לקוחות", newClients],
-        ["gallery", ImageIcon, "גלריה", mgr.pending.length], ["settings", Settings, "הגדרות", pendingStanding],
+        ["clients", Users, "לקוחות", newClients > 0 ? "!" : 0],
+        ["gallery", ImageIcon, "גלריה", mgr.pending.length > 0 ? "!" : 0], ["settings", Settings, "הגדרות", pendingStanding > 0 ? "!" : 0],
       ]} />
     </>
   );

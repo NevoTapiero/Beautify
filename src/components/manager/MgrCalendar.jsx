@@ -11,7 +11,7 @@ const toMin = (t) => { const [h, m] = hhmm(t).split(":").map(Number); return h *
 const overlaps = (s1, e1, s2, e2) => s1 < e2 && s2 < e1;
 const wdForOffset = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.getDay(); };
 
-export default function MgrCalendar({ mgr }) {
+export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
   const days = next7();
   const [sel, setSel] = useState(0);
   const [open, setOpen] = useState(null);
@@ -29,7 +29,6 @@ export default function MgrCalendar({ mgr }) {
   const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
-  const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
   // An employee may edit only HER OWN schedule, and those edits become requests
   // the manager approves (Phase 3b). The manager edits directly.

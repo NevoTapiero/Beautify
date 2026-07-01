@@ -6,7 +6,7 @@ import { dateForOffset } from "../../data/mock";
 import ApptSheet from "./ApptSheet";
 import DaySchedule from "./DaySchedule";
 
-export default function MgrHome({ mgr, go }) {
+export default function MgrHome({ mgr, go, cosmId, setCosmId }) {
   const [open, setOpen] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [closedToday, setClosedToday] = useState(false);
@@ -16,7 +16,6 @@ export default function MgrHome({ mgr, go }) {
   // Switch between cosmeticians' schedules on Home (business; note 32). null = owner.
   const cosmList = cosmeticians(mgr.studioName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
-  const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);   // default to own schedule (note 51)
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
 
   // Selected cosmetician's working hours today — drives the closed banner + slot grid.
@@ -51,7 +50,11 @@ export default function MgrHome({ mgr, go }) {
   const empNotifs = mgr.lockedEmployeeId
     ? (mgr.employeeNotifications || []).filter((n) => !n.read && n.type !== "approved" && n.type !== "declined")
     : [];
-  const schedReqCount = (mgr.scheduleReqs || []).length;
+  // Requests tile reflects the selected cosmetician: owner → all pending
+  // requests, an employee → only hers (V6).
+  const reqTileCount = cosmId
+    ? (mgr.scheduleReqs || []).filter((r) => r.employee_id === cosmId).length
+    : (mgr.scheduleReqs || []).length;
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
@@ -96,8 +99,8 @@ export default function MgrHome({ mgr, go }) {
         {/* Employees don't approve photos — hide that tile for them (note 55).
             Clicking it opens the gallery approval screen (note 31). */}
         {!mgr.lockedEmployeeId && <Stat n={mgr.pending.length} l="תמונות לאישור" c="var(--gold)" onClick={mgr.pending.length ? () => go("gallery") : undefined} />}
-        {/* Manager: employee schedule requests → jump to the calendar (note 31) */}
-        {!mgr.lockedEmployeeId && mgr.business && <Stat n={schedReqCount} l="בקשות עובדות" c="#6B4E7A" onClick={schedReqCount ? () => go("cal") : undefined} />}
+        {/* Manager: employee schedule requests → jump to the calendar (notes 31, V6) */}
+        {!mgr.lockedEmployeeId && mgr.business && <Stat n={reqTileCount} l="בקשות עובדות" c="#6B4E7A" onClick={reqTileCount ? () => go("cal") : undefined} />}
       </div>
 
       <div>
