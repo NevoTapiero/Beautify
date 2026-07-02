@@ -8,9 +8,9 @@ alter table studios   add column if not exists about text;
 alter table employees add column if not exists about text;
 
 -- Employees can like gallery photos (not only clients).
+alter table gallery_likes drop constraint if exists gallery_likes_pkey;
 alter table gallery_likes alter column client_id drop not null;
 alter table gallery_likes add column if not exists employee_id uuid references employees(id) on delete cascade;
-alter table gallery_likes drop constraint if exists gallery_likes_pkey;
 create unique index if not exists gallery_likes_uniq on gallery_likes(gallery_id, client_id, employee_id) nulls not distinct;
 
 drop policy if exists likes_mgr_insert on gallery_likes;
