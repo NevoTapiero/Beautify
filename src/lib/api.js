@@ -62,6 +62,7 @@ function shapeAppt(row) {
     status: row.status,
     arrival: row.arrival_confirmed,
     paid: row.paid,
+    standingId: row.standing_id,
     _live: true,
   };
 }
@@ -335,7 +336,7 @@ export async function loadManagerAppointments(studioId) {
     const end = new Date(start); end.setDate(start.getDate() + 7);
     const { data, error } = await supabaseManager
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, standing_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .eq("studio_id", studioId).neq("status", "cancelled")
       .gte("starts_at", start.toISOString()).lt("starts_at", end.toISOString())
       .order("starts_at");
@@ -350,7 +351,7 @@ export async function loadMyAppointments(clientId) {
   try {
     const { data, error } = await supabaseClient
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, standing_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .eq("client_id", clientId).neq("status", "cancelled")
       .order("starts_at");
     if (error) throw error;
@@ -662,6 +663,17 @@ export async function cancelStanding(id, asManager = false) {
     const { error } = await c.rpc("cancel_standing", { p_id: id });
     if (error) throw error; return true;
   } catch (err) { log("cancelStanding", err); return false; }
+}
+
+// Cancel just this week's materialized occurrence and create next week's,
+// instead of the client using the normal cancel button on it (note V6.1).
+export async function skipStandingWeek(id, asManager = false) {
+  if (!isSupabaseReady) return false;
+  try {
+    const c = asManager ? supabaseManager : supabaseClient;
+    const { error } = await c.rpc("standing_skip_week", { p_id: id });
+    if (error) throw error; return true;
+  } catch (err) { log("skipStandingWeek", err); return false; }
 }
 
 // Keep the rolling horizon topped up (called on manager app load).

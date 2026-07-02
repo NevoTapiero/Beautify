@@ -457,6 +457,8 @@ export default function App() {
       ping("הבקשה נשלחה לאישור הסטודיו 🤍"); loadClientData(); return true;
     },
     cancelStanding: async (id) => { await api.cancelStanding(id, false); ping("התור הקבוע בוטל"); loadClientData(); },
+    // Skip just this week's occurrence — the rule stays active for next week (note V6.1).
+    skipStandingWeek: async (id) => { await api.skipStandingWeek(id, false); ping("התור בוטל להשבוע"); loadClientData(); },
     refresh: () => loadClientData(),
     ping,
   };

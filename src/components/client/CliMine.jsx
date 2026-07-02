@@ -16,10 +16,13 @@ export default function CliMine({ cli }) {
   // Which cosmetician (business mode only); null employee = the owner.
   const cosmName = (a) => cli.business ? (a.employeeName || cli.studioName) : null;
 
-  const toMove = cli.appts.filter((a) => a.status === "reschedule_requested");
-  const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
+  // Standing-generated occurrences get their own row inside the standing card
+  // below, not a regular appointment card (note V6.1).
+  const notStanding = (a) => !a.standingId;
+  const toMove = cli.appts.filter((a) => a.status === "reschedule_requested" && notStanding(a));
+  const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0 && notStanding(a))
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
-  const past = cli.appts.filter((a) => a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0))
+  const past = cli.appts.filter((a) => (a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0)) && notStanding(a))
     .sort((x, y) => y.day - x.day).slice(0, 3);
   // Reschedule requests already appear as a move/cancel card above, and standing
   // approvals show as a one-time banner, so keep both out of the messages list.
@@ -90,18 +93,32 @@ export default function CliMine({ cli }) {
         </button>
       ) : (
         <div style={{ display: "grid", gap: 9 }}>
-          {cli.standing.map((st) => (
-            <div key={st.id} className="bf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 11 }}>
-              <Repeat size={18} color="var(--plum)" />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{st.service_name} · כל {DOW_FULL[st.weekday]} בשעה {st.time}</div>
-                <div style={{ fontSize: 12, color: st.status === "approved" ? "#2E7D52" : "var(--gold)", fontWeight: 700, marginTop: 2 }}>
-                  {st.status === "approved" ? "מאושר ✓ נקבע אוטומטית בכל שבוע" : "ממתין לאישור הסטודיו"}
+          {cli.standing.map((st) => {
+            // This week's materialized occurrence, if one exists yet (note V6.1).
+            const occ = cli.appts.find((a) => a.standingId === st.id && a.status === "confirmed" && a.day >= 0);
+            return (
+              <div key={st.id} className="bf-card" style={{ padding: 12, display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                  <Repeat size={18} color="var(--plum)" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{st.service_name} · כל {DOW_FULL[st.weekday]} בשעה {st.time}</div>
+                    <div style={{ fontSize: 12, color: st.status === "approved" ? "#2E7D52" : "var(--gold)", fontWeight: 700, marginTop: 2 }}>
+                      {st.status === "approved" ? (occ ? `מאושר ✓ ${occ.dayLabel} בשעה ${occ.time}` : "מאושר ✓ נקבע אוטומטית בכל שבוע") : "ממתין לאישור הסטודיו"}
+                    </div>
+                  </div>
+                  <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelStanding(st.id)}><X size={14} /> ביטול קבוע</button>
                 </div>
+                {occ && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {occ.arrival
+                      ? <button className="bf-btn bf-btn-soft bf-btn-sm" disabled style={{ flex: 1, opacity: 1 }}><CheckCircle2 size={15} /> הגעה אושרה השבוע</button>
+                      : <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => cli.confirmArrival(occ.id)}><Check size={15} /> אישור הגעה השבוע</button>}
+                    <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.skipStandingWeek(st.id)}><X size={15} /> ביטול להשבוע</button>
+                  </div>
+                )}
               </div>
-              <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelStanding(st.id)}><X size={14} /> ביטול</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

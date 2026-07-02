@@ -83,7 +83,9 @@ export default function MgrSettings({ mgr }) {
         <div style={{ display: "grid", gap: 9 }}>
           {emps.map((e) => (
             <div key={e.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: e.color, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14 }}>{(e.name || "?").charAt(0)}</div>
+              {e.avatar
+                ? <img src={e.avatar} alt={e.name} style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+                : <div style={{ width: 34, height: 34, borderRadius: "50%", background: e.color, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14 }}>{(e.name || "?").charAt(0)}</div>}
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14.5 }}>{e.name}</div>
                 {e.title && <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.title}</div>}
