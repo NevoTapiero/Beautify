@@ -442,7 +442,7 @@ export default function App() {
       {isDemo && (<>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <img src="/icon-mark.png" alt="" className="bf-mark" />
-          <span className="bf-display bf-wordmark">Beautify</span>
+          <span className="bf-display bf-wordmark">{studio?.brand_name || "Beautify"}</span>
         </div>
 
         <div className="bf-roleswitch" role="tablist" aria-label="תצוגה">

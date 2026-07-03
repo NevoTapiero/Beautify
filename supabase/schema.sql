@@ -15,6 +15,7 @@ create table if not exists studios (
   owner_name    text,          -- her personal name (e.g. "תמר"), not the business name
   logo_url      text,          -- app icon / splash / login screen (the studio's brand mark)
   owner_photo_url text,        -- her personal photo, shown in "עלינו" only
+  brand_name    text,          -- demo studio only: the "Beautify" wordmark next to the icon
   color_primary text not null default '#7C2A53',
   color_accent  text not null default '#D9738F',
   owner_id      uuid references auth.users(id),
