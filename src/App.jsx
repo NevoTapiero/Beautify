@@ -439,27 +439,32 @@ export default function App() {
     <div className={isDemo ? "bf-root" : "bf-root bf-root-live"} style={buildThemeVars(studio)}>
       <style>{STYLE}</style>
 
-      {isDemo && (<>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <img src={studio?.logo_url || "/icon-mark.png"} alt="" className="bf-mark" />
-          <span className="bf-display bf-wordmark">{studio?.brand_name || "Beautify"}</span>
-        </div>
+      {/* Nothing renders until her studio row has actually loaded — otherwise
+          the icon/name briefly show the generic defaults before flipping to
+          her real logo_url/brand_name a moment later. */}
+      {studio && (<>
+        {isDemo && (<>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <img src={studio.logo_url || "/icon-mark.png"} alt="" className="bf-mark" />
+            <span className="bf-display bf-wordmark">{studio.brand_name || "Beautify"}</span>
+          </div>
 
-        <div className="bf-roleswitch" role="tablist" aria-label="תצוגה">
-          <button className={role === "manager" ? "active" : ""} onClick={() => setRole("manager")}>תצוגת מנהלת</button>
-          <button className={role === "client" ? "active" : ""} onClick={() => setRole("client")}>תצוגת לקוחה</button>
+          <div className="bf-roleswitch" role="tablist" aria-label="תצוגה">
+            <button className={role === "manager" ? "active" : ""} onClick={() => setRole("manager")}>תצוגת מנהלת</button>
+            <button className={role === "client" ? "active" : ""} onClick={() => setRole("client")}>תצוגת לקוחה</button>
+          </div>
+          <div className="bf-hint">הדגמה חיה — קבעי תור בצד הלקוחה והוא יופיע ביומן המנהלת (רענון)</div>
+        </>)}
+
+        <div className={isDemo ? "bf-phone" : "bf-phone bf-phone-live"} style={isDemo ? { marginTop: 16 } : undefined} dir="rtl">
+          <ErrorBoundary>
+            {role === "manager"
+              ? <ManagerApp mgr={mgr} ping={ping} />
+              : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
+          </ErrorBoundary>
+          {toast && <div className="bf-toast"><CheckCircle2 size={16} /> {toast}</div>}
         </div>
-        <div className="bf-hint">הדגמה חיה — קבעי תור בצד הלקוחה והוא יופיע ביומן המנהלת (רענון)</div>
       </>)}
-
-      <div className={isDemo ? "bf-phone" : "bf-phone bf-phone-live"} style={isDemo ? { marginTop: 16 } : undefined} dir="rtl">
-        <ErrorBoundary>
-          {role === "manager"
-            ? <ManagerApp mgr={mgr} ping={ping} />
-            : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
-        </ErrorBoundary>
-        {toast && <div className="bf-toast"><CheckCircle2 size={16} /> {toast}</div>}
-      </div>
     </div>
   );
 }
