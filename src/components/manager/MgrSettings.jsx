@@ -213,7 +213,7 @@ export default function MgrSettings({ mgr }) {
             </PhotoPicker>
             <div style={{ flex: 1, fontSize: 13.5 }}>
               <div style={{ fontWeight: 700 }}>תמונת פרופיל</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>מופיעה ללקוחות ב"עלינו"</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>מופיעה ללקוחות ב"עלינו" וגם כאייקון האפליקציה שלך</div>
             </div>
           </div>
           <label className="bf-label">על עצמי</label>

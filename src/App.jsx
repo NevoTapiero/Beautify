@@ -205,7 +205,8 @@ export default function App() {
     uploadStudioLogo: async (file) => {
       const r = await api.uploadStudioLogo(studio.id, file);
       if (r.error) { ping(r.error); return; }
-      setStudio((s) => ({ ...s, logo_url: r.url })); ping("תמונת הפרופיל עודכנה");
+      setStudio((s) => { const next = { ...s, logo_url: r.url }; applyStudioPWA(next); return next; });
+      ping("תמונת הפרופיל עודכנה");
     },
     // Employee likes a gallery photo (V6 note 59) — updates count optimistically.
     employeeLike: async (g) => {
@@ -330,7 +331,9 @@ export default function App() {
     },
     saveSettings: async (settings) => {
       await api.updateStudioSettings(studio.id, settings);
-      setStudio((s) => ({ ...s, ...settings }));   // keep local copy in sync so toggles persist across screens
+      // Keep local copy in sync so toggles persist across screens, and re-apply
+      // the installed-app identity (title/manifest/icons) if name or logo changed.
+      setStudio((s) => { const next = { ...s, ...settings }; applyStudioPWA(next); return next; });
       ping("ההגדרה נשמרה");
     },
     // Employee schedule-change approval flow (Phase 3b)
