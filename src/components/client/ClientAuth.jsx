@@ -17,7 +17,11 @@ export default function ClientAuth({ cli, onManagerEntry }) {
   return (
     <>
       <div className="bf-appbar" style={{ textAlign: "center" }}>
-        <span className="bf-mark-badge" style={{ margin: "0 auto 8px" }}><img src="/icon-mark.png" alt="" className="bf-mark" /></span>
+        <span className="bf-mark-badge" style={{ margin: "0 auto 8px" }}>
+          {cli.studio?.logo_url
+            ? <img src={cli.studio.logo_url} alt="" style={{ width: "100%", height: "100%", borderRadius: 14, objectFit: "cover" }} />
+            : <img src="/icon-mark.png" alt="" className="bf-mark" />}
+        </span>
         <h1 className="bf-display" style={{ textAlign: "center" }}>{mode === "register" ? "הצטרפי לסטודיו" : "כניסה לחשבון"}</h1>
         <div className="sub" style={{ textAlign: "center" }}>{cli.studioName}</div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
-export default function ManagerLogin({ onLogin }) {
+export default function ManagerLogin({ onLogin, studio }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(null);
@@ -17,9 +17,13 @@ export default function ManagerLogin({ onLogin }) {
   return (
     <>
       <div className="bf-appbar" style={{ textAlign: "center" }}>
-        <span className="bf-mark-badge" style={{ margin: "0 auto 8px" }}><img src="/icon-mark.png" alt="" className="bf-mark" /></span>
+        <span className="bf-mark-badge" style={{ margin: "0 auto 8px" }}>
+          {studio?.logo_url
+            ? <img src={studio.logo_url} alt="" style={{ width: "100%", height: "100%", borderRadius: 14, objectFit: "cover" }} />
+            : <img src="/icon-mark.png" alt="" className="bf-mark" />}
+        </span>
         <h1 className="bf-display" style={{ textAlign: "center" }}>כניסת מנהלת</h1>
-        <div className="sub" style={{ textAlign: "center" }}>הסטודיו שלך מחכה לך</div>
+        <div className="sub" style={{ textAlign: "center" }}>{studio?.name || "הסטודיו שלך מחכה לך"}</div>
       </div>
       <div className="bf-screen bf-pad" style={{ display: "grid", gap: 14 }}>
         <div>
