@@ -427,8 +427,8 @@ export default function App() {
       <style>{STYLE}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <span className="bf-mark" />
-        <span className="bf-display" style={{ fontSize: 30, fontWeight: 700, letterSpacing: ".5px", color: "var(--plum-deep)" }}>Beautify</span>
+        <img src="/icon-mark.png" alt="" className="bf-mark" />
+        <span className="bf-display bf-wordmark">Beautify</span>
       </div>
 
       <div className="bf-roleswitch" role="tablist" aria-label="תצוגה">

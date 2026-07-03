@@ -17,7 +17,7 @@ export default function ManagerLogin({ onLogin }) {
   return (
     <>
       <div className="bf-appbar" style={{ textAlign: "center" }}>
-        <span className="bf-mark" style={{ margin: "0 auto 8px" }} />
+        <span className="bf-mark-badge" style={{ margin: "0 auto 8px" }}><img src="/icon-mark.png" alt="" className="bf-mark" /></span>
         <h1 className="bf-display" style={{ textAlign: "center" }}>כניסת מנהלת</h1>
         <div className="sub" style={{ textAlign: "center" }}>הסטודיו שלך מחכה לך</div>
       </div>

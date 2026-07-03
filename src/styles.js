@@ -18,9 +18,12 @@ const STYLE = `
 .bf-display{ font-family:'Frank Ruhl Libre', serif; }
 .bf-root :focus-visible{ outline:2px solid var(--rose); outline-offset:2px; border-radius:10px; }
 
-.bf-mark{ width:22px; height:28px; background:linear-gradient(160deg,#ffffff,var(--rose-soft));
-  border-radius:50% 50% 45% 45% / 64% 64% 36% 36%;
-  box-shadow: inset 0 -7px 9px -5px rgba(124,42,83,.35); display:inline-block; flex:none; }
+.bf-mark{ width:28px; height:34px; object-fit:contain; display:inline-block; flex:none; }
+.bf-mark-badge{ width:46px; height:46px; border-radius:14px; background:#fff; display:inline-flex;
+  align-items:center; justify-content:center; box-shadow:0 8px 18px -10px rgba(0,0,0,.35); }
+.bf-mark-badge .bf-mark{ width:26px; height:32px; }
+.bf-wordmark{ font-size:26px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--plum-deep); }
 
 .bf-roleswitch{ display:inline-flex; background:#fff; border:1px solid var(--sand);
   border-radius:999px; padding:5px; gap:4px; box-shadow:0 6px 18px -12px rgba(42,26,46,.5); }
