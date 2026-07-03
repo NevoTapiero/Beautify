@@ -26,6 +26,9 @@ pnpm-debug.log*
 # local AI tooling (not part of the project)
 .agents/
 .codex/
+.claude/
+skills-lock.json
+PRODUCT.md
 
 # leftover zip
 files.zip
