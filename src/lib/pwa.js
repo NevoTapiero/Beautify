@@ -39,14 +39,15 @@ export function applyStudioPWA(studio) {
   const icon = studio.logo_url || fallbackIcon(studio.name, color);
   const iconType = studio.logo_url ? undefined : "image/svg+xml";
 
-  document.title = studio.name || "Beautify";
+  const appName = studio.brand_name || studio.name || "Beautify";
+  document.title = appName;
 
   const manifest = {
     // An explicit id (defaults to start_url per spec, but set it anyway) is
     // what lets the OS tell two studios' installed apps apart on one origin.
     id: startUrl,
-    name: studio.name || "Beautify",
-    short_name: studio.name || "Beautify",
+    name: appName,
+    short_name: appName,
     start_url: startUrl,
     scope: startUrl,
     display: "standalone",
@@ -55,9 +56,12 @@ export function applyStudioPWA(studio) {
     dir: "rtl",
     background_color: "#FBEFEA",
     theme_color: color,
+    // Only "any" (never "maskable") — a maskable purpose tells the OS it's
+    // free to crop/mask the icon into its own shape, which turns any
+    // transparent edge on an uploaded logo into a solid black splash.
     icons: [
       { src: icon, sizes: "192x192", ...(iconType && { type: iconType }), purpose: "any" },
-      { src: icon, sizes: "512x512", ...(iconType && { type: iconType }), purpose: "any maskable" },
+      { src: icon, sizes: "512x512", ...(iconType && { type: iconType }), purpose: "any" },
     ],
   };
 
@@ -72,7 +76,7 @@ export function applyStudioPWA(studio) {
   upsertMeta("theme-color", color);
   upsertMeta("apple-mobile-web-app-capable", "yes");
   upsertMeta("apple-mobile-web-app-status-bar-style", "default");
-  upsertMeta("apple-mobile-web-app-title", studio.name || "Beautify");
+  upsertMeta("apple-mobile-web-app-title", appName);
   upsertLink("apple-touch-icon", icon);
   upsertLink("icon", icon, iconType ? { type: iconType } : {});
 }
