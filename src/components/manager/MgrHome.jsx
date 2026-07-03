@@ -14,7 +14,7 @@ export default function MgrHome({ mgr, go, cosmId, setCosmId }) {
   const [remindOpen, setRemindOpen] = useState(false);
 
   // Switch between cosmeticians' schedules on Home (business; note 32). null = owner.
-  const cosmList = cosmeticians(mgr.studioName, mgr.employees);
+  const cosmList = cosmeticians(mgr.ownerName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
 

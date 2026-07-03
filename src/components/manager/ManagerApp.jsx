@@ -68,7 +68,7 @@ export default function ManagerApp({ mgr, ping }) {
   const galBadgeEmp = newEmpAppr ? "!" : 0;   // employee gallery badge (note 59)
 
   const titles = {
-    home:     locked ? [`שלום, ${empName}`, "הלו\"ז שלך"] : [`בוקר טוב, ${mgr.studioName}`, "הנה היום שלך"],
+    home:     locked ? [`שלום, ${empName}`, "הלו\"ז שלך"] : [`בוקר טוב, ${mgr.ownerName}`, "הנה היום שלך"],
     cal:      ["יומן תורים", locked ? "הלו\"ז שלך ושל הצוות" : "ניהול הלו\"ז שלך"],
     clients:  ["הלקוחות שלך", `${mgr.clients.length} לקוחות רשומות`],
     gallery:  ["הגלריה", locked ? "עבודות הסטודיו" : "תיק העבודות שלך"],

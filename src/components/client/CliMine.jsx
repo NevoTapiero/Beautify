@@ -12,7 +12,7 @@ export default function CliMine({ cli }) {
   useEffect(() => { cli.refresh?.(); /* eslint-disable-next-line */ }, []);
 
   // Which cosmetician (business mode only); null employee = the owner.
-  const cosmName = (a) => cli.business ? (a.employeeName || cli.studioName) : null;
+  const cosmName = (a) => cli.business ? (a.employeeName || cli.ownerName) : null;
 
   const toMove = cli.appts.filter((a) => a.status === "reschedule_requested");
   const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)

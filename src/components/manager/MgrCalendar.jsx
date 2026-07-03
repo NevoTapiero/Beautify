@@ -27,7 +27,7 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
   // Per-cosmetician schedules (business). null = the owner. The switcher lets
   // the manager move between each cosmetician's calendar (notes 32, 36).
   const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
-  const cosmList = cosmeticians(mgr.studioName, mgr.employees);
+  const cosmList = cosmeticians(mgr.ownerName, mgr.employees);
   const showCosm = mgr.business && cosmList.length > 1;
   const sameCosm = (x) => (x.employeeId ?? null) === cosmId;
   // An employee may edit only HER OWN schedule, and those edits become requests

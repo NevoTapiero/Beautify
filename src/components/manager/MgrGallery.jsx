@@ -30,7 +30,7 @@ export default function MgrGallery({ mgr }) {
   const myApprCount = locked ? (mgr.gallery || []).filter((g) => g.employeeId === mgr.lockedEmployeeId).length : 0;
   const [apprBanner] = useState(() => locked ? Math.max(0, myApprCount - getSeen(sid, "emp-gal-appr")) : 0);
   useEffect(() => { if (locked) setSeen(sid, "emp-gal-appr", myApprCount); }, [locked, sid, myApprCount]);
-  const cosmList = cosmeticians(mgr.studioName, mgr.employees);
+  const cosmList = cosmeticians(mgr.ownerName, mgr.employees);
   const showCosm = !locked && mgr.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
 

@@ -165,7 +165,8 @@ export default function App() {
   const mgr = {
     user: managerUser,
     studio, appts: mgrAppts, clients: mgrClients, gallery: mgrGallery, pending: mgrPending, breaks: mgrBreaks,
-    studioName: studio?.name || "הסטודיו",
+    studioName: studio?.name || "הסטודיו",           // business name — app title/splash/login/invoices
+    ownerName: studio?.owner_name || studio?.name || "המנהלת", // her personal name — greeting + cosmetician picker
     services,
     employees, invoices: mgrInvoices,
     business: !!studio?.business_mode,
@@ -304,7 +305,7 @@ export default function App() {
     rejectPhoto: async (id) => { await api.setPhotoStatus(id, "rejected"); ping("התמונה נדחתה"); loadManagerData(); },
     deletePhoto: async (id) => { await api.deletePhoto(id, true); ping("התמונה נמחקה"); loadManagerData(); },
     uploadPhoto: async (file, caption, employeeId) => {
-      const r = await api.uploadManagerPhoto(studio.id, studio?.name, file, caption, employeeId);
+      const r = await api.uploadManagerPhoto(studio.id, studio?.owner_name || studio?.name, file, caption, employeeId);
       if (r.error) { ping(r.error); return; }
       ping("העבודה נוספה לגלריה"); loadManagerData();
     },
@@ -337,7 +338,8 @@ export default function App() {
       loadManagerData();
     },
     saveSettings: async (settings) => {
-      await api.updateStudioSettings(studio.id, settings);
+      const ok = await api.updateStudioSettings(studio.id, settings);
+      if (!ok) { ping("השמירה נכשלה — נסי שוב"); return; }
       // Keep local copy in sync so toggles persist across screens, and re-apply
       // the installed-app identity (title/manifest/icons) if name or logo changed.
       setStudio((s) => { const next = { ...s, ...settings }; applyStudioPWA(next); return next; });
@@ -389,6 +391,7 @@ export default function App() {
     employees,
     business: !!studio?.business_mode,
     studioName: studio?.name || "הסטודיו",
+    ownerName: studio?.owner_name || studio?.name || "המנהלת",
     register: async ({ name, phone, email, password }) => {
       const r = await api.clientRegister(studio.id, { name, phone, email, password });
       if (r.error) return r.error;

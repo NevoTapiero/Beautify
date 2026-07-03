@@ -14,7 +14,7 @@ export default function CliBook({ cli }) {
   const [busy, setBusy] = useState(false);
   // Cosmetician choice (business): owner + employees. Required once there's
   // more than one cosmetician (note 28). "owner" maps to employee_id null.
-  const cosmList = cosmeticians(cli.studioName, cli.employees);
+  const cosmList = cosmeticians(cli.ownerName, cli.employees);
   const showEmployees = cli.business && cosmList.length > 1;
   const empArg = employee === "owner" ? null : employee;
   const [slots, setSlots] = useState(null);   // null = loading, [] = none free
@@ -154,7 +154,7 @@ export default function CliBook({ cli }) {
 // "עלינו" — the team's photos; tap one to read her "about me" (note 29).
 function AboutSheet({ cli, onClose }) {
   const team = [
-    { id: "owner", name: cli.studioName, avatar: cli.studio?.owner_photo_url, about: cli.studio?.about, color: "#7C2A53" },
+    { id: "owner", name: cli.ownerName, avatar: cli.studio?.owner_photo_url, about: cli.studio?.about, color: "#7C2A53" },
     ...(cli.employees || []),
   ];
   const [sel, setSel] = useState(null);

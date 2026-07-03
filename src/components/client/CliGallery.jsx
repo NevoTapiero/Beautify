@@ -20,7 +20,7 @@ export default function CliGallery({ cli }) {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const cosmList = cosmeticians(cli.studioName, cli.employees);
+  const cosmList = cosmeticians(cli.ownerName, cli.employees);
   const showCosm = cli.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
 

@@ -32,8 +32,10 @@ export default function MgrSettings({ mgr }) {
   const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
   const [openNotif, setOpenNotif] = useState(false);         // notifications dropdown (note 44)
   const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
-  const [nameDraft, setNameDraft] = useState(mgr.studioName);// name editor (V5 note 44)
+  const [nameDraft, setNameDraft] = useState(mgr.studioName);// business name editor (V5 note 44)
   const [editName, setEditName] = useState(false);
+  const [ownerNameDraft, setOwnerNameDraft] = useState(mgr.ownerName); // her personal name (V8)
+  const [editOwnerName, setEditOwnerName] = useState(false);
   const [aboutDraft, setAboutDraft] = useState(mgr.studio?.about || "");   // owner "about me" (V6 note 47)
 
   const tog = (k) => {
@@ -225,7 +227,7 @@ export default function MgrSettings({ mgr }) {
               <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
                 {mgr.studio?.owner_photo_url
                   ? <img src={mgr.studio.owner_photo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
-                  : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.studioName || "?").charAt(0)}</div>}
+                  : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.ownerName || "?").charAt(0)}</div>}
                 <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="#fff" /></span>
               </button>
             </PhotoPicker>
@@ -252,15 +254,29 @@ export default function MgrSettings({ mgr }) {
         <div className="bf-card" style={{ padding: 12, display: "grid", gap: 8, fontSize: 13.5 }}>
           {editName ? (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input className="bf-input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם" autoFocus />
+              <input className="bf-input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם העסק" autoFocus />
               <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ width: "auto", whiteSpace: "nowrap" }} disabled={!nameDraft.trim()} onClick={() => { mgr.saveSettings({ name: nameDraft.trim() }); setEditName(false); }}>שמירה</button>
             </div>
           ) : (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <span style={{ color: "var(--muted)" }}>שם</span>
+              <span style={{ color: "var(--muted)" }}>שם העסק</span>
               <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 <span style={{ fontWeight: 700 }}>{mgr.studioName}</span>
-                <button onClick={() => { setNameDraft(mgr.studioName); setEditName(true); }} aria-label="עריכת שם" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}><Pencil size={14} /></button>
+                <button onClick={() => { setNameDraft(mgr.studioName); setEditName(true); }} aria-label="עריכת שם העסק" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}><Pencil size={14} /></button>
+              </span>
+            </div>
+          )}
+          {editOwnerName ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input className="bf-input" value={ownerNameDraft} onChange={(e) => setOwnerNameDraft(e.target.value)} placeholder="השם שלך" autoFocus />
+              <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ width: "auto", whiteSpace: "nowrap" }} disabled={!ownerNameDraft.trim()} onClick={() => { mgr.saveSettings({ owner_name: ownerNameDraft.trim() }); setEditOwnerName(false); }}>שמירה</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <span style={{ color: "var(--muted)" }}>השם שלך</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontWeight: 700 }}>{mgr.ownerName}</span>
+                <button onClick={() => { setOwnerNameDraft(mgr.ownerName); setEditOwnerName(true); }} aria-label="עריכת השם שלך" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}><Pencil size={14} /></button>
               </span>
             </div>
           )}
