@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle } from "lucide-react";
-import { SectionTitle, Empty, PaidChip, BitSheet, Sheet, Confirm } from "../ui";
+import { CalendarDays, Clock, Check, X, CheckCircle2, Bell, AlertTriangle } from "lucide-react";
+import { SectionTitle, Empty, PaidChip, Sheet, Confirm } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
 export default function CliMine({ cli }) {
-  const [payFor, setPayFor] = useState(null);    // appointment being paid
   const [moveAppt, setMoveAppt] = useState(null); // appointment being rescheduled
   const [confirmCancel, setConfirmCancel] = useState(null); // appt pending cancel confirmation
 
@@ -86,7 +85,6 @@ export default function CliMine({ cli }) {
               {a.arrival
                 ? <button className="bf-btn bf-btn-soft bf-btn-sm" disabled style={{ flex: 1, opacity: 1 }}><CheckCircle2 size={15} /> הגעה אושרה</button>
                 : <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => cli.confirmArrival(a.id)}><Check size={15} /> אישור הגעה</button>}
-              {!a.paid && <button className="bf-btn bf-btn-soft bf-btn-sm" onClick={() => setPayFor(a)}><Wallet size={15} /> שלמי בביט</button>}
               {/* A paid appointment can no longer be cancelled by the client (note 24) */}
               {!a.paid && <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => setConfirmCancel(a)}><X size={15} /> ביטול</button>}
             </div>
@@ -112,7 +110,6 @@ export default function CliMine({ cli }) {
         </div>
       </>)}
 
-      {payFor && <BitSheet amount={payFor.servicePrice} onClose={() => setPayFor(null)} onPaid={async () => { await cli.payAppt(payFor.id); setPayFor(null); }} />}
       {moveAppt && <RescheduleSheet appt={moveAppt} cli={cli} onClose={() => setMoveAppt(null)} />}
       {confirmCancel && (
         <Confirm

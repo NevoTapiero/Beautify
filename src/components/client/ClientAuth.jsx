@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Check, ShieldCheck, LogIn } from "lucide-react";
 import { Sheet, HealthDeclarationText } from "../ui";
 
-export default function ClientAuth({ cli }) {
+export default function ClientAuth({ cli, onManagerEntry }) {
   const [mode, setMode] = useState("register");   // register | login
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -33,6 +33,12 @@ export default function ClientAuth({ cli }) {
         {mode === "register"
           ? <RegisterForm cli={cli} busy={busy} run={run} />
           : <LoginForm cli={cli} busy={busy} run={run} />}
+
+        {onManagerEntry && (
+          <button onClick={onManagerEntry} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 12, textDecoration: "underline", justifySelf: "center", padding: "6px 0" }}>
+            בעלת הסטודיו? כניסה לניהול
+          </button>
+        )}
       </div>
     </>
   );

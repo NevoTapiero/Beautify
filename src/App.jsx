@@ -29,8 +29,14 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Only the bare demo domain (no studio slug in the URL) shows the manager/
+// client switcher and the floating phone-mockup chrome — that's a sales-demo
+// affordance. A real studio's own link (/<slug>) opens straight into her
+// clients' booking app, full-screen, with no switcher visible to them.
+const isDemo = api.resolveStudioSlug() === "demo";
+
 export default function App() {
-  const [role, setRole] = useState("manager");
+  const [role, setRole] = useState(isDemo ? "manager" : "client");
   const [studio, setStudio] = useState(null);
   const [services, setServices] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -77,7 +83,7 @@ export default function App() {
       setEmployees(b.employees || []);
       applyStudioPWA(b.studio);   // make the installed app *hers* (name/icon/colors)
     });
-    api.getManagerSession().then((u) => { if (u) setManagerUser(u); });
+    api.getManagerSession().then((u) => { if (u) { setManagerUser(u); if (!isDemo) setRole("manager"); } });
     api.getCurrentClient().then((c) => { if (c) setClient(c); });
   }, []);
 
@@ -423,25 +429,27 @@ export default function App() {
   };
 
   return (
-    <div className="bf-root">
+    <div className={isDemo ? "bf-root" : "bf-root bf-root-live"}>
       <style>{STYLE}</style>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <img src="/icon-mark.png" alt="" className="bf-mark" />
-        <span className="bf-display bf-wordmark">Beautify</span>
-      </div>
+      {isDemo && (<>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <img src="/icon-mark.png" alt="" className="bf-mark" />
+          <span className="bf-display bf-wordmark">Beautify</span>
+        </div>
 
-      <div className="bf-roleswitch" role="tablist" aria-label="תצוגה">
-        <button className={role === "manager" ? "active" : ""} onClick={() => setRole("manager")}>תצוגת מנהלת</button>
-        <button className={role === "client" ? "active" : ""} onClick={() => setRole("client")}>תצוגת לקוחה</button>
-      </div>
-      <div className="bf-hint">הדגמה חיה — קבעי תור בצד הלקוחה והוא יופיע ביומן המנהלת (רענון)</div>
+        <div className="bf-roleswitch" role="tablist" aria-label="תצוגה">
+          <button className={role === "manager" ? "active" : ""} onClick={() => setRole("manager")}>תצוגת מנהלת</button>
+          <button className={role === "client" ? "active" : ""} onClick={() => setRole("client")}>תצוגת לקוחה</button>
+        </div>
+        <div className="bf-hint">הדגמה חיה — קבעי תור בצד הלקוחה והוא יופיע ביומן המנהלת (רענון)</div>
+      </>)}
 
-      <div className="bf-phone" style={{ marginTop: 16 }} dir="rtl">
+      <div className={isDemo ? "bf-phone" : "bf-phone bf-phone-live"} style={isDemo ? { marginTop: 16 } : undefined} dir="rtl">
         <ErrorBoundary>
           {role === "manager"
             ? <ManagerApp mgr={mgr} ping={ping} />
-            : <ClientApp cli={cli} ping={ping} />}
+            : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
         </ErrorBoundary>
         {toast && <div className="bf-toast"><CheckCircle2 size={16} /> {toast}</div>}
       </div>

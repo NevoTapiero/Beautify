@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Wallet, Sparkles, User, CreditCard, Heart } from "lucide-react";
-import { Steps, SectionTitle, Back, BitSheet, CardSheet, Row, Empty, serviceBg, cosmeticians, Sheet, Avatar } from "../ui";
+import { CalendarDays, Clock, Sparkles, User, Heart } from "lucide-react";
+import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, Sheet, Avatar } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -10,8 +10,6 @@ export default function CliBook({ cli }) {
   const [offset, setOffset] = useState(null);
   const [time, setTime] = useState(null);
   const [employee, setEmployee] = useState(null);   // chosen beautician (business)
-  const [pay, setPay] = useState(false);
-  const [payCard, setPayCard] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // Cosmetician choice (business): owner + employees. Required once there's
@@ -45,13 +43,13 @@ export default function CliBook({ cli }) {
     return () => { active = false; };
   }, [offset, service, employee]); // eslint-disable-line
 
-  const finish = async (paid, msg) => {
+  const finish = async () => {
     if (busy) return;
     setBusy(true);
-    await cli.book(service, offset, time, paid, empArg);
+    await cli.book(service, offset, time, false, empArg);
     setBusy(false);
-    cli.ping(msg || (paid ? "התור נקבע ושולם ✓" : "התור נקבע ✓ נתראה!"));
-    setPay(false); setPayCard(false); setStep(1); setService(null); setOffset(null); setTime(null); setEmployee(null);
+    cli.ping("התור נקבע ✓ נתראה!");
+    setStep(1); setService(null); setOffset(null); setTime(null); setEmployee(null);
   };
 
   return (
@@ -145,13 +143,9 @@ export default function CliBook({ cli }) {
             <Row k="מחיר" v={<span className="bf-display" style={{ fontWeight: 800, color: "var(--plum)", fontSize: 17 }}>₪{s?.price}</span>} />
           </div>
         </div>
-        <button className="bf-btn bf-btn-primary" disabled={busy} onClick={() => setPay(true)}><Wallet size={17} /> תשלום בביט וקביעת התור</button>
-        {cli.business && <button className="bf-btn bf-btn-soft" disabled={busy} onClick={() => setPayCard(true)}><CreditCard size={17} /> תשלום באשראי</button>}
-        <button className="bf-btn bf-btn-ghost" disabled={busy} onClick={() => finish(false)}>אשלם במקום — קבעי תור</button>
+        <button className="bf-btn bf-btn-primary" disabled={busy} onClick={finish}>קביעת התור</button>
       </>)}
 
-      {pay && <BitSheet amount={s?.price} onClose={() => setPay(false)} onPaid={() => finish(true, "התור נקבע ושולם בביט ✓")} />}
-      {payCard && <CardSheet amount={s?.price} onClose={() => setPayCard(false)} onPaid={() => finish(true, "התור נקבע ושולם באשראי ✓")} />}
       {aboutOpen && <AboutSheet cli={cli} onClose={() => setAboutOpen(false)} />}
     </div>
   );

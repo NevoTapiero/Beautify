@@ -8,7 +8,7 @@ import CliMine from "./CliMine";
 import CliGallery from "./CliGallery";
 import CliProfile from "./CliProfile";
 
-export default function ClientApp({ cli }) {
+export default function ClientApp({ cli, onManagerEntry }) {
   const [tab, setTab] = useState("book");
 
   // Gallery badge (note A): how many studio photos are new since she last
@@ -28,7 +28,7 @@ export default function ClientApp({ cli }) {
     </div>
   );
 
-  if (!cli.client) return <ClientAuth cli={cli} />;
+  if (!cli.client) return <ClientAuth cli={cli} onManagerEntry={onManagerEntry} />;
 
   const me = cli.client;
   // "mine" tab: "!" (never a number). Reschedule notifications are shown as

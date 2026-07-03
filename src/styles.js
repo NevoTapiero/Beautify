@@ -34,7 +34,12 @@ const STYLE = `
 .bf-phone{ width:392px; max-width:100%; height:792px; max-height:86vh; background:var(--blush);
   border:1px solid var(--sand); border-radius:42px; overflow:hidden; display:flex; flex-direction:column;
   position:relative; box-shadow:0 50px 90px -40px rgba(42,26,46,.55), 0 0 0 10px #ffffff, 0 0 0 11px var(--sand); }
-.bf-screen{ flex:1; overflow-y:auto; }
+/* The real (non-demo) app: no floating mockup frame, fills the actual device
+   viewport edge-to-edge — this is what a beautician's own installed PWA looks
+   like, not a phone illustration on a desktop demo page. */
+.bf-phone-live{ width:100%; height:100dvh; max-height:none; border:none; border-radius:0; box-shadow:none; }
+.bf-root-live{ padding:0; min-height:0; height:100dvh; }
+.bf-screen{ flex:1; min-height:0; overflow-y:auto; }
 .bf-screen::-webkit-scrollbar{ width:0; }
 .bf-pad{ padding:18px 16px 26px; }
 
@@ -128,12 +133,17 @@ button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
 @keyframes spin{ to{ transform:rotate(360deg) } }
 @media (prefers-reduced-motion: reduce){ .bf-root *{ animation:none !important; transition:none !important; } }
 
-/* On phones the app fills the screen instead of floating as a framed card (note 3). */
+/* On phones the app fills the screen instead of floating as a framed card (note 3).
+   .bf-phone gets a real bounded height (not height:auto) so its internal
+   .bf-screen is the only thing that scrolls — the nav bar and app bar stay
+   pinned in place regardless of how long the tab's content is. */
 @media (max-width:560px){
-  .bf-root{ padding:6px 6px 0; min-height:100dvh; }
+  .bf-root{ padding:6px 6px 0; height:100dvh; min-height:0; overflow:hidden; }
   .bf-hint{ display:none; }
-  .bf-phone{ width:100%; max-width:100%; height:auto; flex:1 1 auto; max-height:none;
+  .bf-phone{ width:100%; max-width:100%; flex:1 1 auto; min-height:0; height:auto; max-height:none;
     border-radius:18px; box-shadow:0 0 0 1px var(--sand); }
+  .bf-root-live{ padding:0; }
+  .bf-phone-live{ border-radius:0; box-shadow:none; }
 }
 `;
 
