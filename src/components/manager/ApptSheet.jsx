@@ -10,7 +10,9 @@ export default function ApptSheet({ appt, mgr, onClose }) {
   const passed = appt.starts_at ? new Date(appt.starts_at) <= new Date() : false;
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [invoice, setInvoice] = useState(null);
+  const [busy, setBusy] = useState(false);
   const doInvoice = async () => { const inv = await mgr.issueInvoice(appt); if (inv) setInvoice(inv); };
+  const guarded = (fn) => () => { if (busy) return; setBusy(true); fn(); onClose(); };
   const InvoiceBtn = () => mgr.business ? (
     <button className="bf-btn bf-btn-soft" style={{ marginTop: 10 }} onClick={doInvoice}><FileText size={16} /> הפקת חשבונית</button>
   ) : null;
@@ -60,8 +62,8 @@ export default function ApptSheet({ appt, mgr, onClose }) {
       {/* Mark completed / no-show — only after the appointment time passed (notes 38, 21) */}
       {passed ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-          <button className="bf-btn bf-btn-soft" onClick={() => { mgr.setStatus(appt.id, "completed"); onClose(); }}><Check size={16} /> בוצע</button>
-          <button className="bf-btn bf-btn-ghost" onClick={() => { mgr.setStatus(appt.id, "no_show"); onClose(); }}><XCircle size={16} /> לא הגיעה</button>
+          <button className="bf-btn bf-btn-soft" disabled={busy} onClick={guarded(() => mgr.setStatus(appt.id, "completed"))}><Check size={16} /> בוצע</button>
+          <button className="bf-btn bf-btn-ghost" disabled={busy} onClick={guarded(() => mgr.setStatus(appt.id, "no_show"))}><XCircle size={16} /> לא הגיעה</button>
         </div>
       ) : (
         <div style={{ fontSize: 12.5, color: "var(--muted)", textAlign: "center", marginBottom: 10, padding: "8px 0" }}>
@@ -71,15 +73,15 @@ export default function ApptSheet({ appt, mgr, onClose }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <a className="bf-btn bf-btn-ghost" href={`tel:${r.clientPhone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
-        <button className="bf-btn bf-btn-soft" onClick={() => { mgr.requestReschedule(appt); onClose(); }}><Clock size={16} /> הזיזי תור</button>
+        <button className="bf-btn bf-btn-soft" disabled={busy} onClick={guarded(() => mgr.requestReschedule(appt))}><Clock size={16} /> הזיזי תור</button>
       </div>
 
-      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} onClick={() => { mgr.sendReminder(appt); onClose(); }}>
+      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={guarded(() => mgr.sendReminder(appt))}>
         שליחת תזכורת ללקוחה
       </button>
       <InvoiceBtn />
 
-      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => setConfirmCancel(true)}>
+      <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} disabled={busy} onClick={() => setConfirmCancel(true)}>
         <X size={16} /> ביטול התור
       </button>
 
@@ -89,7 +91,7 @@ export default function ApptSheet({ appt, mgr, onClose }) {
           title="לבטל את התור?"
           body={`התור של ${r.clientName} ל${appt.dayLabel} בשעה ${appt.time} יבוטל ותישלח ללקוחה הודעה.`}
           confirmLabel="כן, בטלי את התור" danger
-          onConfirm={() => { mgr.cancelAppt(appt); onClose(); }}
+          onConfirm={guarded(() => mgr.cancelAppt(appt))}
           onClose={() => setConfirmCancel(false)}
         />
       )}

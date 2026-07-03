@@ -46,18 +46,22 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
   const dateStr = dateForOffset(sel);
   const weekday = days[sel].weekday;
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (isCurrent) => {
     const [w, o] = await Promise.all([
       loadWeeklyHours(mgr.studio.id, cosmId),
       getDayOverride(mgr.studio.id, dateStr, cosmId),
     ]);
-    setWeekly(w); setOverride(o);
+    if (isCurrent()) { setWeekly(w); setOverride(o); }
   }, [mgr.studio.id, dateStr, cosmId]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    let active = true;
+    reload(() => active);
+    return () => { active = false; };
+  }, [reload]);
 
   const [refreshing, setRefreshing] = useState(false);
-  const doRefresh = async () => { setRefreshing(true); await Promise.all([mgr.refresh(), reload()]); setRefreshing(false); };
+  const doRefresh = async () => { setRefreshing(true); await Promise.all([mgr.refresh(), reload(() => true)]); setRefreshing(false); };
 
   const effective = override || weekly.find((w) => w.weekday === weekday) || null;
   const weeklyDefault = weekly.find((w) => w.weekday === weekday) || null;

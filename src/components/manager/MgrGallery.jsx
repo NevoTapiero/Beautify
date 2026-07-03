@@ -14,6 +14,12 @@ export default function MgrGallery({ mgr }) {
   const [cosm, setCosm] = useState("all");
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingBusy, setPendingBusy] = useState(() => new Set());
+  const decide = (id, action) => {
+    if (pendingBusy.has(id)) return;
+    setPendingBusy((s) => new Set(s).add(id));
+    action(id);
+  };
 
   const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
   const myPending = locked ? (mgr.pending || []).filter((p) => p.employeeId === mgr.lockedEmployeeId) : [];
@@ -129,8 +135,8 @@ export default function MgrGallery({ mgr }) {
                 <div style={{ fontSize: 12.5, color: "var(--muted)" }}>הועלה ע״י {p.by}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button aria-label="אישור" className="bf-btn bf-btn-primary bf-btn-sm" onClick={() => mgr.approvePhoto(p.id)}><Check size={16} /></button>
-                <button aria-label="דחייה" className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.rejectPhoto(p.id)}><X size={16} /></button>
+                <button aria-label="אישור" className="bf-btn bf-btn-primary bf-btn-sm" disabled={pendingBusy.has(p.id)} onClick={() => decide(p.id, mgr.approvePhoto)}><Check size={16} /></button>
+                <button aria-label="דחייה" className="bf-btn bf-btn-ghost bf-btn-sm" disabled={pendingBusy.has(p.id)} onClick={() => decide(p.id, mgr.rejectPhoto)}><X size={16} /></button>
               </div>
             </div>
           ))}

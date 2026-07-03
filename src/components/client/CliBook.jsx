@@ -46,6 +46,7 @@ export default function CliBook({ cli }) {
   }, [offset, service, employee]); // eslint-disable-line
 
   const finish = async (paid, msg) => {
+    if (busy) return;
     setBusy(true);
     await cli.book(service, offset, time, paid, empArg);
     setBusy(false);

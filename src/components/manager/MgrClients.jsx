@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Search, ChevronLeft, Phone, Ban, Trash2, Check, Users } from "lucide-react";
-import { Avatar, Sheet, Row, Empty } from "../ui";
+import { Avatar, Sheet, Row, Empty, Confirm } from "../ui";
 import { loadClientHistory } from "../../lib/api";
 import { getSeen, setSeen } from "../../lib/seen";
 
@@ -9,6 +9,8 @@ export default function MgrClients({ mgr }) {
   const [seg, setSeg] = useState("active");
   const [open, setOpen] = useState(null);
   const [history, setHistory] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   // How many clients are new since the last visit to this screen (note 42).
   // Captured once on entry, then marked as seen so the banner — and the nav
@@ -19,6 +21,8 @@ export default function MgrClients({ mgr }) {
 
   // Load the selected client's visit history (note 33).
   useEffect(() => {
+    setConfirmDelete(false);
+    setBusy(false);
     if (!open) { setHistory(null); return; }
     let active = true;
     loadClientHistory(open.id).then((h) => { if (active) setHistory(h); });
@@ -117,11 +121,20 @@ export default function MgrClients({ mgr }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <a className="bf-btn bf-btn-ghost" href={`tel:${open.phone}`} style={{ textDecoration: "none" }}><Phone size={16} /> התקשרי</a>
-            <button className="bf-btn bf-btn-ghost" onClick={() => { mgr.blockClient(open); setOpen(null); }}><Ban size={16} /> {open.blocked ? "ביטול חסימה" : "חסימה"}</button>
+            <button className="bf-btn bf-btn-ghost" disabled={busy} onClick={() => { if (busy) return; setBusy(true); mgr.blockClient(open); setOpen(null); }}><Ban size={16} /> {open.blocked ? "ביטול חסימה" : "חסימה"}</button>
           </div>
-          <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { mgr.deleteClient(open.id); setOpen(null); }}>
+          <button className="bf-btn bf-btn-ghost" style={{ marginTop: 10, color: "#B23A48", borderColor: "#F0CBD0" }} disabled={busy} onClick={() => setConfirmDelete(true)}>
             <Trash2 size={16} /> מחיקת לקוחה
           </button>
+          {confirmDelete && (
+            <Confirm
+              title="למחוק את הלקוחה?"
+              body={`הפעולה תמחק לצמיתות את ${open.name} כולל חשבון ההתחברות שלה. לא ניתן לבטל.`}
+              confirmLabel="כן, מחקי לצמיתות" danger
+              onConfirm={() => { if (busy) return; setBusy(true); mgr.deleteClient(open.id); setOpen(null); }}
+              onClose={() => setConfirmDelete(false)}
+            />
+          )}
         </Sheet>
       )}
     </div>

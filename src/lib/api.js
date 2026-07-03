@@ -42,7 +42,7 @@ function shapeAppt(row) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(row.starts_at);
   const dayOffset = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
-  const time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" });
   return {
     id: row.id,
     clientId: row.clients?.id ?? row.client_id,
@@ -264,8 +264,8 @@ export async function loadClientHistory(clientId) {
       const d = new Date(a.starts_at);
       return {
         id: a.id,
-        when: d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "2-digit" }),
-        time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false }),
+        when: d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Asia/Jerusalem" }),
+        time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" }),
         service: a.services?.name, price: a.services?.price,
         status: a.status, past: d <= new Date(),
       };
@@ -429,7 +429,7 @@ export async function loadBreaks(studioId) {
     return (data || []).map((b) => {
       const d = new Date(b.starts_at), e = new Date(b.ends_at);
       const day = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
-      const fmt = (x) => x.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+      const fmt = (x) => x.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" });
       return { id: b.id, title: b.title, day, time: fmt(d), endTime: fmt(e), starts_at: b.starts_at, employeeId: b.employee_id, _break: true };
     });
   } catch (err) { log("loadBreaks", err); return null; }
