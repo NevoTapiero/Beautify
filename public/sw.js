@@ -28,11 +28,13 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin) return; // skip Supabase/CDN calls
 
   // App navigations: network-first, fall back to cached shell when offline.
+  // Cached per-request (per studio URL), not under one shared "/" key --
+  // that used to let one studio's cached page get served for another's.
   if (request.mode === "navigate") {
     e.respondWith(
       fetch(request)
-        .then((res) => { caches.open(CACHE).then((c) => c.put("/", res.clone())); return res; })
-        .catch(() => caches.match("/").then((r) => r || caches.match(request)))
+        .then((res) => { caches.open(CACHE).then((c) => c.put(request, res.clone())); return res; })
+        .catch(() => caches.match(request))
     );
     return;
   }

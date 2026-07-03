@@ -42,6 +42,9 @@ export function applyStudioPWA(studio) {
   document.title = studio.name || "Beautify";
 
   const manifest = {
+    // An explicit id (defaults to start_url per spec, but set it anyway) is
+    // what lets the OS tell two studios' installed apps apart on one origin.
+    id: startUrl,
     name: studio.name || "Beautify",
     short_name: studio.name || "Beautify",
     start_url: startUrl,
@@ -75,10 +78,15 @@ export function applyStudioPWA(studio) {
 }
 
 // Register the service worker (installability + offline shell + auto-update).
+// Scoped to this studio's own path (not the site root) so each beautician's
+// installed app is a genuinely separate OS-level app — a shared root scope
+// meant Android treated every studio as the same installed app and just
+// renamed/re-iconed it to whichever studio page you opened last.
 export function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").then((reg) => {
+    const scope = `/${resolveStudioSlug()}`;
+    navigator.serviceWorker.register("/sw.js", { scope }).then((reg) => {
       // Pull the newest worker right away so beauticians always get the latest
       // version without manually clearing anything.
       reg.addEventListener("updatefound", () => {
