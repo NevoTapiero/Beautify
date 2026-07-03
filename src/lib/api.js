@@ -62,7 +62,6 @@ function shapeAppt(row) {
     status: row.status,
     arrival: row.arrival_confirmed,
     paid: row.paid,
-    standingId: row.standing_id,
     _live: true,
   };
 }
@@ -336,7 +335,7 @@ export async function loadManagerAppointments(studioId) {
     const end = new Date(start); end.setDate(start.getDate() + 7);
     const { data, error } = await supabaseManager
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, standing_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .eq("studio_id", studioId).neq("status", "cancelled")
       .gte("starts_at", start.toISOString()).lt("starts_at", end.toISOString())
       .order("starts_at");
@@ -351,7 +350,7 @@ export async function loadMyAppointments(clientId) {
   try {
     const { data, error } = await supabaseClient
       .from("appointments")
-      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, standing_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
+      .select("id, starts_at, status, paid, arrival_confirmed, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
       .eq("client_id", clientId).neq("status", "cancelled")
       .order("starts_at");
     if (error) throw error;
@@ -606,81 +605,6 @@ export async function loadInvoices(studioId) {
     if (error) throw error;
     return data || [];
   } catch (err) { log("loadInvoices", err); return []; }
-}
-
-// ─── Standing (recurring) weekly appointments (V5 notes B + G) ───────────────
-
-// Client requests a fixed weekly slot.
-export async function requestStanding(studioId, serviceId, weekday, time) {
-  if (!isSupabaseReady) return { error: "אין חיבור" };
-  try {
-    const { error } = await supabaseClient.rpc("request_standing", {
-      p_studio: studioId, p_service: serviceId, p_weekday: weekday, p_time: time,
-    });
-    if (error) throw error;
-    return {};
-  } catch (err) {
-    log("requestStanding", err);
-    return { error: /already has/.test(err?.message || "") ? "כבר קיימת בקשה לתור קבוע" : "הבקשה נכשלה" };
-  }
-}
-
-export async function myStanding() {
-  if (!isSupabaseReady) return [];
-  try {
-    const { data, error } = await supabaseClient.rpc("my_standing");
-    if (error) throw error;
-    return data || [];
-  } catch (err) { log("myStanding", err); return []; }
-}
-
-export async function managerStanding(studioId) {
-  if (!isSupabaseReady || !studioId) return [];
-  try {
-    const { data, error } = await supabaseManager.rpc("manager_standing", { p_studio: studioId });
-    if (error) throw error;
-    return data || [];
-  } catch (err) { log("managerStanding", err); return []; }
-}
-
-export async function approveStanding(id) {
-  if (!isSupabaseReady) return false;
-  try { const { error } = await supabaseManager.rpc("approve_standing", { p_id: id }); if (error) throw error; return true; }
-  catch (err) { log("approveStanding", err); return false; }
-}
-
-export async function declineStanding(id) {
-  if (!isSupabaseReady) return false;
-  try { const { error } = await supabaseManager.rpc("decline_standing", { p_id: id }); if (error) throw error; return true; }
-  catch (err) { log("declineStanding", err); return false; }
-}
-
-// Cancel works for the owning client (supabaseClient) or the manager (supabaseManager).
-export async function cancelStanding(id, asManager = false) {
-  if (!isSupabaseReady) return false;
-  try {
-    const c = asManager ? supabaseManager : supabaseClient;
-    const { error } = await c.rpc("cancel_standing", { p_id: id });
-    if (error) throw error; return true;
-  } catch (err) { log("cancelStanding", err); return false; }
-}
-
-// Cancel just this week's materialized occurrence and create next week's,
-// instead of the client using the normal cancel button on it (note V6.1).
-export async function skipStandingWeek(id, asManager = false) {
-  if (!isSupabaseReady) return false;
-  try {
-    const c = asManager ? supabaseManager : supabaseClient;
-    const { error } = await c.rpc("standing_skip_week", { p_id: id });
-    if (error) throw error; return true;
-  } catch (err) { log("skipStandingWeek", err); return false; }
-}
-
-// Keep the rolling horizon topped up (called on manager app load).
-export async function topupStanding(studioId) {
-  if (!isSupabaseReady || !studioId) return;
-  try { await supabaseManager.rpc("topup_standing", { p_studio: studioId }); }
-  catch (err) { log("topupStanding", err); }
 }
 
 // ─── Schedule-change requests + employee notifications (Phase 3b) ────────────

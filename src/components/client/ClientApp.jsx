@@ -31,9 +31,9 @@ export default function ClientApp({ cli }) {
   if (!cli.client) return <ClientAuth cli={cli} />;
 
   const me = cli.client;
-  // "mine" tab: "!" (never a number). Reschedule + standing notifications are
-  // shown as their own transient cards, so they don't count here (notes 23, 25).
-  const unreadCount = (cli.notifications || []).filter((n) => !n.read && n.type !== "reschedule" && n.type !== "standing").length
+  // "mine" tab: "!" (never a number). Reschedule notifications are shown as
+  // their own transient card, so they don't count here (note 23).
+  const unreadCount = (cli.notifications || []).filter((n) => !n.read && n.type !== "reschedule").length
     + (cli.appts || []).filter((a) => a.status === "reschedule_requested").length;
   const unread = unreadCount > 0 ? "!" : 0;
   const titles = {

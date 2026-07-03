@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Repeat, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
 import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg, Confirm } from "../ui";
-import { DOW_FULL } from "../../data/mock";
 
 const KEYS = {
   notify_day_start:   { title: "סיכום בתחילת יום", sub: "כל הבוקר — רשימת התורים של היום" },
@@ -25,7 +24,6 @@ export default function MgrSettings({ mgr }) {
     notify_client_1h:   s.notify_client_1h ?? true,
   });
   const [editSvc, setEditSvc] = useState(null);   // service being added/edited
-  const [openStanding, setOpenStanding] = useState(false);   // standing list dropdown (note 48)
   const [editEmp, setEditEmp] = useState(null);   // employee being added/edited (business)
   const [openInvoices, setOpenInvoices] = useState(false);   // invoices dropdown (business)
   const [openServices, setOpenServices] = useState(false);   // services dropdown (note 49)
@@ -176,47 +174,6 @@ export default function MgrSettings({ mgr }) {
           ))}
         </div>
       </>)}
-
-      {/* Standing weekly appointments — collapsible dropdown (note 48) */}
-      {(() => {
-        const pending = (mgr.standing || []).filter((s) => s.status === "pending").length;
-        return (
-          <button onClick={() => setOpenStanding((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
-            <Repeat size={16} color="var(--plum)" />
-            <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>תורים קבועים שבועיים</span>
-            {pending > 0 && <span className="bf-chip bf-chip-rose">{pending} ממתינות</span>}
-            <ChevronDown size={18} color="var(--muted)" style={{ transform: openStanding ? "rotate(180deg)" : "none", transition: ".18s" }} />
-          </button>
-        );
-      })()}
-      {openStanding && ((mgr.standing || []).length === 0 ? (
-        <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
-          אין בקשות לתורים קבועים. כשלקוחה תבקש יום ושעה קבועים, הבקשה תופיע כאן לאישורך.
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: 9 }}>
-          {mgr.standing.map((st) => (
-            <div key={st.id} className="bf-card" style={{ padding: 12, display: "grid", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Repeat size={17} color="var(--plum)" />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{st.client_name}</div>
-                  <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{st.service_name} · כל {DOW_FULL[st.weekday]} בשעה {st.time}</div>
-                </div>
-                {st.status === "approved" && <span className="bf-chip bf-chip-ok"><Check size={12} /> מאושר</span>}
-              </div>
-              {st.status === "pending" ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => mgr.approveStanding(st)}><Check size={15} /> אישור</button>
-                  <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.declineStanding(st)}><X size={15} /> דחייה</button>
-                </div>
-              ) : (
-                <button className="bf-btn bf-btn-ghost bf-btn-sm" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => mgr.cancelStanding(st)}><X size={15} /> ביטול התור הקבוע</button>
-              )}
-            </div>
-          ))}
-        </div>
-      ))}
 
       {/* Notifications — collapsible dropdown (note 44) */}
       <button onClick={() => setOpenNotif((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>

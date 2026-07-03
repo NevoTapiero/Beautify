@@ -15,15 +15,14 @@ export default function ManagerApp({ mgr, ping }) {
   // Selected cosmetician, shared between Home and Calendar (V6). null = owner.
   const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);
 
-  // Badges (V5): a "!" when new appointments came in, a count of new client
-  // signups, the pending photo count, and pending standing-slot requests.
+  // Badges (V5): a "!" when new appointments came in, and a count of new client
+  // signups.
   // NOTE: these hooks must run before any early return (Rules of Hooks).
   const sid = mgr.studio?.id;
   const apptCount = (mgr.appts || []).length;
   const clientCount = (mgr.clients || []).length;
   const newAppts = apptCount > getSeen(sid, "mgr-appts");
   const newClients = Math.max(0, clientCount - getSeen(sid, "mgr-clients"));
-  const pendingStanding = (mgr.standing || []).filter((s) => s.status === "pending").length;
   useEffect(() => { if (tab === "cal") setSeen(sid, "mgr-appts", apptCount); }, [tab, apptCount, sid]);
   useEffect(() => { if (tab === "clients") setSeen(sid, "mgr-clients", clientCount); }, [tab, clientCount, sid]);
   // Employee: "!" on her calendar when a new appointment is booked for her (note 54).
@@ -98,7 +97,7 @@ export default function ManagerApp({ mgr, ping }) {
       ] : [
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],
         ["clients", Users, "לקוחות", newClients > 0 ? "!" : 0],
-        ["gallery", ImageIcon, "גלריה", mgr.pending.length > 0 ? "!" : 0], ["settings", Settings, "הגדרות", pendingStanding > 0 ? "!" : 0],
+        ["gallery", ImageIcon, "גלריה", mgr.pending.length > 0 ? "!" : 0], ["settings", Settings, "הגדרות"],
       ]} />
     </>
   );

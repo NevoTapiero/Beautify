@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle, Repeat, Plus } from "lucide-react";
-import { SectionTitle, Empty, PaidChip, BitSheet, Sheet, Confirm, serviceBg } from "../ui";
-import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
+import { CalendarDays, Clock, Check, X, CheckCircle2, Wallet, Bell, AlertTriangle } from "lucide-react";
+import { SectionTitle, Empty, PaidChip, BitSheet, Sheet, Confirm } from "../ui";
+import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
 export default function CliMine({ cli }) {
   const [payFor, setPayFor] = useState(null);    // appointment being paid
   const [moveAppt, setMoveAppt] = useState(null); // appointment being rescheduled
-  const [askStanding, setAskStanding] = useState(false); // request a weekly slot
   const [confirmCancel, setConfirmCancel] = useState(null); // appt pending cancel confirmation
 
   // Pull fresh appointments + messages each time this screen opens.
@@ -16,32 +15,16 @@ export default function CliMine({ cli }) {
   // Which cosmetician (business mode only); null employee = the owner.
   const cosmName = (a) => cli.business ? (a.employeeName || cli.studioName) : null;
 
-  // Standing-generated occurrences get their own row inside the standing card
-  // below, not a regular appointment card (note V6.1).
-  const notStanding = (a) => !a.standingId;
-  const toMove = cli.appts.filter((a) => a.status === "reschedule_requested" && notStanding(a));
-  const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0 && notStanding(a))
+  const toMove = cli.appts.filter((a) => a.status === "reschedule_requested");
+  const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
-  const past = cli.appts.filter((a) => (a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0)) && notStanding(a))
+  const past = cli.appts.filter((a) => (a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0)))
     .sort((x, y) => y.day - x.day).slice(0, 3);
-  // Reschedule requests already appear as a move/cancel card above, and standing
-  // approvals show as a one-time banner, so keep both out of the messages list.
-  const unread = cli.notifications.filter((n) => !n.read && n.type !== "reschedule" && n.type !== "standing");
-
-  // Standing-approval notification: one-time banner, auto-marked-read (note 25).
-  const stdNew = cli.notifications.filter((n) => !n.read && n.type === "standing");
-  const [stdBanner] = useState(() => stdNew);
-  useEffect(() => { stdNew.forEach((n) => cli.markNotifRead(n.id)); /* eslint-disable-next-line */ }, []);
+  // Reschedule requests already appear as a move/cancel card above, so keep it out of the messages list.
+  const unread = cli.notifications.filter((n) => !n.read && n.type !== "reschedule");
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
-      {/* One-time standing-approval banner (note 25) */}
-      {stdBanner.map((n) => (
-        <div key={n.id} className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 9, background: "#E7F3EC", border: "1px solid #BFE3CC" }}>
-          <CheckCircle2 size={18} color="#2E7D52" />
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#256B45" }}>{n.body || n.title}</div>
-        </div>
-      ))}
       {/* Appointments the studio asked to move (notes 27) */}
       {toMove.length > 0 && (<>
         <SectionTitle icon={AlertTriangle}>תורים להזזה</SectionTitle>
@@ -78,47 +61,6 @@ export default function CliMine({ cli }) {
               <div style={{ fontSize: 11, color: "var(--rose)", marginTop: 6, fontWeight: 700 }}>הקישי לסימון כנקרא</div>
             </button>
           ))}
-        </div>
-      )}
-
-      {/* Standing weekly appointment (V5 note B) */}
-      <SectionTitle icon={Repeat}>תור קבוע שבועי</SectionTitle>
-      {(cli.standing || []).length === 0 ? (
-        <button className="bf-card" onClick={() => setAskStanding(true)} style={{ padding: 13, display: "flex", alignItems: "center", gap: 10, textAlign: "right", cursor: "pointer", borderStyle: "dashed" }}>
-          <span style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,var(--plum),var(--rose))", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Plus size={17} color="#fff" /></span>
-          <div style={{ fontSize: 13.5 }}>
-            <b>בקשת יום ושעה קבועים</b>
-            <div style={{ color: "var(--muted)", fontSize: 12 }}>שמרי לעצמך מועד שבועי קבוע — באישור הסטודיו</div>
-          </div>
-        </button>
-      ) : (
-        <div style={{ display: "grid", gap: 9 }}>
-          {cli.standing.map((st) => {
-            // This week's materialized occurrence, if one exists yet (note V6.1).
-            const occ = cli.appts.find((a) => a.standingId === st.id && a.status === "confirmed" && a.day >= 0);
-            return (
-              <div key={st.id} className="bf-card" style={{ padding: 12, display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                  <Repeat size={18} color="var(--plum)" />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{st.service_name} · כל {DOW_FULL[st.weekday]} בשעה {st.time}</div>
-                    <div style={{ fontSize: 12, color: st.status === "approved" ? "#2E7D52" : "var(--gold)", fontWeight: 700, marginTop: 2 }}>
-                      {st.status === "approved" ? (occ ? `מאושר ✓ ${occ.dayLabel} בשעה ${occ.time}` : "מאושר ✓ נקבע אוטומטית בכל שבוע") : "ממתין לאישור הסטודיו"}
-                    </div>
-                  </div>
-                  <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.cancelStanding(st.id)}><X size={14} /> ביטול קבוע</button>
-                </div>
-                {occ && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {occ.arrival
-                      ? <button className="bf-btn bf-btn-soft bf-btn-sm" disabled style={{ flex: 1, opacity: 1 }}><CheckCircle2 size={15} /> הגעה אושרה השבוע</button>
-                      : <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => cli.confirmArrival(occ.id)}><Check size={15} /> אישור הגעה השבוע</button>}
-                    <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => cli.skipStandingWeek(st.id)}><X size={15} /> ביטול להשבוע</button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       )}
 
@@ -172,7 +114,6 @@ export default function CliMine({ cli }) {
 
       {payFor && <BitSheet amount={payFor.servicePrice} onClose={() => setPayFor(null)} onPaid={async () => { await cli.payAppt(payFor.id); setPayFor(null); }} />}
       {moveAppt && <RescheduleSheet appt={moveAppt} cli={cli} onClose={() => setMoveAppt(null)} />}
-      {askStanding && <StandingSheet cli={cli} onClose={() => setAskStanding(false)} />}
       {confirmCancel && (
         <Confirm
           title="לבטל את התור?"
@@ -183,58 +124,6 @@ export default function CliMine({ cli }) {
         />
       )}
     </div>
-  );
-}
-
-// Request a fixed weekly slot: pick a service, a weekday, and a time.
-function StandingSheet({ cli, onClose }) {
-  const [service, setService] = useState(cli.services[0]?.id || null);
-  const [weekday, setWeekday] = useState(0);
-  const [time, setTime] = useState("10:00");
-  const [busy, setBusy] = useState(false);
-  const times = [];
-  for (let h = 8; h <= 20; h++) for (const m of ["00", "30"]) times.push(`${String(h).padStart(2, "0")}:${m}`);
-  const ok = service != null;
-
-  const submit = async () => {
-    setBusy(true);
-    const done = await cli.requestStanding(service, weekday, time);
-    setBusy(false);
-    if (done) onClose();
-  };
-
-  return (
-    <Sheet onClose={onClose}>
-      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>בקשת תור קבוע</h3>
-      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>אותו יום ושעה בכל שבוע — הסטודיו צריך לאשר.</div>
-
-      <label className="bf-label">טיפול</label>
-      <div style={{ display: "grid", gap: 7, marginBottom: 12 }}>
-        {cli.services.map((sv) => (
-          <button key={sv.id} onClick={() => setService(sv.id)} className="bf-card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 10, textAlign: "right", cursor: "pointer", border: service === sv.id ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: serviceBg(sv), flex: "none" }} />
-            <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>{sv.name}</div>
-            <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
-          </button>
-        ))}
-      </div>
-
-      <label className="bf-label">יום בשבוע</label>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-        {DOW_FULL.map((name, wd) => (
-          <button key={wd} onClick={() => setWeekday(wd)} className={"bf-slot" + (weekday === wd ? " active" : "")} style={{ flex: "1 0 28%", padding: "8px 4px", fontSize: 13 }}>{name}</button>
-        ))}
-      </div>
-
-      <label className="bf-label">שעה</label>
-      <select className="bf-input" value={time} onChange={(e) => setTime(e.target.value)}>
-        {times.map((t) => <option key={t} value={t}>{t}</option>)}
-      </select>
-
-      <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={!ok || busy} onClick={submit}>
-        {busy ? "שולחת…" : "שליחת בקשה לאישור"}
-      </button>
-    </Sheet>
   );
 }
 

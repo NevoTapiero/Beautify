@@ -4,10 +4,6 @@ import { CheckCircle2 } from "lucide-react";
 import STYLE from "./styles";
 import * as api from "./lib/api";
 import { applyStudioPWA } from "./lib/pwa";
-import { DOW_FULL } from "./data/mock";
-
-const dowName = (wd) => DOW_FULL[wd] || "";
-
 import ManagerApp from "./components/manager/ManagerApp";
 import ClientApp from "./components/client/ClientApp";
 
@@ -68,8 +64,6 @@ export default function App() {
   const [cliUploads, setCliUploads] = useState([]);
   const [cliNotifs, setCliNotifs] = useState([]);
   const [cliBreaks, setCliBreaks] = useState([]);
-  const [cliStanding, setCliStanding] = useState([]);
-  const [mgrStanding, setMgrStanding] = useState([]);
   const [scheduleReqs, setScheduleReqs] = useState([]);   // employee schedule-change requests (3b)
   const [empNotifs, setEmpNotifs] = useState([]);         // notifications for the locked employee
   const [myVisits, setMyVisits] = useState(0);            // locked employee's completed-appointments count
@@ -91,15 +85,12 @@ export default function App() {
   const loadManagerData = useCallback(async (s) => {
     const sid = (s || studio)?.id;
     if (!sid) return;
-    await api.topupStanding(sid);   // keep recurring appointments rolling forward
-    const [appts, clients, gallery, pending, breaks, standing] = await Promise.all([
+    const [appts, clients, gallery, pending, breaks] = await Promise.all([
       api.loadManagerAppointments(sid), api.loadClients(sid),
       api.loadGallery(sid, null, employeeLock), api.loadPendingPhotos(sid), api.loadBreaks(sid),
-      api.managerStanding(sid),
     ]);
     setMgrAppts(appts || []); setMgrClients(clients || []);
     setMgrGallery(gallery || []); setMgrPending(pending || []); setMgrBreaks(breaks || []);
-    setMgrStanding(standing || []);
     if ((s || studio)?.business_mode) {
       api.loadInvoices(sid).then((inv) => setMgrInvoices(inv || []));
       api.loadScheduleRequests(sid).then((rq) => setScheduleReqs(rq || []));
@@ -109,14 +100,12 @@ export default function App() {
   const loadClientData = useCallback(async (c, s) => {
     const cl = c || client; const sid = (s || studio)?.id;
     if (!cl || !sid) return;
-    const [appts, gallery, uploads, notifs, breaks, standing] = await Promise.all([
+    const [appts, gallery, uploads, notifs, breaks] = await Promise.all([
       api.loadMyAppointments(cl.id), api.loadGallery(sid, cl.id),
       api.loadMyUploads(), api.loadNotifications(cl.id), api.loadBreaks(sid),
-      api.myStanding(),
     ]);
     setCliAppts(appts || []); setCliGallery(gallery || []);
     setCliUploads(uploads || []); setCliNotifs(notifs || []); setCliBreaks(breaks || []);
-    setCliStanding(standing || []);
   }, [client, studio]);
 
   // Reload studio + services (after the manager edits her service list).
@@ -170,7 +159,6 @@ export default function App() {
   const mgr = {
     user: managerUser,
     studio, appts: mgrAppts, clients: mgrClients, gallery: mgrGallery, pending: mgrPending, breaks: mgrBreaks,
-    standing: mgrStanding,
     studioName: studio?.name || "הסטודיו",
     services,
     employees, invoices: mgrInvoices,
@@ -377,31 +365,11 @@ export default function App() {
       await api.updateEmployee(employeeLock, fields);
       await refreshStudio();
     },
-    // Standing weekly appointments (V5)
-    approveStanding: async (s) => {
-      const ok = await api.approveStanding(s.id);
-      if (ok && s.client_id) await api.sendNotification(studio.id, s.client_id, {
-        type: "standing", title: "התור הקבוע אושר", body: `הסטודיו אישר לך תור קבוע ל${s.service_name} בכל ${dowName(s.weekday)} בשעה ${s.time}.` });
-      ping(ok ? "התור הקבוע אושר ונקבע" : "האישור נכשל"); loadManagerData();
-    },
-    declineStanding: async (s) => {
-      const ok = await api.declineStanding(s.id);
-      if (ok && s.client_id) await api.sendNotification(studio.id, s.client_id, {
-        type: "standing", title: "בקשת התור הקבוע נדחתה", body: "הסטודיו לא אישר את בקשת התור הקבוע. אפשר לקבוע תורים רגילים כרגיל." });
-      ping(ok ? "הבקשה נדחתה" : "הפעולה נכשלה"); loadManagerData();
-    },
-    cancelStanding: async (s) => {
-      const ok = await api.cancelStanding(s.id, true);
-      if (ok && s.client_id) await api.sendNotification(studio.id, s.client_id, {
-        type: "standing", title: "התור הקבוע בוטל", body: "הסטודיו ביטל את התור הקבוע השבועי. התורים העתידיים בוטלו." });
-      ping(ok ? "התור הקבוע בוטל" : "הביטול נכשל"); loadManagerData();
-    },
   };
 
   // ─── Client actions ──────────────────────────────────────────────
   const cli = {
     client, studio, services, appts: cliAppts, gallery: cliGallery, uploads: cliUploads, notifications: cliNotifs, breaks: cliBreaks,
-    standing: cliStanding,
     employees,
     business: !!studio?.business_mode,
     studioName: studio?.name || "הסטודיו",
@@ -450,15 +418,6 @@ export default function App() {
       setClient((c) => ({ ...c, avatar_url: r.url })); ping("תמונת הפרופיל עודכנה");
     },
     markNotifRead: async (id) => { await api.markNotificationRead(id); loadClientData(); },
-    // Standing weekly appointment (V5): request a fixed slot, or cancel it.
-    requestStanding: async (serviceId, weekday, time) => {
-      const r = await api.requestStanding(studio.id, serviceId, weekday, time);
-      if (r.error) { ping(r.error); return false; }
-      ping("הבקשה נשלחה לאישור הסטודיו 🤍"); loadClientData(); return true;
-    },
-    cancelStanding: async (id) => { await api.cancelStanding(id, false); ping("התור הקבוע בוטל"); loadClientData(); },
-    // Skip just this week's occurrence — the rule stays active for next week (note V6.1).
-    skipStandingWeek: async (id) => { await api.skipStandingWeek(id, false); ping("התור בוטל להשבוע"); loadClientData(); },
     refresh: () => loadClientData(),
     ping,
   };
