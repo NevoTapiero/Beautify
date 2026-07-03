@@ -30,7 +30,7 @@ export default function MgrHome({ mgr, go, cosmId, setCosmId }) {
       if (active) { setClosedToday(!!eff && !eff.is_open); setTodayEff(eff); }
     })();
     return () => { active = false; };
-  }, [mgr.studio.id, mgr.breaks, cosmId]);
+  }, [mgr.studio.id, cosmId]);
 
   const today = mgr.appts.filter((a) => a.day === 0 && sameCosm(a)).sort((x, y) => x.time.localeCompare(y.time));
   const todayBreaks = mgr.breaks.filter((b) => b.day === 0 && sameCosm(b));

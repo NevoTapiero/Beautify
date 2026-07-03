@@ -5,7 +5,7 @@ const STYLE = `
   color-scheme:light;   /* never invert in device/browser dark mode (note 3) */
   --ink:#2A1A2E; --plum:#7C2A53; --plum-deep:#5E1F40; --rose:#D9738F;
   --rose-soft:#F4C9D4; --blush:#FBEFEA; --sand:#EADDD4; --gold:#B4893E;
-  --surface:#FFFFFF; --muted:#9A8490;
+  --surface:#FFFFFF; --muted:#857080;
   font-family:'Assistant', system-ui, -apple-system, sans-serif;
   color:var(--ink); min-height:100vh; width:100%;
   background:
