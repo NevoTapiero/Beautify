@@ -441,7 +441,7 @@ export default function App() {
 
       {isDemo && (<>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <img src="/icon-mark.png" alt="" className="bf-mark" />
+          <img src={studio?.logo_url || "/icon-mark.png"} alt="" className="bf-mark" />
           <span className="bf-display bf-wordmark">{studio?.brand_name || "Beautify"}</span>
         </div>
 
