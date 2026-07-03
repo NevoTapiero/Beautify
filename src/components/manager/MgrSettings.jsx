@@ -32,8 +32,6 @@ export default function MgrSettings({ mgr }) {
   const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
   const [openNotif, setOpenNotif] = useState(false);         // notifications dropdown (note 44)
   const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
-  const [nameDraft, setNameDraft] = useState(mgr.studioName);// business name editor (V5 note 44)
-  const [editName, setEditName] = useState(false);
   const [ownerNameDraft, setOwnerNameDraft] = useState(mgr.ownerName); // her personal name (V8)
   const [editOwnerName, setEditOwnerName] = useState(false);
   const [aboutDraft, setAboutDraft] = useState(mgr.studio?.about || "");   // owner "about me" (V6 note 47)
@@ -202,23 +200,6 @@ export default function MgrSettings({ mgr }) {
         <ChevronDown size={18} color="var(--muted)" style={{ transform: openMore ? "rotate(180deg)" : "none", transition: ".18s" }} />
       </button>
       {openMore && (<>
-        {/* Studio brand icon — app icon / splash / login screen. Separate
-            from the owner's personal photo below (V7). */}
-        <div className="bf-card" style={{ padding: 13, display: "flex", alignItems: "center", gap: 12 }}>
-          <PhotoPicker onPick={(f) => mgr.uploadStudioLogo(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
-            <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: 14 }}>
-              {mgr.studio?.logo_url
-                ? <img src={mgr.studio.logo_url} alt="" style={{ width: 52, height: 52, borderRadius: 14, objectFit: "cover" }} />
-                : <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.studioName || "?").charAt(0)}</div>}
-              <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="#fff" /></span>
-            </button>
-          </PhotoPicker>
-          <div style={{ flex: 1, fontSize: 13.5 }}>
-            <div style={{ fontWeight: 700 }}>לוגו / אייקון האפליקציה</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>האייקון שמופיע במסך הבית, במסך הפתיחה ובמסך ההתחברות</div>
-          </div>
-        </div>
-
         {/* Owner's personal photo + about me (notes 46, 47) — shown to
             clients only in "עלינו", separate from the app icon above (V7). */}
         <div className="bf-card" style={{ padding: 13, display: "grid", gap: 11 }}>
@@ -252,20 +233,6 @@ export default function MgrSettings({ mgr }) {
           </button>
         </div>
         <div className="bf-card" style={{ padding: 12, display: "grid", gap: 8, fontSize: 13.5 }}>
-          {editName ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input className="bf-input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="שם העסק" autoFocus />
-              <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ width: "auto", whiteSpace: "nowrap" }} disabled={!nameDraft.trim()} onClick={() => { mgr.saveSettings({ name: nameDraft.trim() }); setEditName(false); }}>שמירה</button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <span style={{ color: "var(--muted)" }}>שם העסק</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <span style={{ fontWeight: 700 }}>{mgr.studioName}</span>
-                <button onClick={() => { setNameDraft(mgr.studioName); setEditName(true); }} aria-label="עריכת שם העסק" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2 }}><Pencil size={14} /></button>
-              </span>
-            </div>
-          )}
           {editOwnerName ? (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input className="bf-input" value={ownerNameDraft} onChange={(e) => setOwnerNameDraft(e.target.value)} placeholder="השם שלך" autoFocus />
