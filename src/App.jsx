@@ -201,11 +201,18 @@ export default function App() {
       if (r.error) { ping(r.error); return null; }
       return r.url;
     },
-    // Owner profile photo (V6 note 46)
+    // Studio brand icon — app icon / splash / login screen (V6 note 46, split V7).
     uploadStudioLogo: async (file) => {
       const r = await api.uploadStudioLogo(studio.id, file);
       if (r.error) { ping(r.error); return; }
       setStudio((s) => { const next = { ...s, logo_url: r.url }; applyStudioPWA(next); return next; });
+      ping("הלוגו עודכן");
+    },
+    // Owner's personal photo — shown to clients only in "עלינו" (V7).
+    uploadOwnerPhoto: async (file) => {
+      const r = await api.uploadOwnerPhoto(studio.id, file);
+      if (r.error) { ping(r.error); return; }
+      setStudio((s) => ({ ...s, owner_photo_url: r.url }));
       ping("תמונת הפרופיל עודכנה");
     },
     // Employee likes a gallery photo (V6 note 59) — updates count optimistically.

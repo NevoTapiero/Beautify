@@ -200,20 +200,38 @@ export default function MgrSettings({ mgr }) {
         <ChevronDown size={18} color="var(--muted)" style={{ transform: openMore ? "rotate(180deg)" : "none", transition: ".18s" }} />
       </button>
       {openMore && (<>
-        {/* Owner profile photo + about me (notes 46, 47) */}
+        {/* Studio brand icon — app icon / splash / login screen. Separate
+            from the owner's personal photo below (V7). */}
+        <div className="bf-card" style={{ padding: 13, display: "flex", alignItems: "center", gap: 12 }}>
+          <PhotoPicker onPick={(f) => mgr.uploadStudioLogo(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
+            <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: 14 }}>
+              {mgr.studio?.logo_url
+                ? <img src={mgr.studio.logo_url} alt="" style={{ width: 52, height: 52, borderRadius: 14, objectFit: "cover" }} />
+                : <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.studioName || "?").charAt(0)}</div>}
+              <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="#fff" /></span>
+            </button>
+          </PhotoPicker>
+          <div style={{ flex: 1, fontSize: 13.5 }}>
+            <div style={{ fontWeight: 700 }}>לוגו / אייקון האפליקציה</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>האייקון שמופיע במסך הבית, במסך הפתיחה ובמסך ההתחברות</div>
+          </div>
+        </div>
+
+        {/* Owner's personal photo + about me (notes 46, 47) — shown to
+            clients only in "עלינו", separate from the app icon above (V7). */}
         <div className="bf-card" style={{ padding: 13, display: "grid", gap: 11 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <PhotoPicker onPick={(f) => mgr.uploadStudioLogo(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
+            <PhotoPicker onPick={(f) => mgr.uploadOwnerPhoto(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
               <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
-                {mgr.studio?.logo_url
-                  ? <img src={mgr.studio.logo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
+                {mgr.studio?.owner_photo_url
+                  ? <img src={mgr.studio.owner_photo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
                   : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.studioName || "?").charAt(0)}</div>}
                 <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="#fff" /></span>
               </button>
             </PhotoPicker>
             <div style={{ flex: 1, fontSize: 13.5 }}>
-              <div style={{ fontWeight: 700 }}>תמונת פרופיל</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>מופיעה ללקוחות ב"עלינו" וגם כאייקון האפליקציה שלך</div>
+              <div style={{ fontWeight: 700 }}>תמונת פרופיל אישית</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>מופיעה ללקוחות רק ב"עלינו"</div>
             </div>
           </div>
           <label className="bf-label">על עצמי</label>

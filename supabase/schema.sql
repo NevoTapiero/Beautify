@@ -12,7 +12,8 @@ create table if not exists studios (
   id            uuid primary key default gen_random_uuid(),
   slug          text unique not null,
   name          text not null,
-  logo_url      text,
+  logo_url      text,          -- app icon / splash / login screen (the studio's brand mark)
+  owner_photo_url text,        -- her personal photo, shown in "עלינו" only
   color_primary text not null default '#7C2A53',
   color_accent  text not null default '#D9738F',
   owner_id      uuid references auth.users(id),

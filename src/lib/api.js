@@ -786,7 +786,8 @@ export async function uploadEmployeePhoto(studioId, employee, file, caption) {
   } catch (err) { log("uploadEmployeePhoto", err); return { error: "העלאת התמונה נכשלה." }; }
 }
 
-// Owner (studio) profile photo — reuses the studio's logo_url (V6 note 46).
+// Studio brand icon — the app icon, splash screen, and the icon shown on the
+// login/signup screens. Distinct from the owner's personal photo (below).
 export async function uploadStudioLogo(studioId, file) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
   try {
@@ -795,6 +796,18 @@ export async function uploadStudioLogo(studioId, file) {
     await supabaseManager.from("studios").update({ logo_url: url }).eq("id", studioId);
     return { url };
   } catch (err) { log("uploadStudioLogo", err); return { error: "העלאת התמונה נכשלה." }; }
+}
+
+// The owner's personal photo — shown to clients only in "עלינו" (About us),
+// separate from the studio's brand icon above (V7).
+export async function uploadOwnerPhoto(studioId, file) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const path = `${studioId}/owner/${Date.now()}_${safeName(file.name)}`;
+    const url = await uploadFile(supabaseManager, "avatars", path, file);
+    await supabaseManager.from("studios").update({ owner_photo_url: url }).eq("id", studioId);
+    return { url };
+  } catch (err) { log("uploadOwnerPhoto", err); return { error: "העלאת התמונה נכשלה." }; }
 }
 
 // Employee likes a gallery photo (via manager auth). Not her own (checked in UI).

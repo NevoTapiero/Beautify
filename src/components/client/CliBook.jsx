@@ -154,7 +154,7 @@ export default function CliBook({ cli }) {
 // "עלינו" — the team's photos; tap one to read her "about me" (note 29).
 function AboutSheet({ cli, onClose }) {
   const team = [
-    { id: "owner", name: cli.studioName, avatar: cli.studio?.logo_url, about: cli.studio?.about, color: "#7C2A53" },
+    { id: "owner", name: cli.studioName, avatar: cli.studio?.owner_photo_url, about: cli.studio?.about, color: "#7C2A53" },
     ...(cli.employees || []),
   ];
   const [sel, setSel] = useState(null);
