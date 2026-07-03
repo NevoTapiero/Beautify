@@ -83,7 +83,7 @@ function RegisterForm({ cli, busy, run }) {
 
       <button onClick={() => setAgree(!agree)} className="bf-card" style={{ padding: 13, display: "flex", gap: 11, alignItems: "flex-start", textAlign: "right", cursor: "pointer", border: agree ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
         <span style={{ width: 22, height: 22, borderRadius: 7, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: agree ? "linear-gradient(135deg,var(--plum),var(--rose))" : "#fff", border: agree ? "none" : "1px solid var(--sand)" }}>
-          {agree && <Check size={15} color="#fff" />}
+          {agree && <Check size={15} color="var(--btn-ink)" />}
         </span>
         <span style={{ fontSize: 13, lineHeight: 1.5 }}>
           קראתי ואני מאשרת את{" "}

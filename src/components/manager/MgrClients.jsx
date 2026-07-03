@@ -42,7 +42,7 @@ export default function MgrClients({ mgr }) {
       {newOnEntry > 0 && (
         <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#FDF3F6,#fff)", border: "1px solid var(--rose-soft)" }}>
           <span style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,var(--plum),var(--rose))", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-            <Users size={17} color="#fff" />
+            <Users size={17} color="var(--btn-ink)" />
           </span>
           <div style={{ fontSize: 13.5 }}>
             <b>{newOnEntry}</b> {newOnEntry === 1 ? "לקוחה חדשה נרשמה" : "לקוחות חדשות נרשמו"} מאז הביקור האחרון

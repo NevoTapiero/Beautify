@@ -33,7 +33,7 @@ export default function EmployeeProfile({ mgr }) {
               ? <img src={emp.avatar} alt={emp.name} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />
               : <div style={{ width: 56, height: 56, borderRadius: "50%", background: emp?.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22 }}>{initial}</div>}
             <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 22, height: 22, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>
-              <Camera size={11} color="#fff" />
+              <Camera size={11} color="var(--btn-ink)" />
             </span>
           </button>
         </PhotoPicker>

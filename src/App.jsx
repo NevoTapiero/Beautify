@@ -4,6 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import STYLE from "./styles";
 import * as api from "./lib/api";
 import { applyStudioPWA } from "./lib/pwa";
+import { buildThemeVars } from "./lib/theme";
 import ManagerApp from "./components/manager/ManagerApp";
 import ClientApp from "./components/client/ClientApp";
 
@@ -435,7 +436,7 @@ export default function App() {
   };
 
   return (
-    <div className={isDemo ? "bf-root" : "bf-root bf-root-live"}>
+    <div className={isDemo ? "bf-root" : "bf-root bf-root-live"} style={buildThemeVars(studio)}>
       <style>{STYLE}</style>
 
       {isDemo && (<>

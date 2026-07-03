@@ -208,8 +208,8 @@ export default function MgrSettings({ mgr }) {
               <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
                 {mgr.studio?.owner_photo_url
                   ? <img src={mgr.studio.owner_photo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
-                  : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>{(mgr.ownerName || "?").charAt(0)}</div>}
-                <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="#fff" /></span>
+                  : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--btn-ink)", fontWeight: 800, fontSize: 20 }}>{(mgr.ownerName || "?").charAt(0)}</div>}
+                <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="var(--btn-ink)" /></span>
               </button>
             </PhotoPicker>
             <div style={{ flex: 1, fontSize: 13.5 }}>

@@ -16,7 +16,7 @@ export default function CliProfile({ cli }) {
           <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
             <Avatar name={me.name} src={me.avatar_url} />
             <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 22, height: 22, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>
-              <Camera size={11} color="#fff" />
+              <Camera size={11} color="var(--btn-ink)" />
             </span>
           </button>
         </PhotoPicker>
