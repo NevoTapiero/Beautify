@@ -49,6 +49,7 @@ const STYLE = `
   background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0)); pointer-events:none; }
 .bf-appbar h1{ font-size:21px; margin:0; line-height:1.15; position:relative; }
 .bf-appbar .sub{ font-size:12.5px; opacity:.82; margin-top:2px; position:relative; }
+.bf-appbar .bf-wordmark{ color:var(--btn-ink); }
 
 .bf-nav{ display:flex; background:var(--surface); border-top:1px solid var(--sand); flex:none; padding-bottom:2px; }
 .bf-nav button{ flex:1; background:none; border:none; padding:9px 2px 9px; cursor:pointer;
