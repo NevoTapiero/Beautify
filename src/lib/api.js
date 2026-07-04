@@ -535,7 +535,7 @@ export async function availableSlots(studioId, dateStr, durationMin, employeeId)
   } catch (err) { log("availableSlots", err); return []; }
 }
 
-// ─── Employees + invoices (business edition) ─────────────────────────────────
+// ─── Employees (business edition) ────────────────────────────────────────────
 
 export async function addEmployee(studioId, { name, title, color, sort }) {
   if (!isSupabaseReady) return null;
@@ -566,16 +566,6 @@ export async function deleteEmployee(id) {
   } catch (err) { log("deleteEmployee", err); return false; }
 }
 
-// Issue an invoice for an appointment (sequential per studio, idempotent).
-export async function issueInvoice(appointmentId) {
-  if (!isSupabaseReady) return { error: "אין חיבור" };
-  try {
-    const { data, error } = await supabaseManager.rpc("issue_invoice", { p_appointment: appointmentId });
-    if (error) throw error;
-    return { invoice: data };
-  } catch (err) { log("issueInvoice", err); return { error: "הפקת החשבונית נכשלה" }; }
-}
-
 // Verify the manager's password (used to exit employee-app mode). Re-signs in
 // the same manager account; returns true on success.
 export async function verifyManagerPassword(email, password) {
@@ -595,16 +585,6 @@ export async function loadEmployees(studioId) {
       .select("id,name,title,color").eq("studio_id", studioId).eq("active", true).order("sort_order");
     return data || [];
   } catch { return []; }
-}
-
-export async function loadInvoices(studioId) {
-  if (!isSupabaseReady || !studioId) return [];
-  try {
-    const { data, error } = await supabaseManager
-      .from("invoices").select("*").eq("studio_id", studioId).order("number", { ascending: false });
-    if (error) throw error;
-    return data || [];
-  } catch (err) { log("loadInvoices", err); return []; }
 }
 
 // ─── Schedule-change requests + employee notifications (Phase 3b) ────────────

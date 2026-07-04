@@ -41,7 +41,6 @@ export default function App() {
   const [studio, setStudio] = useState(null);
   const [services, setServices] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [mgrInvoices, setMgrInvoices] = useState([]);
   // Employee-app lock (V2 Phase 3): when set, this device shows only that
   // employee's restricted view. Persisted per device so it survives reloads.
   const [employeeLock, setEmployeeLock] = useState(() => {
@@ -99,7 +98,6 @@ export default function App() {
     setMgrAppts(appts || []); setMgrClients(clients || []);
     setMgrGallery(gallery || []); setMgrPending(pending || []); setMgrBreaks(breaks || []);
     if ((s || studio)?.business_mode) {
-      api.loadInvoices(sid).then((inv) => setMgrInvoices(inv || []));
       api.loadScheduleRequests(sid).then((rq) => setScheduleReqs(rq || []));
     }
   }, [studio, employeeLock]);
@@ -166,10 +164,10 @@ export default function App() {
   const mgr = {
     user: managerUser,
     studio, appts: mgrAppts, clients: mgrClients, gallery: mgrGallery, pending: mgrPending, breaks: mgrBreaks,
-    studioName: studio?.name || "הסטודיו",           // business name — app title/splash/login/invoices
+    studioName: studio?.name || "הסטודיו",           // business name — app title/splash/login
     ownerName: studio?.owner_name || studio?.name || "המנהלת", // her personal name — greeting + cosmetician picker
     services,
-    employees, invoices: mgrInvoices,
+    employees,
     business: !!studio?.business_mode,
     // Employee-app lock (Phase 3)
     lockedEmployeeId: employeeLock,
@@ -191,13 +189,6 @@ export default function App() {
     addEmployee: async (fields) => { await api.addEmployee(studio.id, fields); ping("העובדת נוספה"); await refreshStudio(); },
     updateEmployee: async (id, fields) => { await api.updateEmployee(id, fields); ping("פרטי העובדת עודכנו"); await refreshStudio(); },
     deleteEmployee: async (id) => { await api.deleteEmployee(id); ping("העובדת הוסרה"); await refreshStudio(); },
-    issueInvoice: async (appt) => {
-      const r = await api.issueInvoice(appt.id);
-      if (r.error) { ping(r.error); return null; }
-      ping(`הופקה חשבונית #${r.invoice?.number}`);
-      api.loadInvoices(studio.id).then((inv) => setMgrInvoices(inv || []));
-      return r.invoice;
-    },
     uploadServiceImage: async (file) => {
       const r = await api.uploadServiceImage(studio.id, file);
       if (r.error) { ping(r.error); return null; }

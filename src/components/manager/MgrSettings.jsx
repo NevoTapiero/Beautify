@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Check, X, ChevronDown, Image as ImageIcon, Briefcase, FileText, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Check, X, ChevronDown, Image as ImageIcon, Briefcase, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
 import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg, Confirm } from "../ui";
 
 const KEYS = {
@@ -25,7 +25,6 @@ export default function MgrSettings({ mgr }) {
   });
   const [editSvc, setEditSvc] = useState(null);   // service being added/edited
   const [editEmp, setEditEmp] = useState(null);   // employee being added/edited (business)
-  const [openInvoices, setOpenInvoices] = useState(false);   // invoices dropdown (business)
   const [openServices, setOpenServices] = useState(false);   // services dropdown (note 49)
   const [openEmployees, setOpenEmployees] = useState(false); // employees dropdown (note 50)
   const [codeGate, setCodeGate] = useState(null);            // {target:true|false} business code prompt
@@ -57,7 +56,6 @@ export default function MgrSettings({ mgr }) {
   const services = mgr.services || [];
 
   const emps = mgr.employees || [];
-  const invoices = mgr.invoices || [];
   // Reflects whatever color_primary/color_accent the studio row is set to,
   // instead of a hardcoded "wine · blush" label (note V6.1).
   const primaryColor = s.color_primary || "#7C2A53";
@@ -117,35 +115,6 @@ export default function MgrSettings({ mgr }) {
           </div>
         </>)}
         </>)}
-
-        {/* Invoices — collapsible list */}
-        <button onClick={() => setOpenInvoices((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
-          <FileText size={16} color="var(--plum)" />
-          <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>חשבוניות שהופקו</span>
-          <span className="bf-chip bf-chip-wait">{invoices.length}</span>
-          <ChevronDown size={18} color="var(--muted)" style={{ transform: openInvoices ? "rotate(180deg)" : "none", transition: ".18s" }} />
-        </button>
-        {openInvoices && (invoices.length === 0 ? (
-          <div className="bf-card" style={{ padding: 14, textAlign: "center", color: "var(--muted)", fontSize: 12.5, borderStyle: "dashed" }}>
-            עדיין לא הופקו חשבוניות. אפשר להפיק חשבונית מתוך פרטי תור ביומן.
-          </div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {invoices.map((inv) => (
-              <div key={inv.id} className="bf-card" style={{ padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                <div style={{ fontWeight: 800, color: "var(--plum)", minWidth: 40 }}>#{inv.number}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700 }}>{inv.client_name || "לקוחה"}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{inv.service_name || ""} · {new Date(inv.issued_at).toLocaleDateString("he-IL")}</div>
-                </div>
-                <div className="bf-display" style={{ fontWeight: 800 }}>₪{inv.amount}</div>
-              </div>
-            ))}
-          </div>
-        ))}
-        <div style={{ fontSize: 11.5, color: "var(--muted)", lineHeight: 1.6, padding: "0 2px" }}>
-          חשבוניות נשמרות וממוספרות באפליקציה. חיבור לחשבונית מס רשמית (חשבונית ירוקה / iCount) יתווסף לאחר פתיחת חשבון אצל הספק.
-        </div>
       </>)}
 
       {/* Services management — collapsible dropdown (note 49) */}
