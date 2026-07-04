@@ -113,6 +113,24 @@ export default function App() {
     setCliUploads(uploads || []); setCliNotifs(notifs || []); setCliBreaks(breaks || []);
   }, [client, studio]);
 
+  // Cancels every not-yet-happened appointment booked to a given employee (or,
+  // with no id, every appointment that has ANY employee assigned) and notifies
+  // the client — used when a worker is removed or the studio drops out of
+  // business mode, so a now-unassignable appointment doesn't sit there silently.
+  const cancelEmployeeAppts = useCallback(async (employeeId) => {
+    const affected = mgrAppts.filter((a) =>
+      (employeeId ? a.employeeId === employeeId : !!a.employeeId) &&
+      a.day >= 0 && a.status !== "cancelled" && a.status !== "completed" && a.status !== "no_show"
+    );
+    for (const a of affected) {
+      await api.cancelAppointment(a.id, true);
+      if (a.clientId) await api.sendNotification(studio.id, a.clientId, {
+        type: "cancelled", title: "התור בוטל",
+        body: `התור שלך ל-${a.dayLabel} בשעה ${a.time} בוטל.`, appointmentId: a.id,
+      });
+    }
+  }, [mgrAppts, studio]);
+
   // Reload studio + services (after the manager edits her service list).
   const refreshStudio = useCallback(async () => {
     const b = await api.loadStudioBundle();
@@ -181,14 +199,20 @@ export default function App() {
     ping,
     refresh: () => loadManagerData(),
     setBusinessMode: async (on) => {
+      if (!on) await cancelEmployeeAppts(null); // dropping business mode — no employee stays assignable
       await api.updateStudioSettings(studio.id, { business_mode: on });
       setStudio((s) => ({ ...s, business_mode: on }));
       ping(on ? "מצב עסק הופעל" : "מצב עסק כובה");
-      if (on) loadManagerData();
+      loadManagerData();
     },
     addEmployee: async (fields) => { await api.addEmployee(studio.id, fields); ping("העובדת נוספה"); await refreshStudio(); },
     updateEmployee: async (id, fields) => { await api.updateEmployee(id, fields); ping("פרטי העובדת עודכנו"); await refreshStudio(); },
-    deleteEmployee: async (id) => { await api.deleteEmployee(id); ping("העובדת הוסרה"); await refreshStudio(); },
+    deleteEmployee: async (id) => {
+      await cancelEmployeeAppts(id);
+      await api.deleteEmployee(id);
+      ping("העובדת הוסרה ותוריה בוטלו");
+      await refreshStudio(); loadManagerData();
+    },
     uploadServiceImage: async (file) => {
       const r = await api.uploadServiceImage(studio.id, file);
       if (r.error) { ping(r.error); return null; }
