@@ -58,6 +58,10 @@ export default function MgrSettings({ mgr }) {
 
   const emps = mgr.employees || [];
   const invoices = mgr.invoices || [];
+  // Reflects whatever color_primary/color_accent the studio row is set to,
+  // instead of a hardcoded "wine · blush" label (note V6.1).
+  const primaryColor = s.color_primary || "#7C2A53";
+  const accentColor = s.color_accent || "#D9738F";
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
@@ -248,7 +252,13 @@ export default function MgrSettings({ mgr }) {
             </div>
           )}
           <Row k="שירותים פעילים" v={`${services.length || "—"}`} />
-          <Row k="ערכת צבע" v="ויין · בלאש" />
+          <Row k="ערכת צבע" v={
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ width: 15, height: 15, borderRadius: 5, background: primaryColor, border: "1px solid var(--sand)" }} />
+              <span style={{ width: 15, height: 15, borderRadius: 5, background: accentColor, border: "1px solid var(--sand)" }} />
+              {primaryColor.toUpperCase()} · {accentColor.toUpperCase()}
+            </span>
+          } />
         </div>
       </>)}
 
