@@ -5,7 +5,7 @@
 // picks stays legible instead of needing a designer to hand-tune six values.
 
 function hexToRgb(hex) {
-  const h = (hex || "").replace("#", "");
+  const h = (hex || "").trim().replace("#", "");
   const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
   const n = parseInt(full, 16);
   if (full.length !== 6 || Number.isNaN(n)) return null;
@@ -82,8 +82,10 @@ const DEFAULT_ACCENT = "#D9738F";
 // to Beautify's own default palette if a studio hasn't set colors (or set an
 // invalid value), so every existing studio looks exactly as it does today.
 export function buildThemeVars(studio) {
-  const primary = hexToRgb(studio?.color_primary) ? studio.color_primary : DEFAULT_PRIMARY;
-  const accent = hexToRgb(studio?.color_accent) ? studio.color_accent : DEFAULT_ACCENT;
+  const primaryRaw = (studio?.color_primary || "").trim();
+  const accentRaw = (studio?.color_accent || "").trim();
+  const primary = hexToRgb(primaryRaw) ? primaryRaw : DEFAULT_PRIMARY;
+  const accent = hexToRgb(accentRaw) ? accentRaw : DEFAULT_ACCENT;
 
   const plumDeep = darken(primary, 0.12);
   const roseSoft = withLightness(accent, 0.85);

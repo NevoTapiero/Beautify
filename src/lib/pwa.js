@@ -35,7 +35,7 @@ export function applyStudioPWA(studio) {
   if (!studio) return;
   const slug = resolveStudioSlug();
   const startUrl = `/${slug}`;
-  const color = studio.color_primary || "#7C2A53";
+  const color = (studio.color_primary || "").trim() || "#7C2A53";
   const icon = studio.logo_url || fallbackIcon(studio.name, color);
   const iconType = studio.logo_url ? undefined : "image/svg+xml";
 
