@@ -75,6 +75,13 @@ export default function CliBook({ cli }) {
 
       {step === 2 && (<>
         <Back onClick={() => setStep(1)} label={s?.name} />
+        <div style={{ height: 120, borderRadius: 18, background: serviceBg(s), position: "relative", overflow: "hidden" }}>
+          <span style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(20,12,22,.6) 100%)" }} />
+          <div style={{ position: "absolute", insetInlineStart: 14, bottom: 10, color: "#fff" }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{s?.name}</div>
+            <div style={{ fontSize: 12.5, opacity: .9 }}>{s?.dur} דקות · ₪{s?.price}</div>
+          </div>
+        </div>
         {showEmployees && (<>
           <SectionTitle icon={User}>בחרי קוסמטיקאית</SectionTitle>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
