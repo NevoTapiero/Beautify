@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Check, X, ChevronDown, Image as ImageIcon, Briefcase, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
-import { SectionTitle, Row, Sheet, PhotoPicker, serviceBg, Confirm } from "../ui";
+import { SectionTitle, Row, Sheet, PhotoPicker, PhotoEnlarge, serviceBg, Confirm } from "../ui";
 
 const KEYS = {
   notify_day_start:   { title: "סיכום בתחילת יום", sub: "כל הבוקר — רשימת התורים של היום" },
@@ -34,6 +34,7 @@ export default function MgrSettings({ mgr }) {
   const [ownerNameDraft, setOwnerNameDraft] = useState(mgr.ownerName); // her personal name (V8)
   const [editOwnerName, setEditOwnerName] = useState(false);
   const [aboutDraft, setAboutDraft] = useState(mgr.studio?.about || "");   // owner "about me" (V6 note 47)
+  const [enlargeOwner, setEnlargeOwner] = useState(false);
 
   const tog = (k) => {
     const next = !state[k];
@@ -177,14 +178,12 @@ export default function MgrSettings({ mgr }) {
             clients only in "עלינו", separate from the app icon above (V7). */}
         <div className="bf-card" style={{ padding: 13, display: "grid", gap: 11 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <PhotoPicker onPick={(f) => mgr.uploadOwnerPhoto(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
-              <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
-                {mgr.studio?.owner_photo_url
-                  ? <img src={mgr.studio.owner_photo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
-                  : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--btn-ink)", fontWeight: 800, fontSize: 20 }}>{(mgr.ownerName || "?").charAt(0)}</div>}
-                <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="var(--btn-ink)" /></span>
-              </button>
-            </PhotoPicker>
+            <button onClick={() => setEnlargeOwner(true)} style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
+              {mgr.studio?.owner_photo_url
+                ? <img src={mgr.studio.owner_photo_url} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
+                : <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--btn-ink)", fontWeight: 800, fontSize: 20 }}>{(mgr.ownerName || "?").charAt(0)}</div>}
+              <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 20, height: 20, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}><Camera size={10} color="var(--btn-ink)" /></span>
+            </button>
             <div style={{ flex: 1, fontSize: 13.5 }}>
               <div style={{ fontWeight: 700 }}>תמונת פרופיל אישית</div>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>מופיעה ללקוחות רק ב"עלינו"</div>
@@ -235,6 +234,13 @@ export default function MgrSettings({ mgr }) {
         <LogOut size={16} /> התנתקות
       </button>
 
+      {enlargeOwner && (
+        <PhotoEnlarge
+          src={mgr.studio?.owner_photo_url} name={mgr.ownerName} onClose={() => setEnlargeOwner(false)}
+          onUpload={(f) => mgr.uploadOwnerPhoto(f)}
+          onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}
+        />
+      )}
       {editSvc && <ServiceEditor svc={editSvc} mgr={mgr} grads={GRADS} onClose={() => setEditSvc(null)} />}
       {editEmp && <EmployeeEditor emp={editEmp} mgr={mgr} onClose={() => setEditEmp(null)} />}
       {codeGate && <CodeGate target={codeGate.target} mgr={mgr} onClose={() => setCodeGate(null)} />}

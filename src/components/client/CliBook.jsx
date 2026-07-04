@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Sparkles, User, Heart } from "lucide-react";
+import { CalendarDays, Clock, Sparkles, User, Heart, X } from "lucide-react";
 import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, Sheet, Avatar } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
@@ -175,10 +175,18 @@ function AboutSheet({ cli, onClose }) {
         ))}
       </div>
       {person && (
-        <div className="bf-card" style={{ padding: 13, marginTop: 14 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>{person.name}{person.title ? ` · ${person.title}` : ""}</div>
-          <div style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-            {person.about || "עוד לא נכתב תיאור."}
+        <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={() => setSel(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "88%", maxWidth: 340, display: "grid", gap: 12 }}>
+            {person.avatar
+              ? <div style={{ aspectRatio: "1", borderRadius: 20, background: `url(${person.avatar}) center/cover`, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+              : <div style={{ aspectRatio: "1", borderRadius: 20, background: person.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 64, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }}>{(person.name || "?").charAt(0)}</div>}
+            <div style={{ color: "#fff", textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{person.name}{person.title ? ` · ${person.title}` : ""}</div>
+              <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.6, whiteSpace: "pre-wrap", opacity: .9 }}>
+                {person.about || "עוד לא נכתב תיאור."}
+              </div>
+            </div>
+            <button className="bf-btn bf-btn-ghost" onClick={() => setSel(null)}><X size={16} /> סגירה</button>
           </div>
         </div>
       )}

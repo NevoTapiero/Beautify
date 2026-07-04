@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, XCircle, Play } from "lucide-react";
+import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, XCircle, Play, Camera } from "lucide-react";
 
 export const initials = (n) => (n || "").split(" ").map((w) => w[0]).slice(0, 2).join("");
 
@@ -68,6 +68,29 @@ export function Lightbox({ item, onClose, onEdit, onDelete }) {
           <button className="bf-btn bf-btn-ghost" onClick={onClose}><X size={16} /> סגירה</button>
           {onEdit && <button className="bf-btn bf-btn-ghost" onClick={() => onEdit(item)}>עריכת תיאור</button>}
           {onDelete && <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { onDelete(item); onClose(); }}>מחיקה</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Tap-to-enlarge a profile photo (own, an employee's, a client's…). If
+// `onUpload` is given, an "עריכת תמונה" action appears that reuses PhotoPicker
+// — enlarge is always the first tap, editing is a deliberate second step.
+export function PhotoEnlarge({ src, name, onClose, onUpload, onTooBig }) {
+  return (
+    <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "88%", maxWidth: 340, display: "grid", gap: 12 }}>
+        {src
+          ? <div style={{ aspectRatio: "1", borderRadius: 20, background: `url(${src}) center/cover`, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+          : <div style={{ aspectRatio: "1", borderRadius: 20, background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 64, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }}>{initials(name)}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="bf-btn bf-btn-ghost" style={{ flex: 1 }} onClick={onClose}><X size={16} /> סגירה</button>
+          {onUpload && (
+            <PhotoPicker onPick={(f) => { onUpload(f); onClose(); }} onTooBig={onTooBig}>
+              <button className="bf-btn bf-btn-primary" style={{ flex: 1 }}><Camera size={16} /> עריכת תמונה</button>
+            </PhotoPicker>
+          )}
         </div>
       </div>
     </div>

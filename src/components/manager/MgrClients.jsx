@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Search, ChevronLeft, Phone, Ban, Trash2, Check, Users } from "lucide-react";
-import { Avatar, Sheet, Row, Empty, Confirm } from "../ui";
+import { Avatar, Sheet, Row, Empty, Confirm, PhotoEnlarge } from "../ui";
 import { loadClientHistory } from "../../lib/api";
 import { getSeen, setSeen } from "../../lib/seen";
 
@@ -11,6 +11,7 @@ export default function MgrClients({ mgr }) {
   const [history, setHistory] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [enlarge, setEnlarge] = useState(false);
 
   // How many clients are new since the last visit to this screen (note 42).
   // Captured once on entry, then marked as seen so the banner — and the nav
@@ -23,6 +24,7 @@ export default function MgrClients({ mgr }) {
   useEffect(() => {
     setConfirmDelete(false);
     setBusy(false);
+    setEnlarge(false);
     if (!open) { setHistory(null); return; }
     let active = true;
     loadClientHistory(open.id).then((h) => { if (active) setHistory(h); });
@@ -80,7 +82,9 @@ export default function MgrClients({ mgr }) {
       {open && (
         <Sheet onClose={() => setOpen(null)}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <Avatar name={open.name} src={open.avatar} />
+            <button onClick={() => setEnlarge(true)} style={{ border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
+              <Avatar name={open.name} src={open.avatar} />
+            </button>
             <div>
               <div style={{ fontWeight: 800, fontSize: 18 }}>{open.name}</div>
               <div style={{ color: "var(--muted)", fontSize: 13 }}>{open.phone}{open.email ? ` · ${open.email}` : ""}</div>
@@ -135,6 +139,7 @@ export default function MgrClients({ mgr }) {
               onClose={() => setConfirmDelete(false)}
             />
           )}
+          {enlarge && <PhotoEnlarge src={open.avatar} name={open.name} onClose={() => setEnlarge(false)} />}
         </Sheet>
       )}
     </div>

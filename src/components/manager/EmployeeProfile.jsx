@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Lock, ShieldCheck, Camera, Bell, CalendarCheck } from "lucide-react";
-import { Sheet, PhotoPicker } from "../ui";
+import { Sheet, PhotoEnlarge } from "../ui";
 
 function NotifToggle({ label, sub, on, onToggle }) {
   return (
@@ -22,21 +22,20 @@ export default function EmployeeProfile({ mgr }) {
   const emp = mgr.lockedEmployee;
   const [gate, setGate] = useState(false);
   const [aboutDraft, setAboutDraft] = useState(emp?.about || "");
+  const [enlarge, setEnlarge] = useState(false);
   const initial = (emp?.name || "?").charAt(0);
 
   return (
     <div className="bf-pad" style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-        <PhotoPicker onPick={(f) => mgr.uploadMyAvatar(f)} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
-          <button style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
-            {emp?.avatar
-              ? <img src={emp.avatar} alt={emp.name} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />
-              : <div style={{ width: 56, height: 56, borderRadius: "50%", background: emp?.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22 }}>{initial}</div>}
-            <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 22, height: 22, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>
-              <Camera size={11} color="var(--btn-ink)" />
-            </span>
-          </button>
-        </PhotoPicker>
+        <button onClick={() => setEnlarge(true)} style={{ position: "relative", border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%" }}>
+          {emp?.avatar
+            ? <img src={emp.avatar} alt={emp.name} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }} />
+            : <div style={{ width: 56, height: 56, borderRadius: "50%", background: emp?.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22 }}>{initial}</div>}
+          <span style={{ position: "absolute", insetInlineEnd: -2, bottom: -2, width: 22, height: 22, borderRadius: "50%", background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>
+            <Camera size={11} color="var(--btn-ink)" />
+          </span>
+        </button>
         <div>
           <div className="bf-display" style={{ fontSize: 21, fontWeight: 800 }}>{emp?.name || "עובדת"}</div>
           {emp?.title && <div style={{ color: "var(--muted)", fontSize: 13 }}>{emp.title}</div>}
@@ -71,6 +70,13 @@ export default function EmployeeProfile({ mgr }) {
         <Lock size={16} /> גישת מנהלת
       </button>
 
+      {enlarge && (
+        <PhotoEnlarge
+          src={emp?.avatar} name={emp?.name} onClose={() => setEnlarge(false)}
+          onUpload={(f) => mgr.uploadMyAvatar(f)}
+          onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}
+        />
+      )}
       {gate && <ManagerGate mgr={mgr} onClose={() => setGate(false)} />}
     </div>
   );
