@@ -128,8 +128,8 @@ button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
 .bf-sheet{ background:var(--surface); width:100%; border-radius:26px 26px 0 0; padding:20px 18px 22px;
   max-height:92%; overflow-y:auto; animation:bf-up .26s cubic-bezier(.2,.8,.2,1); }
 
-.bf-fullscreen{ position:absolute; inset:0; background:var(--surface); z-index:40; overflow-y:auto;
-  animation:bf-fade .2s ease; }
+.bf-fullscreen{ position:absolute; top:0; left:0; right:0; max-height:100%; background:var(--surface);
+  border-radius:0 0 26px 26px; z-index:40; overflow-y:auto; animation:bf-fade .2s ease; }
 @keyframes bf-up{ from{ transform:translateY(40px); opacity:.6 } to{ transform:translateY(0); opacity:1 } }
 @keyframes bf-fade{ from{ opacity:0 } to{ opacity:1 } }
 

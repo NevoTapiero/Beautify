@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Sparkles, User, Heart, X } from "lucide-react";
+import { CalendarDays, Clock, Sparkles, User, Heart, X, Sunrise, Sun, Sunset } from "lucide-react";
 import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, FullScreen, Avatar } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
@@ -24,9 +24,9 @@ export default function CliBook({ cli }) {
 
   // Split the free hours into morning / noon / evening (note C).
   const PARTS = [
-    { key: "morning", label: "בוקר", hint: "עד 12:00", icon: "/daypart-morning.png", test: (h) => h < 12 },
-    { key: "noon",    label: "צהריים", hint: "12:00–17:00", icon: "/daypart-noon.png", test: (h) => h >= 12 && h < 17 },
-    { key: "evening", label: "ערב", hint: "מ-17:00", icon: "/daypart-evening.png", test: (h) => h >= 17 },
+    { key: "morning", label: "בוקר", hint: "עד 12:00", Icon: Sunrise, test: (h) => h < 12 },
+    { key: "noon",    label: "צהריים", hint: "12:00–17:00", Icon: Sun, test: (h) => h >= 12 && h < 17 },
+    { key: "evening", label: "ערב", hint: "מ-17:00", Icon: Sunset, test: (h) => h >= 17 },
   ];
   const partOf = (tm) => { const h = +tm.split(":")[0]; return PARTS.find((p) => p.test(h))?.key; };
   const togglePart = (k) => { setTime(null); setParts((p) => p.includes(k) ? p.filter((x) => x !== k) : [...p, k]); };
@@ -120,14 +120,16 @@ export default function CliBook({ cli }) {
                 const on = parts.includes(p.key);
                 return (
                   <button key={p.key} disabled={!n} onClick={() => togglePart(p.key)}
-                    style={{
-                      position: "relative", overflow: "hidden", border: on ? "3px solid var(--rose)" : "1px solid var(--sand)",
-                      borderRadius: 12, height: 80, background: `url(${p.icon}) center/cover`, opacity: n ? 1 : 0.4, cursor: n ? "pointer" : "not-allowed",
+                    className={"bf-slot" + (on ? " active" : "")}
+                    style={{ display: "grid", gap: 5, justifyItems: "center", padding: "12px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
+                    <span style={{
+                      width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                      background: on ? "rgba(255,255,255,.22)" : "var(--blush)",
                     }}>
-                    <span style={{ position: "absolute", inset: "auto 0 0 0", padding: "16px 4px 6px", background: "linear-gradient(0deg,rgba(0,0,0,.55),rgba(0,0,0,0))", color: "#fff" }}>
-                      <span style={{ display: "block", fontWeight: 800, fontSize: 14 }}>{p.label}</span>
-                      <span style={{ display: "block", fontSize: 10.5, opacity: 0.9 }}>{n ? `${n} פנויות` : "אין"}</span>
+                      <p.Icon size={19} color={on ? "var(--btn-ink)" : "var(--plum)"} />
                     </span>
+                    <span style={{ fontWeight: 800, fontSize: 14 }}>{p.label}</span>
+                    <span style={{ fontSize: 10.5, opacity: 0.8 }}>{n ? `${n} פנויות` : "אין"}</span>
                   </button>
                 );
               })}
