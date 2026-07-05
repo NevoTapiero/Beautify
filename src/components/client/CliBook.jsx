@@ -120,11 +120,14 @@ export default function CliBook({ cli }) {
                 const on = parts.includes(p.key);
                 return (
                   <button key={p.key} disabled={!n} onClick={() => togglePart(p.key)}
-                    className={"bf-slot" + (on ? " active" : "")}
-                    style={{ display: "grid", gap: 2, justifyItems: "center", padding: "9px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
-                    <img src={p.icon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
-                    <span style={{ fontWeight: 800, fontSize: 14 }}>{p.label}</span>
-                    <span style={{ fontSize: 10.5, opacity: 0.8 }}>{n ? `${n} פנויות` : "אין"}</span>
+                    style={{
+                      position: "relative", overflow: "hidden", border: on ? "3px solid var(--rose)" : "1px solid var(--sand)",
+                      borderRadius: 12, height: 80, background: `url(${p.icon}) center/cover`, opacity: n ? 1 : 0.4, cursor: n ? "pointer" : "not-allowed",
+                    }}>
+                    <span style={{ position: "absolute", inset: "auto 0 0 0", padding: "16px 4px 6px", background: "linear-gradient(0deg,rgba(0,0,0,.55),rgba(0,0,0,0))", color: "#fff" }}>
+                      <span style={{ display: "block", fontWeight: 800, fontSize: 14 }}>{p.label}</span>
+                      <span style={{ display: "block", fontSize: 10.5, opacity: 0.9 }}>{n ? `${n} פנויות` : "אין"}</span>
+                    </span>
                   </button>
                 );
               })}
