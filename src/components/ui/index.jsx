@@ -237,17 +237,6 @@ export function Steps({ step }) {
   );
 }
 
-// Full-screen page (opens edge-to-edge from the top, not a bottom sheet) —
-// used for content that wants room to breathe, like the "about us" page.
-export function FullScreen({ children, onClose }) {
-  return (
-    <div className="bf-fullscreen">
-      <button className="bf-photo-x" style={{ position: "absolute", top: 14, right: 14, zIndex: 1 }} aria-label="סגירה" onClick={onClose}><X size={17} /></button>
-      {children}
-    </div>
-  );
-}
-
 // Bottom sheet with swipe-down-to-close (note 14).
 export function Sheet({ children, onClose }) {
   const [dragY, setDragY] = useState(0);

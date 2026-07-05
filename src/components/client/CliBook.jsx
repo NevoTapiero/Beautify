@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Sparkles, User, Heart, X, Sunrise, Sun, Sunset } from "lucide-react";
-import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, FullScreen, Avatar } from "../ui";
+import { CalendarDays, Clock, Sparkles, User, Heart, X } from "lucide-react";
+import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, Sheet, Avatar } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -24,9 +24,9 @@ export default function CliBook({ cli }) {
 
   // Split the free hours into morning / noon / evening (note C).
   const PARTS = [
-    { key: "morning", label: "בוקר", hint: "עד 12:00", Icon: Sunrise, test: (h) => h < 12 },
-    { key: "noon",    label: "צהריים", hint: "12:00–17:00", Icon: Sun, test: (h) => h >= 12 && h < 17 },
-    { key: "evening", label: "ערב", hint: "מ-17:00", Icon: Sunset, test: (h) => h >= 17 },
+    { key: "morning", label: "בוקר", hint: "עד 12:00", test: (h) => h < 12 },
+    { key: "noon",    label: "צהריים", hint: "12:00–17:00", test: (h) => h >= 12 && h < 17 },
+    { key: "evening", label: "ערב", hint: "מ-17:00", test: (h) => h >= 17 },
   ];
   const partOf = (tm) => { const h = +tm.split(":")[0]; return PARTS.find((p) => p.test(h))?.key; };
   const togglePart = (k) => { setTime(null); setParts((p) => p.includes(k) ? p.filter((x) => x !== k) : [...p, k]); };
@@ -121,13 +121,7 @@ export default function CliBook({ cli }) {
                 return (
                   <button key={p.key} disabled={!n} onClick={() => togglePart(p.key)}
                     className={"bf-slot" + (on ? " active" : "")}
-                    style={{ display: "grid", gap: 5, justifyItems: "center", padding: "12px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
-                    <span style={{
-                      width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                      background: on ? "rgba(255,255,255,.22)" : "var(--blush)",
-                    }}>
-                      <p.Icon size={19} color={on ? "var(--btn-ink)" : "var(--plum)"} />
-                    </span>
+                    style={{ display: "grid", gap: 1, padding: "9px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
                     <span style={{ fontWeight: 800, fontSize: 14 }}>{p.label}</span>
                     <span style={{ fontSize: 10.5, opacity: 0.8 }}>{n ? `${n} פנויות` : "אין"}</span>
                   </button>
@@ -185,15 +179,15 @@ function AboutSheet({ cli, onClose }) {
   const person = team.find((t) => t.id === sel);
 
   return (
-    <FullScreen onClose={onClose}>
-      <div style={{ height: 160, background: `url(${cli.studio?.about_cover_url || DEFAULT_SALON_PHOTO}) center/cover`, position: "relative" }}>
+    <Sheet onClose={onClose}>
+      <div style={{ height: 150, margin: "-20px -18px 14px", borderRadius: "26px 26px 0 0", background: `url(${cli.studio?.about_cover_url || DEFAULT_SALON_PHOTO}) center/cover`, position: "relative", overflow: "hidden" }}>
         <span style={{ position: "absolute", inset: "0 0 55% 0", background: "linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))" }} />
         <div style={{ position: "absolute", insetInlineStart: 18, bottom: 14, color: "#fff" }}>
           <div className="bf-display" style={{ fontWeight: 800, fontSize: 20 }}>עלינו</div>
           <div style={{ fontSize: 12.5, opacity: .9 }}>הצוות שלנו — הקישי על תמונה כדי להכיר</div>
         </div>
       </div>
-      <div className="bf-pad" style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center" }}>
+      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center" }}>
         {team.map((t) => (
           <button key={t.id} onClick={() => setSel(sel === t.id ? null : t.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "grid", gap: 7, justifyItems: "center", width: 92 }}>
             {t.avatar
@@ -221,6 +215,6 @@ function AboutSheet({ cli, onClose }) {
           </div>
         </div>
       )}
-    </FullScreen>
+    </Sheet>
   );
 }
