@@ -35,6 +35,8 @@ export default function MgrSettings({ mgr }) {
   const [editOwnerName, setEditOwnerName] = useState(false);
   const [aboutDraft, setAboutDraft] = useState(mgr.studio?.about || "");   // owner "about me" (V6 note 47)
   const [enlargeOwner, setEnlargeOwner] = useState(false);
+  const [enlargeEmp, setEnlargeEmp] = useState(null);   // employee whose photo is enlarged
+  const [enlargeSvc, setEnlargeSvc] = useState(null);   // service whose photo is enlarged
 
   const tog = (k) => {
     const next = !state[k];
@@ -84,9 +86,11 @@ export default function MgrSettings({ mgr }) {
         <div style={{ display: "grid", gap: 9 }}>
           {emps.map((e) => (
             <div key={e.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
-              {e.avatar
-                ? <img src={e.avatar} alt={e.name} style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
-                : <div style={{ width: 34, height: 34, borderRadius: "50%", background: e.color, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14 }}>{(e.name || "?").charAt(0)}</div>}
+              <button onClick={() => setEnlargeEmp(e)} style={{ border: "none", background: "none", padding: 0, cursor: "pointer", borderRadius: "50%", flex: "none" }}>
+                {e.avatar
+                  ? <img src={e.avatar} alt={e.name} style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
+                  : <div style={{ width: 34, height: 34, borderRadius: "50%", background: e.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14 }}>{(e.name || "?").charAt(0)}</div>}
+              </button>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14.5 }}>{e.name}</div>
                 {e.title && <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.title}</div>}
@@ -137,7 +141,10 @@ export default function MgrSettings({ mgr }) {
         <div style={{ display: "grid", gap: 9 }}>
           {services.map((sv) => (
             <div key={sv.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 11, background: serviceBg(sv), flex: "none" }} />
+              <button
+                onClick={() => sv.img && setEnlargeSvc(sv)}
+                style={{ width: 38, height: 38, borderRadius: 11, background: serviceBg(sv), flex: "none", border: "none", padding: 0, cursor: sv.img ? "pointer" : "default" }}
+              />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14.5 }}>{sv.name}</div>
                 <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
@@ -241,6 +248,8 @@ export default function MgrSettings({ mgr }) {
           onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}
         />
       )}
+      {enlargeEmp && <PhotoEnlarge src={enlargeEmp.avatar} name={enlargeEmp.name} onClose={() => setEnlargeEmp(null)} />}
+      {enlargeSvc && <PhotoEnlarge src={enlargeSvc.img} name={enlargeSvc.name} onClose={() => setEnlargeSvc(null)} />}
       {editSvc && <ServiceEditor svc={editSvc} mgr={mgr} grads={GRADS} onClose={() => setEditSvc(null)} />}
       {editEmp && <EmployeeEditor emp={editEmp} mgr={mgr} onClose={() => setEditEmp(null)} />}
       {codeGate && <CodeGate target={codeGate.target} mgr={mgr} onClose={() => setCodeGate(null)} />}
@@ -325,6 +334,7 @@ function ServiceEditor({ svc, mgr, grads, onClose }) {
   const [img, setImg] = useState(svc.img || null);   // optional cover image (note 43)
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [enlarge, setEnlarge] = useState(false);
   const ok = name.trim() && dur > 0 && price >= 0;
 
   const pickImage = async (file) => {
@@ -357,7 +367,10 @@ function ServiceEditor({ svc, mgr, grads, onClose }) {
         <div>
           <label className="bf-label">תמונת השירות</label>
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 13, background: serviceBg({ img, grad }), flex: "none", border: "1px solid var(--sand)" }} />
+            <button
+              onClick={() => img && setEnlarge(true)}
+              style={{ width: 56, height: 56, borderRadius: 13, background: serviceBg({ img, grad }), flex: "none", border: "1px solid var(--sand)", padding: 0, cursor: img ? "pointer" : "default" }}
+            />
             <PhotoPicker onPick={pickImage} onTooBig={(mb) => mgr.ping(`הקובץ גדול מדי (${mb}MB)`)}>
               <button className="bf-btn bf-btn-soft bf-btn-sm"><ImageIcon size={15} /> {uploading ? "מעלה…" : img ? "החלפת תמונה" : "בחירת תמונה"}</button>
             </PhotoPicker>
@@ -378,6 +391,7 @@ function ServiceEditor({ svc, mgr, grads, onClose }) {
 
         <button className="bf-btn bf-btn-primary" disabled={!ok || busy} onClick={save}>{busy ? "שומרת…" : (editing ? "שמירה" : "הוספת שירות")}</button>
       </div>
+      {enlarge && <PhotoEnlarge src={img} name={name} onClose={() => setEnlarge(false)} />}
     </Sheet>
   );
 }

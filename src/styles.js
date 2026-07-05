@@ -62,8 +62,8 @@ const STYLE = `
 button.bf-card{ cursor:pointer; transition:border-color .15s ease, background .15s ease; }
 button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
 .bf-btn{ font-family:inherit; font-weight:700; border:none; cursor:pointer; border-radius:14px;
-  padding:13px 16px; font-size:15px; transition:transform .14s ease, box-shadow .2s ease; width:100%;
-  display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+  height:48px; padding:0 16px; font-size:15px; transition:transform .14s ease, box-shadow .2s ease; width:100%;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px; box-sizing:border-box; }
 .bf-btn:active{ transform:scale(.985); }
 .bf-btn:disabled{ cursor:not-allowed; opacity:.55; transform:none; }
 .bf-btn-primary{ color:var(--btn-ink); background:linear-gradient(135deg,var(--plum),var(--rose));
@@ -75,7 +75,7 @@ button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
 .bf-btn-ghost:hover:not(:disabled){ background:var(--blush); border-color:var(--rose-soft); }
 .bf-btn-soft{ background:var(--rose-soft); color:var(--plum-deep); }
 .bf-btn-soft:hover:not(:disabled){ background:#EFB9C7; }
-.bf-btn-sm{ padding:8px 12px; font-size:13px; border-radius:11px; width:auto; }
+.bf-btn-sm{ height:36px; padding:0 12px; font-size:13px; border-radius:11px; width:auto; }
 
 .bf-chip{ font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px;
   display:inline-flex; align-items:center; gap:4px; }
@@ -100,9 +100,10 @@ button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
   align-items:center; justify-content:space-between; }
 .bf-tile .glow{ position:absolute; inset:0 0 60% 0; background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0)); }
 
-.bf-seg{ display:flex; background:#F3E7E0; border-radius:13px; padding:4px; gap:3px; }
-.bf-seg button{ flex:1; border:none; background:none; padding:9px; border-radius:10px; cursor:pointer;
-  font-family:inherit; font-weight:700; font-size:13.5px; color:var(--muted); transition:.15s; }
+.bf-seg{ display:flex; background:#F3E7E0; border-radius:13px; padding:4px; gap:3px; height:44px; box-sizing:border-box; }
+.bf-seg button{ flex:1; height:100%; border:none; background:none; padding:0 9px; border-radius:10px; cursor:pointer;
+  font-family:inherit; font-weight:700; font-size:13.5px; color:var(--muted); transition:.15s;
+  display:flex; align-items:center; justify-content:center; box-sizing:border-box; }
 .bf-seg button.active{ background:#fff; color:var(--plum); box-shadow:0 4px 10px -6px rgba(42,26,46,.4); }
 
 .bf-day{ min-width:50px; border:1px solid var(--sand); background:#fff; border-radius:14px; padding:9px 0;
@@ -111,6 +112,10 @@ button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
 .bf-day.active{ background:linear-gradient(135deg,var(--plum),var(--rose)); border-color:transparent; color:var(--btn-ink); }
 .bf-day .dn{ font-size:18px; font-weight:800; line-height:1; }
 .bf-day .dl{ font-size:11px; font-weight:700; opacity:.8; margin-top:3px; }
+
+.bf-photo-x{ position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%;
+  background:rgba(20,12,22,.55); border:none; display:flex; align-items:center; justify-content:center;
+  color:#fff; cursor:pointer; }
 
 .bf-slot{ border:1px solid var(--sand); background:#fff; border-radius:12px; padding:11px 0; text-align:center;
   cursor:pointer; font-weight:700; font-size:14.5px; color:var(--ink); transition:.15s; }
@@ -122,6 +127,9 @@ button.bf-card:hover{ border-color:var(--rose-soft); background:var(--blush); }
   justify-content:center; z-index:40; animation:bf-fade .2s ease; }
 .bf-sheet{ background:var(--surface); width:100%; border-radius:26px 26px 0 0; padding:20px 18px 22px;
   max-height:92%; overflow-y:auto; animation:bf-up .26s cubic-bezier(.2,.8,.2,1); }
+
+.bf-fullscreen{ position:absolute; inset:0; background:var(--surface); z-index:40; overflow-y:auto;
+  animation:bf-fade .2s ease; }
 @keyframes bf-up{ from{ transform:translateY(40px); opacity:.6 } to{ transform:translateY(0); opacity:1 } }
 @keyframes bf-fade{ from{ opacity:0 } to{ opacity:1 } }
 

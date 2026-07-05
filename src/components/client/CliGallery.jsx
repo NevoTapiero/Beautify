@@ -77,7 +77,7 @@ export default function CliGallery({ cli }) {
         </div>
         {cli.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה 🤍</Empty>}
         {cli.gallery.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 8 }}>
             <span style={{ fontSize: 12.5, color: "var(--muted)" }}>סינון:</span>
             <GallerySort value={sort} onChange={setSort} />
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Clock, Check, X, CheckCircle2, Bell, AlertTriangle } from "lucide-react";
+import { CalendarDays, Check, X, CheckCircle2, Bell, AlertTriangle } from "lucide-react";
 import { SectionTitle, Empty, PaidChip, Sheet, Confirm } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
@@ -17,8 +17,6 @@ export default function CliMine({ cli }) {
   const toMove = cli.appts.filter((a) => a.status === "reschedule_requested");
   const upcoming = cli.appts.filter((a) => a.status === "confirmed" && a.day >= 0)
     .sort((x, y) => x.day - y.day || x.time.localeCompare(y.time));
-  const past = cli.appts.filter((a) => (a.status === "completed" || a.status === "no_show" || (a.status === "confirmed" && a.day < 0)))
-    .sort((x, y) => y.day - x.day).slice(0, 3);
   // Reschedule requests already appear as a move/cancel card above, so keep it out of the messages list.
   const unread = cli.notifications.filter((n) => !n.read && n.type !== "reschedule");
 
@@ -91,24 +89,6 @@ export default function CliMine({ cli }) {
           </div>
         ))}
       </div>
-
-      {past.length > 0 && (<>
-        <SectionTitle icon={Clock}>היסטוריה</SectionTitle>
-        <div style={{ display: "grid", gap: 9 }}>
-          {past.map((a) => (
-            <div key={a.id} className="bf-card" style={{ padding: 11, display: "flex", alignItems: "center", gap: 11, opacity: 0.85 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 11, background: a.serviceGrad, flex: "none" }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{a.serviceName}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{a.dayLabel} · {a.time}</div>
-              </div>
-              {a.status === "no_show"
-                ? <span className="bf-chip" style={{ background: "#F3E3E5", color: "#B23A48" }}>לא הגעת</span>
-                : <span className="bf-chip bf-chip-ok"><Check size={12} /> הושלם</span>}
-            </div>
-          ))}
-        </div>
-      </>)}
 
       {moveAppt && <RescheduleSheet appt={moveAppt} cli={cli} onClose={() => setMoveAppt(null)} />}
       {confirmCancel && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Clock, Sparkles, User, Heart, X } from "lucide-react";
-import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, Sheet, Avatar } from "../ui";
+import { Steps, SectionTitle, Back, Row, Empty, serviceBg, cosmeticians, FullScreen, Avatar } from "../ui";
 import { next7, dateForOffset } from "../../data/mock";
 import { availableSlots } from "../../lib/api";
 
@@ -14,7 +14,7 @@ export default function CliBook({ cli }) {
   const [busy, setBusy] = useState(false);
   // Cosmetician choice (business): owner + employees. Required once there's
   // more than one cosmetician (note 28). "owner" maps to employee_id null.
-  const cosmList = cosmeticians(cli.ownerName, cli.employees);
+  const cosmList = cosmeticians(cli.ownerName, cli.employees, cli.studio?.owner_photo_url);
   const showEmployees = cli.business && cosmList.length > 1;
   const empArg = employee === "owner" ? null : employee;
   const [slots, setSlots] = useState(null);   // null = loading, [] = none free
@@ -87,9 +87,15 @@ export default function CliBook({ cli }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {cosmList.map((e) => (
               <button key={e.id} onClick={() => setEmployee(e.id)}
-                className={"bf-slot" + (employee === e.id ? " active" : "")} style={{ flex: "1 0 30%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <span style={{ width: 18, height: 18, borderRadius: "50%", background: e.color, flex: "none" }} />
-                {e.name}
+                style={{
+                  flex: "1 0 30%", aspectRatio: "1", borderRadius: 16, position: "relative", overflow: "hidden", cursor: "pointer",
+                  border: employee === e.id ? "3px solid var(--rose)" : "1px solid var(--sand)",
+                  background: e.avatar ? `url(${e.avatar}) center/cover` : (e.color || "var(--plum)"),
+                }}>
+                {!e.avatar && (
+                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 26 }}>{(e.name || "?").charAt(0)}</span>
+                )}
+                <span style={{ position: "absolute", inset: "auto 0 0 0", padding: "16px 8px 8px", background: "linear-gradient(0deg,rgba(0,0,0,.55),rgba(0,0,0,0))", color: "#fff", fontSize: 12.5, fontWeight: 700, textAlign: "center" }}>{e.name}</span>
               </button>
             ))}
           </div>
@@ -168,35 +174,42 @@ function AboutSheet({ cli, onClose }) {
   const person = team.find((t) => t.id === sel);
 
   return (
-    <Sheet onClose={onClose}>
-      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>עלינו</h3>
-      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>הצוות שלנו — הקישי על תמונה כדי להכיר</div>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
+    <FullScreen onClose={onClose}>
+      <div style={{ height: 160, background: cli.studio?.logo_url ? `url(${cli.studio.logo_url}) center/cover` : "linear-gradient(135deg,var(--plum),var(--rose))", position: "relative" }}>
+        <span style={{ position: "absolute", inset: "0 0 55% 0", background: "linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))" }} />
+        <div style={{ position: "absolute", insetInlineStart: 18, bottom: 14, color: "#fff" }}>
+          <div className="bf-display" style={{ fontWeight: 800, fontSize: 20 }}>עלינו</div>
+          <div style={{ fontSize: 12.5, opacity: .9 }}>הצוות שלנו — הקישי על תמונה כדי להכיר</div>
+        </div>
+      </div>
+      <div className="bf-pad" style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center" }}>
         {team.map((t) => (
-          <button key={t.id} onClick={() => setSel(sel === t.id ? null : t.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "grid", gap: 6, justifyItems: "center", width: 76 }}>
+          <button key={t.id} onClick={() => setSel(sel === t.id ? null : t.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "grid", gap: 7, justifyItems: "center", width: 92 }}>
             {t.avatar
-              ? <img src={t.avatar} alt={t.name} style={{ width: 60, height: 60, borderRadius: "50%", objectFit: "cover", border: sel === t.id ? "3px solid var(--rose)" : "2px solid var(--sand)" }} />
-              : <div style={{ width: 60, height: 60, borderRadius: "50%", background: t.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 22, border: sel === t.id ? "3px solid var(--rose)" : "2px solid transparent" }}>{(t.name || "?").charAt(0)}</div>}
-            <div style={{ fontSize: 12, fontWeight: 700, textAlign: "center" }}>{t.name}</div>
+              ? <img src={t.avatar} alt={t.name} style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sand)" }} />
+              : <div style={{ width: 84, height: 84, borderRadius: "50%", background: t.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 30 }}>{(t.name || "?").charAt(0)}</div>}
+            <div style={{ fontSize: 13, fontWeight: 700, textAlign: "center" }}>{t.name}</div>
           </button>
         ))}
       </div>
       {person && (
         <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={() => setSel(null)}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "88%", maxWidth: 340, display: "grid", gap: 12 }}>
-            {person.avatar
-              ? <div style={{ aspectRatio: "1", borderRadius: 20, background: `url(${person.avatar}) center/cover`, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
-              : <div style={{ aspectRatio: "1", borderRadius: 20, background: person.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 64, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }}>{(person.name || "?").charAt(0)}</div>}
+            <div style={{ position: "relative" }}>
+              {person.avatar
+                ? <div style={{ aspectRatio: "1", borderRadius: 20, background: `url(${person.avatar}) center/cover`, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+                : <div style={{ aspectRatio: "1", borderRadius: 20, background: person.color || "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 64, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }}>{(person.name || "?").charAt(0)}</div>}
+              <button className="bf-photo-x" aria-label="סגירה" onClick={() => setSel(null)}><X size={17} /></button>
+            </div>
             <div style={{ color: "#fff", textAlign: "center" }}>
               <div style={{ fontWeight: 800, fontSize: 17 }}>{person.name}{person.title ? ` · ${person.title}` : ""}</div>
               <div style={{ fontSize: 13.5, marginTop: 6, lineHeight: 1.6, whiteSpace: "pre-wrap", opacity: .9 }}>
                 {person.about || "עוד לא נכתב תיאור."}
               </div>
             </div>
-            <button className="bf-btn bf-btn-ghost" onClick={() => setSel(null)}><X size={16} /> סגירה</button>
           </div>
         </div>
       )}
-    </Sheet>
+    </FullScreen>
   );
 }

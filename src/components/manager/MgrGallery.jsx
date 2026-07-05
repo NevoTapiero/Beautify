@@ -93,7 +93,7 @@ export default function MgrGallery({ mgr }) {
         </PhotoPicker>
         {mgr.gallery.length === 0 && <Empty>עדיין אין תמונות בגלריה — העלי את העבודה הראשונה 🤍</Empty>}
         {mgr.gallery.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 8 }}>
             <span style={{ fontSize: 12.5, color: "var(--muted)" }}>סינון:</span>
             <GallerySort value={sort} onChange={setSort} />
           </div>

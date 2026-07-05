@@ -60,15 +60,19 @@ export function Lightbox({ item, onClose, onEdit, onDelete }) {
   return (
     <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "88%", maxWidth: 340, display: "grid", gap: 12 }}>
-        {video
-          ? <video src={item.img} controls autoPlay playsInline style={{ width: "100%", borderRadius: 20, maxHeight: "60vh", background: "#000", boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
-          : <div style={{ aspectRatio: "1", borderRadius: 20, background: item.img ? `url(${item.img}) center/cover` : item.grad, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />}
-        {item.cap && <div style={{ color: "#fff", textAlign: "center", fontWeight: 700, fontSize: 15 }}>{item.cap}</div>}
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="bf-btn bf-btn-ghost" onClick={onClose}><X size={16} /> סגירה</button>
-          {onEdit && <button className="bf-btn bf-btn-ghost" onClick={() => onEdit(item)}>עריכת תיאור</button>}
-          {onDelete && <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { onDelete(item); onClose(); }}>מחיקה</button>}
+        <div style={{ position: "relative" }}>
+          {video
+            ? <video src={item.img} controls autoPlay playsInline style={{ width: "100%", borderRadius: 20, maxHeight: "60vh", background: "#000", boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+            : <div style={{ aspectRatio: "1", borderRadius: 20, background: item.img ? `url(${item.img}) center/cover` : item.grad, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />}
+          <button className="bf-photo-x" aria-label="סגירה" onClick={onClose}><X size={17} /></button>
         </div>
+        {item.cap && <div style={{ color: "#fff", textAlign: "center", fontWeight: 700, fontSize: 15 }}>{item.cap}</div>}
+        {(onEdit || onDelete) && (
+          <div style={{ display: "flex", gap: 10 }}>
+            {onEdit && <button className="bf-btn bf-btn-ghost" onClick={() => onEdit(item)}>עריכת תיאור</button>}
+            {onDelete && <button className="bf-btn bf-btn-ghost" style={{ color: "#B23A48", borderColor: "#F0CBD0" }} onClick={() => { onDelete(item); onClose(); }}>מחיקה</button>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -81,17 +85,17 @@ export function PhotoEnlarge({ src, name, onClose, onUpload, onTooBig }) {
   return (
     <div className="bf-modalwrap" style={{ alignItems: "center", background: "rgba(20,12,22,.86)" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "88%", maxWidth: 340, display: "grid", gap: 12 }}>
-        {src
-          ? <div style={{ aspectRatio: "1", borderRadius: 20, background: `url(${src}) center/cover`, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
-          : <div style={{ aspectRatio: "1", borderRadius: 20, background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 64, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }}>{initials(name)}</div>}
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="bf-btn bf-btn-ghost" style={{ flex: 1 }} onClick={onClose}><X size={16} /> סגירה</button>
-          {onUpload && (
-            <PhotoPicker onPick={(f) => { onUpload(f); onClose(); }} onTooBig={onTooBig}>
-              <button className="bf-btn bf-btn-primary" style={{ flex: 1 }}><Camera size={16} /> עריכת תמונה</button>
-            </PhotoPicker>
-          )}
+        <div style={{ position: "relative" }}>
+          {src
+            ? <div style={{ aspectRatio: "1", borderRadius: 20, background: `url(${src}) center/cover`, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }} />
+            : <div style={{ aspectRatio: "1", borderRadius: 20, background: "var(--plum)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 64, boxShadow: "0 30px 60px -20px rgba(0,0,0,.7)" }}>{initials(name)}</div>}
+          <button className="bf-photo-x" aria-label="סגירה" onClick={onClose}><X size={17} /></button>
         </div>
+        {onUpload && (
+          <PhotoPicker onPick={(f) => { onUpload(f); onClose(); }} onTooBig={onTooBig}>
+            <button className="bf-btn bf-btn-primary"><Camera size={16} /> עריכת תמונה</button>
+          </PhotoPicker>
+        )}
       </div>
     </div>
   );
@@ -149,8 +153,8 @@ export function HealthDeclarationText() {
 
 // The selectable cosmetician list = the owner (studio) + her employees.
 // The owner is represented with id "owner"; an employee_id of null means the owner.
-export const cosmeticians = (studioName, employees) =>
-  [{ id: "owner", name: studioName, color: "#7C2A53", owner: true }, ...(employees || [])];
+export const cosmeticians = (studioName, employees, ownerAvatar) =>
+  [{ id: "owner", name: studioName, color: "#7C2A53", avatar: ownerAvatar, owner: true }, ...(employees || [])];
 
 // Resolve a cosmetician's display name from an appointment/photo employee_id
 // (null = the owner).
@@ -229,6 +233,17 @@ export function Steps({ step }) {
           {i < 2 && <span style={{ flex: 1, height: 2, background: step > i + 1 ? "var(--rose)" : "var(--sand)", borderRadius: 2 }} />}
         </React.Fragment>
       ))}
+    </div>
+  );
+}
+
+// Full-screen page (opens edge-to-edge from the top, not a bottom sheet) —
+// used for content that wants room to breathe, like the "about us" page.
+export function FullScreen({ children, onClose }) {
+  return (
+    <div className="bf-fullscreen">
+      <button className="bf-photo-x" style={{ position: "absolute", top: 14, right: 14, zIndex: 1 }} aria-label="סגירה" onClick={onClose}><X size={17} /></button>
+      {children}
     </div>
   );
 }
