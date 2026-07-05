@@ -24,9 +24,9 @@ export default function CliBook({ cli }) {
 
   // Split the free hours into morning / noon / evening (note C).
   const PARTS = [
-    { key: "morning", label: "בוקר", hint: "עד 12:00", test: (h) => h < 12 },
-    { key: "noon",    label: "צהריים", hint: "12:00–17:00", test: (h) => h >= 12 && h < 17 },
-    { key: "evening", label: "ערב", hint: "מ-17:00", test: (h) => h >= 17 },
+    { key: "morning", label: "בוקר", hint: "עד 12:00", icon: "/daypart-morning.png", test: (h) => h < 12 },
+    { key: "noon",    label: "צהריים", hint: "12:00–17:00", icon: "/daypart-noon.png", test: (h) => h >= 12 && h < 17 },
+    { key: "evening", label: "ערב", hint: "מ-17:00", icon: "/daypart-evening.png", test: (h) => h >= 17 },
   ];
   const partOf = (tm) => { const h = +tm.split(":")[0]; return PARTS.find((p) => p.test(h))?.key; };
   const togglePart = (k) => { setTime(null); setParts((p) => p.includes(k) ? p.filter((x) => x !== k) : [...p, k]); };
@@ -121,7 +121,8 @@ export default function CliBook({ cli }) {
                 return (
                   <button key={p.key} disabled={!n} onClick={() => togglePart(p.key)}
                     className={"bf-slot" + (on ? " active" : "")}
-                    style={{ display: "grid", gap: 1, padding: "9px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
+                    style={{ display: "grid", gap: 2, justifyItems: "center", padding: "9px 4px", opacity: n ? 1 : 0.4, height: "auto" }}>
+                    <img src={p.icon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
                     <span style={{ fontWeight: 800, fontSize: 14 }}>{p.label}</span>
                     <span style={{ fontSize: 10.5, opacity: 0.8 }}>{n ? `${n} פנויות` : "אין"}</span>
                   </button>
@@ -164,6 +165,11 @@ export default function CliBook({ cli }) {
   );
 }
 
+// Warm, generic salon-interior photo shown in "עלינו" until a studio sets her
+// own via about_cover_url (Supabase) — never her app icon, which is a
+// separate, much smaller image not meant to be stretched into a banner.
+const DEFAULT_SALON_PHOTO = "https://images.pexels.com/photos/6135674/pexels-photo-6135674.jpeg?auto=compress&cs=tinysrgb&w=800";
+
 // "עלינו" — the team's photos; tap one to read her "about me" (note 29).
 function AboutSheet({ cli, onClose }) {
   const team = [
@@ -175,7 +181,7 @@ function AboutSheet({ cli, onClose }) {
 
   return (
     <FullScreen onClose={onClose}>
-      <div style={{ height: 160, background: cli.studio?.logo_url ? `url(${cli.studio.logo_url}) center/cover` : "linear-gradient(135deg,var(--plum),var(--rose))", position: "relative" }}>
+      <div style={{ height: 160, background: `url(${cli.studio?.about_cover_url || DEFAULT_SALON_PHOTO}) center/cover`, position: "relative" }}>
         <span style={{ position: "absolute", inset: "0 0 55% 0", background: "linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))" }} />
         <div style={{ position: "absolute", insetInlineStart: 18, bottom: 14, color: "#fff" }}>
           <div className="bf-display" style={{ fontWeight: 800, fontSize: 20 }}>עלינו</div>
