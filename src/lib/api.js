@@ -199,8 +199,8 @@ export async function clientSignIn(studioId, phone, password) {
     });
     if (error) return { error: "טלפון או סיסמה שגויים." };
     const { data: client } = await supabaseClient
-      .from("clients").select("*").eq("auth_user_id", auth.user.id).maybeSingle();
-    if (!client) return { error: "לא נמצא פרופיל ללקוחה זו." };
+      .from("clients").select("*").eq("auth_user_id", auth.user.id).eq("studio_id", studioId).maybeSingle();
+    if (!client) { await supabaseClient.auth.signOut(); return { error: "לא נמצא פרופיל ללקוחה זו בסטודיו זה." }; }
     if (client.blocked) { await supabaseClient.auth.signOut(); return { error: "החשבון חסום. פני לסטודיו." }; }
     return { client };
   } catch (err) { log("clientSignIn", err); return { error: "ההתחברות נכשלה." }; }
@@ -212,14 +212,17 @@ export async function clientSignOut() {
 }
 
 // Restores the client profile for an existing session (page reload).
-export async function getCurrentClient() {
-  if (!isSupabaseReady) return null;
+// studioId scopes the lookup to the currently-loaded studio, so a session
+// created on one studio's URL can't silently resolve to a client row
+// belonging to a different studio.
+export async function getCurrentClient(studioId) {
+  if (!isSupabaseReady || !studioId) return null;
   try {
     const { data } = await supabaseClient.auth.getSession();
     const uid = data?.session?.user?.id;
     if (!uid) return null;
     const { data: client } = await supabaseClient
-      .from("clients").select("*").eq("auth_user_id", uid).maybeSingle();
+      .from("clients").select("*").eq("auth_user_id", uid).eq("studio_id", studioId).maybeSingle();
     return client || null;
   } catch (err) { log("getCurrentClient", err); return null; }
 }

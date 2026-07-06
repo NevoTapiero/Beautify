@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Plus, CalendarDays, Image as ImageIcon, User } from "lucide-react";
-import { NavBar } from "../ui";
+import { NavBar, TabPane } from "../ui";
 import { getSeen, setSeen } from "../../lib/seen";
 import ClientAuth from "./ClientAuth";
 import CliBook from "./CliBook";
@@ -51,10 +51,12 @@ export default function ClientApp({ cli, onManagerEntry }) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {tab === "book"    && <CliBook cli={cli} />}
-        {tab === "mine"    && <CliMine cli={cli} />}
-        {tab === "gallery" && <CliGallery cli={cli} />}
-        {tab === "profile" && <CliProfile cli={cli} />}
+        <TabPane tab={tab} order={["book", "mine", "gallery", "profile"]}>
+          {tab === "book"    && <CliBook cli={cli} />}
+          {tab === "mine"    && <CliMine cli={cli} />}
+          {tab === "gallery" && <CliGallery cli={cli} />}
+          {tab === "profile" && <CliProfile cli={cli} />}
+        </TabPane>
       </div>
       <NavBar tab={tab} setTab={setTab} items={[
         ["book", Plus, "תור חדש"], ["mine", CalendarDays, "התורים שלי", unread],

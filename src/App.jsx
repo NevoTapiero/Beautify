@@ -82,9 +82,9 @@ export default function App() {
       setServices(b.services);
       setEmployees(b.employees || []);
       applyStudioPWA(b.studio);   // make the installed app *hers* (name/icon/colors)
+      api.getCurrentClient(b.studio.id).then((c) => { if (c) setClient(c); });
     });
     api.getManagerSession().then((u) => { if (u) { setManagerUser(u); if (!isDemo) setRole("manager"); } });
-    api.getCurrentClient().then((c) => { if (c) setClient(c); });
   }, []);
 
   // ─── Data loaders ────────────────────────────────────────────────
@@ -150,7 +150,7 @@ export default function App() {
   useEffect(() => {
     if (!client) return;
     const check = async () => {
-      const fresh = await api.getCurrentClient();
+      const fresh = await api.getCurrentClient(studio?.id);
       if (fresh && fresh.blocked) {
         await api.clientSignOut();
         setClient(null); setCliAppts([]); setCliGallery([]); setCliUploads([]); setCliNotifs([]);
@@ -364,11 +364,11 @@ export default function App() {
     },
     approveScheduleRequest: async (req) => {
       const p = req.payload || {};
-      if (req.kind === "weekly") { for (const r of (p.rows || [])) await api.setWeeklyHours(studio.id, r.weekday, { is_open: r.is_open, start_time: r.start_time, end_time: r.end_time }, req.employee_id); }
+      if (req.kind === "weekly") { for (const r of (Array.isArray(p.rows) ? p.rows : [])) await api.setWeeklyHours(studio.id, r.weekday, { is_open: r.is_open, start_time: r.start_time, end_time: r.end_time }, req.employee_id); }
       else if (req.kind === "day") { if (p.clear) await api.clearDayOverride(studio.id, p.dateStr, req.employee_id); else await api.setDayOverride(studio.id, p.dateStr, { is_open: p.is_open, start_time: p.start_time, end_time: p.end_time }, req.employee_id); }
       else if (req.kind === "break") { await api.addBreak(studio.id, p.day, p.start, p.end, p.title, req.employee_id); }
       else if (req.kind === "closeday") {
-        for (const a of (p.appts || [])) {
+        for (const a of (Array.isArray(p.appts) ? p.appts : [])) {
           await api.cancelAppointment(a.id, true);
           if (a.clientId) await api.sendNotification(studio.id, a.clientId, { type: "cancelled", title: "התור בוטל", body: `עקב סגירת היומן, התור שלך ל-${a.dayLabel} בשעה ${a.time} בוטל.`, appointmentId: a.id });
         }
@@ -473,9 +473,11 @@ export default function App() {
 
         <div className={isDemo ? "bf-phone" : "bf-phone bf-phone-live"} style={isDemo ? { marginTop: 16 } : undefined} dir="rtl">
           <ErrorBoundary>
-            {role === "manager"
-              ? <ManagerApp mgr={mgr} ping={ping} />
-              : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
+            <div key={role} style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, animation: "bf-fade .22s ease" }}>
+              {role === "manager"
+                ? <ManagerApp mgr={mgr} ping={ping} />
+                : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
+            </div>
           </ErrorBoundary>
           {toast && <div className="bf-toast"><CheckCircle2 size={16} /> {toast}</div>}
         </div>

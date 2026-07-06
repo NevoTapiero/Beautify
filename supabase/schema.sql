@@ -302,7 +302,9 @@ create policy gallery_delete_own on gallery for delete
 drop policy if exists likes_read   on gallery_likes;
 drop policy if exists likes_insert on gallery_likes;
 drop policy if exists likes_delete on gallery_likes;
-create policy likes_read   on gallery_likes for select using (true);
+create policy likes_read   on gallery_likes for select
+  using (exists (select 1 from gallery g where g.id = gallery_id
+    and (g.status = 'approved' or is_studio_manager(g.studio_id) or client_owns(gallery_likes.client_id))));
 create policy likes_insert on gallery_likes for insert with check (client_owns(client_id));
 create policy likes_delete on gallery_likes for delete using (client_owns(client_id));
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Home, CalendarDays, Users, Image as ImageIcon, Settings, User } from "lucide-react";
-import { NavBar } from "../ui";
+import { NavBar, TabPane } from "../ui";
 import { getSeen, setSeen } from "../../lib/seen";
 import ManagerLogin from "./ManagerLogin";
 import MgrHome from "./MgrHome";
@@ -84,12 +84,14 @@ export default function ManagerApp({ mgr, ping }) {
         <div className="sub">{t[1]}</div>
       </div>
       <div className="bf-screen">
-        {safeTab === "home"     && <MgrHome mgr={mgr} go={setTab} cosmId={cosmId} setCosmId={setCosmId} />}
-        {safeTab === "cal"      && <MgrCalendar mgr={mgr} cosmId={cosmId} setCosmId={setCosmId} />}
-        {safeTab === "clients"  && !locked && <MgrClients mgr={mgr} />}
-        {safeTab === "gallery"  && <MgrGallery mgr={mgr} />}
-        {safeTab === "settings" && !locked && <MgrSettings mgr={mgr} />}
-        {safeTab === "profile"  && <EmployeeProfile mgr={mgr} />}
+        <TabPane tab={safeTab} order={["home", "cal", "clients", "gallery", "settings", "profile"]}>
+          {safeTab === "home"     && <MgrHome mgr={mgr} go={setTab} cosmId={cosmId} setCosmId={setCosmId} />}
+          {safeTab === "cal"      && <MgrCalendar mgr={mgr} cosmId={cosmId} setCosmId={setCosmId} />}
+          {safeTab === "clients"  && !locked && <MgrClients mgr={mgr} />}
+          {safeTab === "gallery"  && <MgrGallery mgr={mgr} />}
+          {safeTab === "settings" && !locked && <MgrSettings mgr={mgr} />}
+          {safeTab === "profile"  && <EmployeeProfile mgr={mgr} />}
+        </TabPane>
       </div>
       <NavBar tab={safeTab} setTab={setTab} items={locked ? [
         ["home", Home, "בית"], ["cal", CalendarDays, "יומן", calBadge],

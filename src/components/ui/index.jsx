@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, XCircle, Play, Camera } from "lucide-react";
 
 export const initials = (n) => (n || "").split(" ").map((w) => w[0]).slice(0, 2).join("");
@@ -102,10 +102,23 @@ export function PhotoEnlarge({ src, name, onClose, onUpload, onTooBig }) {
 }
 
 export function NavBar({ tab, setTab, items }) {
+  const wrapRef = useRef(null);
+  const [ind, setInd] = useState(null);
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const btn = wrap?.querySelector(`[data-tab="${tab}"]`);
+    if (!wrap || !btn) return;
+    const wRect = wrap.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    setInd({ x: bRect.left - wRect.left, w: bRect.width });
+  }, [tab, items.length]);
+
   return (
-    <div className="bf-nav">
+    <div className="bf-nav" ref={wrapRef}>
+      {ind && <span className="bf-nav-indicator" style={{ width: ind.w, transform: `translateX(${ind.x}px)` }} />}
       {items.map(([key, Icon, label, badge]) => (
-        <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
+        <button key={key} data-tab={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
           <span style={{ position: "relative", display: "inline-flex" }}>
             <Icon size={21} strokeWidth={tab === key ? 2.4 : 1.9} />
             {(badge === "!" || badge > 0) && (
@@ -120,6 +133,19 @@ export function NavBar({ tab, setTab, items }) {
       ))}
     </div>
   );
+}
+
+// Wraps tab content so switching tabs slides/fades the new pane in — direction
+// tracks whether the new tab sits after or before the previous one in `order`.
+export function TabPane({ tab, order, children }) {
+  const prevIndex = useRef(order.indexOf(tab));
+  const dir = useRef("fwd");
+  const idx = order.indexOf(tab);
+  if (idx !== prevIndex.current) {
+    dir.current = idx > prevIndex.current ? "fwd" : "back";
+    prevIndex.current = idx;
+  }
+  return <div key={tab} className={"bf-tabpane" + (dir.current === "back" ? " back" : "")}>{children}</div>;
 }
 
 // Confirmation popup so destructive taps (cancel an appointment, etc.) can't
