@@ -52,10 +52,10 @@ const STYLE = `
 .bf-appbar .bf-wordmark{ color:var(--btn-ink); }
 
 .bf-nav{ display:flex; background:var(--surface); border-top:1px solid var(--sand); flex:none; padding-bottom:2px; position:relative; }
-.bf-nav-indicator{ position:absolute; top:0; height:2.5px; border-radius:0 0 3px 3px;
-  background:linear-gradient(135deg,var(--plum),var(--rose));
-  transition:transform .32s cubic-bezier(.2,.8,.2,1), width .32s cubic-bezier(.2,.8,.2,1); pointer-events:none; }
-.bf-nav button{ flex:1; background:none; border:none; padding:9px 2px 9px; cursor:pointer;
+.bf-nav-indicator{ position:absolute; top:4px; height:calc(100% - 8px); border-radius:14px;
+  background:var(--blush); box-shadow:inset 0 0 0 1px var(--rose-soft);
+  transition:transform .55s cubic-bezier(.2,.8,.2,1), width .55s cubic-bezier(.2,.8,.2,1); pointer-events:none; z-index:0; }
+.bf-nav button{ position:relative; z-index:1; flex:1; background:none; border:none; padding:9px 2px 9px; cursor:pointer;
   display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--muted);
   font-size:10.5px; font-weight:700; font-family:inherit; transition:color .2s ease, transform .15s ease; }
 .bf-nav button:active{ transform:scale(.9); }
@@ -148,10 +148,10 @@ button.bf-card:active{ transform:scale(.97); }
 
 /* Tab-content transitions (note: content unmounts/remounts on tab switch, so
    only an "enter" animation is needed — direction hints which way it came from). */
-.bf-tabpane{ animation:bf-tab-fwd .3s cubic-bezier(.16,.8,.3,1); }
-.bf-tabpane.back{ animation:bf-tab-back .3s cubic-bezier(.16,.8,.3,1); }
-@keyframes bf-tab-fwd{ from{ opacity:0; transform:translateX(16px) } to{ opacity:1; transform:translateX(0) } }
-@keyframes bf-tab-back{ from{ opacity:0; transform:translateX(-16px) } to{ opacity:1; transform:translateX(0) } }
+.bf-tabpane{ animation:bf-tab-fwd .55s cubic-bezier(.16,.8,.3,1); }
+.bf-tabpane.back{ animation:bf-tab-back .55s cubic-bezier(.16,.8,.3,1); }
+@keyframes bf-tab-fwd{ from{ opacity:0; transform:translateX(24px) } to{ opacity:1; transform:translateX(0) } }
+@keyframes bf-tab-back{ from{ opacity:0; transform:translateX(-24px) } to{ opacity:1; transform:translateX(0) } }
 
 .bf-toast{ position:absolute; left:50%; transform:translateX(-50%); bottom:78px; z-index:60;
   background:var(--ink); color:#fff; padding:11px 16px; border-radius:13px; font-size:13.5px; font-weight:600;
