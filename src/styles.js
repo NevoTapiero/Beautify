@@ -54,7 +54,7 @@ const STYLE = `
 .bf-nav{ display:flex; background:var(--surface); border-top:1px solid var(--sand); flex:none; padding-bottom:2px; position:relative; }
 .bf-nav-indicator{ position:absolute; top:0; height:2.5px; border-radius:0 0 3px 3px;
   background:linear-gradient(135deg,var(--plum),var(--rose));
-  transition:transform .55s cubic-bezier(.2,.8,.2,1), width .55s cubic-bezier(.2,.8,.2,1); pointer-events:none; z-index:0; }
+  transition:inset-inline-start .55s cubic-bezier(.2,.8,.2,1), width .55s cubic-bezier(.2,.8,.2,1); pointer-events:none; z-index:0; }
 .bf-nav button{ position:relative; z-index:1; flex:1; background:none; border:none; padding:9px 2px 9px; cursor:pointer;
   display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--muted);
   font-size:10.5px; font-weight:700; font-family:inherit; transition:color .2s ease, transform .15s ease; }

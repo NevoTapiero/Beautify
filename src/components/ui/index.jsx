@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
+import React, { useState, useRef } from "react";
 import { Heart, Clock, CheckCircle2, Bell, ChevronRight, Check, X, XCircle, Play, Camera } from "lucide-react";
 
 export const initials = (n) => (n || "").split(" ").map((w) => w[0]).slice(0, 2).join("");
@@ -102,39 +102,21 @@ export function PhotoEnlarge({ src, name, onClose, onUpload, onTooBig }) {
 }
 
 export function NavBar({ tab, setTab, items }) {
-  const wrapRef = useRef(null);
-  const [ind, setInd] = useState(null);
-
-  // offsetLeft/offsetWidth (not getBoundingClientRect) so the measurement is
-  // immune to scroll position and stays correct under RTL — it's relative to
-  // the nav bar itself, not the viewport.
-  const measure = useCallback(() => {
-    const wrap = wrapRef.current;
-    const btn = wrap?.querySelector(`[data-tab="${tab}"]`);
-    if (!wrap || !btn) return;
-    setInd({ x: btn.offsetLeft, w: btn.offsetWidth });
-  }, [tab]);
-
-  useLayoutEffect(() => { measure(); }, [measure, items.length]);
-
-  // Re-measure if the nav bar's size changes after mount (e.g. the webfont
-  // finishes loading after the initial layout pass, shifting button widths) —
-  // otherwise the indicator can stay stuck on a stale, wrong position.
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(wrap);
-    window.addEventListener("resize", measure);
-    document.fonts?.ready?.then(measure);
-    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
-  }, [measure]);
+  // Pure CSS-logical positioning — no measurement needed. `insetInlineStart`
+  // counts from the inline-start edge, i.e. the same edge flex-row items
+  // start filling from, in *either* direction. So item index i always sits
+  // at i * (100/n)% regardless of LTR/RTL — no manual left/right math, no
+  // getBoundingClientRect/offsetLeft, no re-measure-on-font-load fragility.
+  const n = items.length;
+  const idx = items.findIndex(([key]) => key === tab);
 
   return (
-    <div className="bf-nav" ref={wrapRef}>
-      {ind && <span className="bf-nav-indicator" style={{ width: ind.w, transform: `translateX(${ind.x}px)` }} />}
+    <div className="bf-nav">
+      {idx >= 0 && (
+        <span className="bf-nav-indicator" style={{ width: `${100 / n}%`, insetInlineStart: `${(100 / n) * idx}%` }} />
+      )}
       {items.map(([key, Icon, label, badge]) => (
-        <button key={key} data-tab={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
+        <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
           <span style={{ position: "relative", display: "inline-flex" }}>
             <Icon size={21} strokeWidth={tab === key ? 2.4 : 1.9} />
             {(badge === "!" || badge > 0) && (
