@@ -52,8 +52,8 @@ const STYLE = `
 .bf-appbar .bf-wordmark{ color:var(--btn-ink); }
 
 .bf-nav{ display:flex; background:var(--surface); border-top:1px solid var(--sand); flex:none; padding-bottom:2px; position:relative; }
-.bf-nav-indicator{ position:absolute; top:4px; height:calc(100% - 8px); border-radius:14px;
-  background:var(--blush); box-shadow:inset 0 0 0 1px var(--rose-soft);
+.bf-nav-indicator{ position:absolute; top:0; height:2.5px; border-radius:0 0 3px 3px;
+  background:linear-gradient(135deg,var(--plum),var(--rose));
   transition:transform .55s cubic-bezier(.2,.8,.2,1), width .55s cubic-bezier(.2,.8,.2,1); pointer-events:none; z-index:0; }
 .bf-nav button{ position:relative; z-index:1; flex:1; background:none; border:none; padding:9px 2px 9px; cursor:pointer;
   display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--muted);
