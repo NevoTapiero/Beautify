@@ -5,6 +5,7 @@ import { next7, dateForOffset, DOW_FULL } from "../../data/mock";
 import { loadWeeklyHours, getDayOverride } from "../../lib/api";
 import ApptSheet from "./ApptSheet";
 import DaySchedule from "./DaySchedule";
+import WeekSchedule from "./WeekSchedule";
 
 const hhmm = (t) => (t || "").slice(0, 5);
 const toMin = (t) => { const [h, m] = hhmm(t).split(":").map(Number); return h * 60 + m; };
@@ -14,6 +15,7 @@ const wdForOffset = (off) => { const d = new Date(); d.setDate(d.getDate() + off
 export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
   const days = next7();
   const [sel, setSel] = useState(0);
+  const [view, setView] = useState("day");   // "day" | "week" — Google-Calendar-style toggle
   const [open, setOpen] = useState(null);
   const [addBreak, setAddBreak] = useState(false);
   const [editWeekly, setEditWeekly] = useState(false);
@@ -82,6 +84,11 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
         </button>
       </div>
 
+      <div className="bf-seg" style={{ height: 38 }}>
+        <button className={view === "day" ? "active" : ""} onClick={() => setView("day")}>יום</button>
+        <button className={view === "week" ? "active" : ""} onClick={() => setView("week")}>שבוע</button>
+      </div>
+
       {showCosm && (
         <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
           {cosmList.map((c) => {
@@ -99,71 +106,82 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
-        {days.map((d) => {
-          // Per-day appointment count (note D) — for the selected cosmetician.
-          const count = mgr.appts.filter((a) => a.day === d.offset && a.status !== "reschedule_requested" && sameCosm(a)).length;
-          return (
-            <div key={d.offset} className={"bf-day" + (sel === d.offset ? " active" : "")} onClick={() => setSel(d.offset)} style={{ position: "relative" }}>
-              <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
-              <div style={{ marginTop: 3, fontSize: 10, fontWeight: 800, color: count ? "var(--plum)" : "var(--muted)", opacity: count ? 1 : 0.5 }}>
-                {count ? `${count} תורים` : "פנוי"}
+      {view === "day" && (<>
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+          {days.map((d) => {
+            // Per-day appointment count (note D) — for the selected cosmetician.
+            const count = mgr.appts.filter((a) => a.day === d.offset && a.status !== "reschedule_requested" && sameCosm(a)).length;
+            return (
+              <div key={d.offset} className={"bf-day" + (sel === d.offset ? " active" : "")} onClick={() => setSel(d.offset)} style={{ position: "relative" }}>
+                <div className="dn">{d.dn}</div><div className="dl">{d.dl}</div>
+                <div style={{ marginTop: 3, fontSize: 10, fontWeight: 800, color: count ? "var(--plum)" : "var(--muted)", opacity: count ? 1 : 0.5 }}>
+                  {count ? `${count} תורים` : "פנוי"}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
-        <Clock size={16} color="var(--plum)" />
-        <div style={{ flex: 1, fontSize: 13.5 }}>
-          <b>שעות עבודה · {DOW_FULL[weekday]}</b>
-          <div style={{ color: "var(--muted)", fontSize: 12.5 }}>
-            {!effective || !effective.is_open ? "סגור" : `${hhmm(effective.start_time)}–${hhmm(effective.end_time)}`}
-            {override && <span style={{ color: "var(--gold)", marginInlineStart: 6 }}>· חריג ליום זה</span>}
+        <div className="bf-card" style={{ padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
+          <Clock size={16} color="var(--plum)" />
+          <div style={{ flex: 1, fontSize: 13.5 }}>
+            <b>שעות עבודה · {DOW_FULL[weekday]}</b>
+            <div style={{ color: "var(--muted)", fontSize: 12.5 }}>
+              {!effective || !effective.is_open ? "סגור" : `${hhmm(effective.start_time)}–${hhmm(effective.end_time)}`}
+              {override && <span style={{ color: "var(--gold)", marginInlineStart: 6 }}>· חריג ליום זה</span>}
+            </div>
           </div>
         </div>
-      </div>
 
-      {locked && cosmId !== mgr.lockedEmployeeId && (
-        <div className="bf-card" style={{ padding: "10px 12px", fontSize: 12.5, color: "var(--muted)", textAlign: "center" }}>
-          את צופה בלו"ז של {(cosmList.find((c) => (c.owner ? null : c.id) === cosmId) || {}).name} — לצפייה בלבד
-        </div>
-      )}
+        {locked && cosmId !== mgr.lockedEmployeeId && (
+          <div className="bf-card" style={{ padding: "10px 12px", fontSize: 12.5, color: "var(--muted)", textAlign: "center" }}>
+            את צופה בלו"ז של {(cosmList.find((c) => (c.owner ? null : c.id) === cosmId) || {}).name} — לצפייה בלבד
+          </div>
+        )}
 
-      {/* Employee: one-time schedule-approval banner (note 54, 55) */}
-      {locked && schedBanner.map((n) => (
-        <div key={n.id} className="bf-card" style={{ padding: 11, border: "1px solid var(--rose-soft)", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{n.title}</div>
-          <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>{n.body}</div>
-        </div>
-      ))}
+        {/* Employee: one-time schedule-approval banner (note 54, 55) */}
+        {locked && schedBanner.map((n) => (
+          <div key={n.id} className="bf-card" style={{ padding: 11, border: "1px solid var(--rose-soft)", background: "linear-gradient(135deg,#fff,#FDF3F6)" }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>{n.title}</div>
+            <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>{n.body}</div>
+          </div>
+        ))}
 
-      {/* Schedule-change requests (Phase 3b) */}
-      {pendingReqs.length > 0 && (
-        <div style={{ display: "grid", gap: 8 }}>
-          {pendingReqs.map((r) => (
-            <div key={r.id} className="bf-card" style={{ padding: 11, border: "1px solid #E0D2E6", background: "#F6F1F8", display: "grid", gap: 9 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Clock size={15} color="#6B4E7A" />
-                <div style={{ flex: 1, fontSize: 13.5 }}>
-                  <b>{locked ? "ממתין לאישור המנהלת" : "בקשת שינוי לו\"ז"}</b>
-                  <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{r.label}</div>
+        {/* Schedule-change requests (Phase 3b) */}
+        {pendingReqs.length > 0 && (
+          <div style={{ display: "grid", gap: 8 }}>
+            {pendingReqs.map((r) => (
+              <div key={r.id} className="bf-card" style={{ padding: 11, border: "1px solid #E0D2E6", background: "#F6F1F8", display: "grid", gap: 9 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Clock size={15} color="#6B4E7A" />
+                  <div style={{ flex: 1, fontSize: 13.5 }}>
+                    <b>{locked ? "ממתין לאישור המנהלת" : "בקשת שינוי לו\"ז"}</b>
+                    <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{r.label}</div>
+                  </div>
                 </div>
+                {!locked && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => mgr.approveScheduleRequest(r)}>אישור</button>
+                    <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.declineScheduleRequest(r)}>דחייה</button>
+                  </div>
+                )}
               </div>
-              {!locked && (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => mgr.approveScheduleRequest(r)}>אישור</button>
-                  <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.declineScheduleRequest(r)}>דחייה</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      <DaySchedule effective={effective} dayAppts={appts} dayBreaks={breaks} allAppts={mgr.appts}
-        onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
+        <DaySchedule effective={effective} dayAppts={appts} dayBreaks={breaks} allAppts={mgr.appts}
+          onOpenAppt={setOpen} onDeleteBreak={mgr.deleteBreak} />
+      </>)}
+
+      {view === "week" && (
+        <WeekSchedule
+          days={days} weekly={weekly}
+          appts={mgr.appts.filter(sameCosm)} breaks={mgr.breaks.filter(sameCosm)}
+          onOpenAppt={setOpen}
+          onSelectDay={(offset) => { setSel(offset); setView("day"); }}
+        />
+      )}
 
       {menuOpen && (
         <Sheet onClose={() => setMenuOpen(false)}>
