@@ -54,6 +54,7 @@ export default function ClientAuth({ cli, onManagerEntry }) {
 function LoginForm({ cli, busy, run }) {
   const [phone, setPhone] = useState("");
   const [pw, setPw] = useState("");
+  const [forgot, setForgot] = useState(false);
   const ok = phone.length >= 9 && pw.length >= 6;
   return (
     <>
@@ -62,7 +63,51 @@ function LoginForm({ cli, busy, run }) {
       <button className="bf-btn bf-btn-primary" disabled={!ok || busy} onClick={() => run(() => cli.login(phone, pw))}>
         <LogIn size={17} /> {busy ? "מתחברת…" : "כניסה"}
       </button>
+      <button onClick={() => setForgot(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 12.5, textDecoration: "underline", justifySelf: "center", padding: "2px 0" }}>
+        שכחת סיסמה?
+      </button>
+      {forgot && <ForgotPasswordSheet cli={cli} initialPhone={phone} onClose={() => setForgot(false)} />}
     </>
+  );
+}
+
+function ForgotPasswordSheet({ cli, initialPhone, onClose }) {
+  const [phone, setPhone] = useState(initialPhone || "");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);   // { ok, needsMigrationHint } | { error }
+
+  const send = async () => {
+    setBusy(true);
+    const r = await cli.requestPasswordReset(phone);
+    setBusy(false);
+    setResult(r);
+  };
+
+  return (
+    <Sheet onClose={onClose}>
+      <h3 className="bf-display" style={{ margin: "0 0 4px", fontSize: 20 }}>איפוס סיסמה</h3>
+      {!result?.ok ? (
+        <>
+          <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 14 }}>נשלח לינק לאיפוס סיסמה לכתובת האימייל שרשמת בהרשמה.</div>
+          <label className="bf-label">טלפון נייד</label>
+          <input className="bf-input" inputMode="tel" placeholder="050-0000000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          {result?.error && <div style={{ color: "#B23A48", fontSize: 12.5, marginTop: 8 }}>{result.error}</div>}
+          <button className="bf-btn bf-btn-primary" style={{ marginTop: 16 }} disabled={phone.length < 9 || busy} onClick={send}>
+            {busy ? "שולחת…" : "שליחת לינק לאיפוס"}
+          </button>
+        </>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          <div className="bf-card" style={{ padding: 14, fontSize: 13.5 }}>נשלח אימייל עם לינק לאיפוס הסיסמה, אם קיים חשבון עם מספר טלפון זה.</div>
+          {result.needsMigrationHint && (
+            <div className="bf-card" style={{ padding: 14, fontSize: 12.5, color: "var(--muted)", background: "#FBF4EE", borderStyle: "dashed" }}>
+              אם זהו חשבון ותיק ולא קיבלת מייל — התחברי פעם אחת עם הסיסמה הישנה שלך, ולאחר מכן איפוס הסיסמה יעבוד. אפשר גם לפנות לסטודיו.
+            </div>
+          )}
+          <button className="bf-btn bf-btn-ghost" onClick={onClose}>סגירה</button>
+        </div>
+      )}
+    </Sheet>
   );
 }
 

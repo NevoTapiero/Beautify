@@ -48,6 +48,7 @@ create table if not exists clients (
   avatar_url    text,
   blocked       boolean not null default false,
   health_signed_at timestamptz,
+  auth_email_migrated_at timestamptz,  -- set once her Supabase Auth login email = her real email (see v13)
   created_at    timestamptz not null default now()
 );
 

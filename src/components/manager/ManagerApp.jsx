@@ -40,7 +40,7 @@ export default function ManagerApp({ mgr, ping }) {
   const empApprCount = (mgr.gallery || []).filter((g) => g.employeeId === lockedId).length;
   const newEmpAppr = !!lockedId && empApprCount > getSeen(sid, "emp-gal-appr");
 
-  if (!mgr.user) return <ManagerLogin onLogin={mgr.login} studio={mgr.studio} />;
+  if (!mgr.user) return <ManagerLogin onLogin={mgr.login} onRequestReset={mgr.requestPasswordReset} studio={mgr.studio} />;
 
   // Wait for the studio to load before rendering tabs — on a refresh the saved
   // session restores before the studio bundle, and the tabs need mgr.studio.

@@ -9,10 +9,15 @@ export const isSupabaseReady = Boolean(url && anonKey);
 // Two independent auth sessions in the same browser: one for the manager,
 // one for the client. This lets the demo stay "logged in" as both at once
 // (manager view + client view) without one signing the other out.
+// detectSessionInUrl is off on both — with two client instances sharing one
+// tab, both would otherwise race to consume the same password-recovery URL
+// fragment. Password-reset links are handled manually instead (see
+// resolvePendingRecovery in lib/api.js), which picks exactly one instance
+// based on a `reset=client|manager` query param we control ourselves.
 function make(storageKey) {
   if (!isSupabaseReady) return null;
   return createClient(url, anonKey, {
-    auth: { storageKey, persistSession: true, autoRefreshToken: true },
+    auth: { storageKey, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
   });
 }
 

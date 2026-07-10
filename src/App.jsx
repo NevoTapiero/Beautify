@@ -7,6 +7,7 @@ import { applyStudioPWA } from "./lib/pwa";
 import { buildThemeVars } from "./lib/theme";
 import ManagerApp from "./components/manager/ManagerApp";
 import ClientApp from "./components/client/ClientApp";
+import ResetPasswordScreen from "./components/ResetPasswordScreen";
 
 // Catches any render error so the app shows a recover screen instead of going
 // blank. Keeps one component's bug from taking down the whole page.
@@ -54,6 +55,14 @@ export default function App() {
     window.clearTimeout(window.__bft);
     window.__bft = window.setTimeout(() => setToast(null), 2400);
   }, []);
+
+  // Password-reset: a recovery link lands back here with ?reset=client|manager
+  // — read it once, up front, before anything else touches the URL.
+  const [recovery, setRecovery] = useState(() => api.resolvePendingRecovery());
+  useEffect(() => {
+    if (!recovery) return;
+    api.beginPasswordRecovery(recovery).then((ok) => { if (!ok) setRecovery(null); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Manager state ───────────────────────────────────────────────
   const [managerUser, setManagerUser] = useState(null);
@@ -247,6 +256,7 @@ export default function App() {
       return null;
     },
     logout: async () => { await api.managerSignOut(); setManagerUser(null); setMgrAppts([]); setMgrClients([]); },
+    requestPasswordReset: (email) => api.managerRequestPasswordReset(email),
     cancelAppt: async (appt) => {
       await api.cancelAppointment(appt.id, true);
       if (appt.clientId) await api.sendNotification(studio.id, appt.clientId, {
@@ -416,6 +426,7 @@ export default function App() {
       return null;
     },
     logout: async () => { await api.clientSignOut(); setClient(null); setCliAppts([]); ping("התנתקת מהחשבון"); },
+    requestPasswordReset: (phone) => api.clientRequestPasswordReset(studio.id, phone),
     book: async (serviceId, offset, time, paid = false, employeeId = null) => {
       const appt = await api.saveAppointment(studio.id, client.id, serviceId, offset, time, paid, employeeId);
       if (appt) setCliAppts((p) => [...p, appt]);
@@ -473,11 +484,15 @@ export default function App() {
 
         <div className={isDemo ? "bf-phone" : "bf-phone bf-phone-live"} style={isDemo ? { marginTop: 16 } : undefined} dir="rtl">
           <ErrorBoundary>
-            <div key={role} style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, animation: "bf-fade .22s ease" }}>
-              {role === "manager"
-                ? <ManagerApp mgr={mgr} ping={ping} />
-                : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
-            </div>
+            {recovery ? (
+              <ResetPasswordScreen studio={studio} role={recovery.role} onDone={() => setRecovery(null)} ping={ping} />
+            ) : (
+              <div key={role} style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, animation: "bf-fade .22s ease" }}>
+                {role === "manager"
+                  ? <ManagerApp mgr={mgr} ping={ping} />
+                  : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
+              </div>
+            )}
           </ErrorBoundary>
           {toast && <div className="bf-toast"><CheckCircle2 size={16} /> {toast}</div>}
         </div>

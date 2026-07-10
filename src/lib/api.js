@@ -149,6 +149,67 @@ export async function managerSignIn(email, password) {
   return { user: data.user };
 }
 
+// Managers already log in with their real email, so this is a plain
+// Supabase reset — no phone-lookup indirection needed like the client side.
+export async function managerRequestPasswordReset(email) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const redirectTo = `${window.location.origin}${window.location.pathname}?reset=manager`;
+    await supabaseManager.auth.resetPasswordForEmail(email, { redirectTo });
+    return { ok: true };
+  } catch (err) { log("managerRequestPasswordReset", err); return { error: "שליחת האיפוס נכשלה." }; }
+}
+
+// ─── Password-reset link handling (client or manager) ────────────────────────
+// A reset email points back here with `?reset=client|manager` (our own
+// marker, set above) plus Supabase's recovery tokens in the URL hash. Both
+// supabaseClient and supabaseManager have detectSessionInUrl off (two client
+// instances would otherwise race for the same hash), so we parse it once,
+// by hand, and hand the tokens to exactly the instance that should own this
+// recovery session.
+
+// Reads (and clears) the recovery tokens from the current URL, if any.
+export function resolvePendingRecovery() {
+  const params = new URLSearchParams(window.location.search);
+  const role = params.get("reset");
+  if (role !== "client" && role !== "manager") return null;
+
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const access_token = hash.get("access_token");
+  const refresh_token = hash.get("refresh_token");
+  const type = hash.get("type");
+
+  // Clean the sensitive tokens out of the visible URL either way.
+  const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+  window.history.replaceState(null, "", cleanUrl);
+
+  if (type !== "recovery" || !access_token || !refresh_token) return null;
+  return { role, access_token, refresh_token };
+}
+
+export async function beginPasswordRecovery({ role, access_token, refresh_token }) {
+  if (!isSupabaseReady) return false;
+  const client = role === "manager" ? supabaseManager : supabaseClient;
+  const { error } = await client.auth.setSession({ access_token, refresh_token });
+  return !error;
+}
+
+export async function completePasswordReset(role, newPassword) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  const client = role === "manager" ? supabaseManager : supabaseClient;
+  const { error } = await client.auth.updateUser({ password: newPassword });
+  if (error) return { error: "עדכון הסיסמה נכשל. ייתכן שהקישור פג — בקשי איפוס חדש." };
+  if (role === "client") {
+    // She now has a live session — also mark her migrated, since her login
+    // email is provably her real one (that's how the recovery link worked).
+    const { data } = await client.auth.getUser();
+    if (data?.user?.id) {
+      await client.from("clients").update({ auth_email_migrated_at: new Date().toISOString() }).eq("auth_user_id", data.user.id);
+    }
+  }
+  return { ok: true };
+}
+
 export async function managerSignOut() {
   if (!isSupabaseReady) return;
   await supabaseManager.auth.signOut();
@@ -163,6 +224,9 @@ export async function getManagerSession() {
 // ─── Client auth (phone + password) ──────────────────────────────────────────
 
 // Registers a new client: creates the auth account, then the client row.
+// The account's login identity is her real email directly (not the legacy
+// synthetic phone-domain address) so a password-reset link can actually
+// reach her inbox; she still only ever types her phone number to sign in.
 // Returns { client } or { error }.
 export async function clientRegister(studioId, { name, phone, email, password }) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
@@ -171,11 +235,9 @@ export async function clientRegister(studioId, { name, phone, email, password })
     const blocked = await isContactBlocked(studioId, { phone, email, name });
     if (blocked) return { error: "מספר/אימייל זה חסום בסטודיו. פני לסטודיו." };
 
-    const { data: auth, error: e1 } = await supabaseClient.auth.signUp({
-      email: phoneToEmail(phone), password,
-    });
+    const { data: auth, error: e1 } = await supabaseClient.auth.signUp({ email, password });
     if (e1) {
-      if (e1.message?.includes("already")) return { error: "מספר הטלפון כבר רשום. נסי להתחבר." };
+      if (e1.message?.includes("already")) return { error: "האימייל או הטלפון כבר רשומים. נסי להתחבר." };
       throw e1;
     }
     const { data: client, error: e2 } = await supabaseClient
@@ -183,6 +245,7 @@ export async function clientRegister(studioId, { name, phone, email, password })
       .insert({
         studio_id: studioId, auth_user_id: auth.user?.id,
         name, phone, email, health_signed_at: new Date().toISOString(),
+        auth_email_migrated_at: new Date().toISOString(),
       })
       .select("*").single();
     if (e2) throw e2;
@@ -190,18 +253,43 @@ export async function clientRegister(studioId, { name, phone, email, password })
   } catch (err) { log("clientRegister", err); return { error: "ההרשמה נכשלה, נסי שוב." }; }
 }
 
-// Logs an existing client in by phone + password.
+// Logs an existing client in by phone + password. Tries her real email first
+// (current accounts, and anyone migrated already); falls back to the legacy
+// synthetic phone-domain email for accounts created before v13. A successful
+// legacy sign-in also kicks off a best-effort migration to her real email so
+// future password resets can reach her (see clientRequestPasswordReset).
 export async function clientSignIn(studioId, phone, password) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
   try {
-    const { data: auth, error } = await supabaseClient.auth.signInWithPassword({
-      email: phoneToEmail(phone), password,
-    });
-    if (error) return { error: "טלפון או סיסמה שגויים." };
+    const { data: info } = await supabaseClient.rpc("client_login_info_for_phone", { p_studio_id: studioId, p_phone: phone });
+    const row = Array.isArray(info) ? info[0] : info;
+    const realEmail = row?.email || null;
+
+    let authData = null, error = { message: "no-real-email" }, usedLegacy = false;
+    if (realEmail) {
+      const res = await supabaseClient.auth.signInWithPassword({ email: realEmail, password });
+      authData = res.data; error = res.error;
+    }
+    if (error) {
+      const legacy = await supabaseClient.auth.signInWithPassword({ email: phoneToEmail(phone), password });
+      authData = legacy.data; error = legacy.error; usedLegacy = !error;
+    }
+    if (error || !authData?.user) return { error: "טלפון או סיסמה שגויים." };
+
     const { data: client } = await supabaseClient
-      .from("clients").select("*").eq("auth_user_id", auth.user.id).eq("studio_id", studioId).maybeSingle();
+      .from("clients").select("*").eq("auth_user_id", authData.user.id).eq("studio_id", studioId).maybeSingle();
     if (!client) { await supabaseClient.auth.signOut(); return { error: "לא נמצא פרופיל ללקוחה זו בסטודיו זה." }; }
     if (client.blocked) { await supabaseClient.auth.signOut(); return { error: "החשבון חסום. פני לסטודיו." }; }
+
+    if (usedLegacy && client.email) {
+      // Fire-and-forget — doesn't block login either way. May require her to
+      // confirm the new address by email first, depending on project settings.
+      supabaseClient.auth.updateUser({ email: client.email })
+        .then(({ error: upErr }) => {
+          if (!upErr) supabaseClient.from("clients").update({ auth_email_migrated_at: new Date().toISOString() }).eq("id", client.id);
+        }).catch(() => {});
+    }
+
     return { client };
   } catch (err) { log("clientSignIn", err); return { error: "ההתחברות נכשלה." }; }
 }
@@ -209,6 +297,24 @@ export async function clientSignIn(studioId, phone, password) {
 export async function clientSignOut() {
   if (!isSupabaseReady) return;
   await supabaseClient.auth.signOut();
+}
+
+// Sends a password-reset email to the client's real address, resolved from
+// her phone. `needsMigrationHint` tells the UI to add a caveat: if this is a
+// legacy (pre-v13) account that has never logged in since, the reset email
+// won't arrive yet (her Auth account is still on the old placeholder
+// address) — she needs to log in once with her old password first, or ask
+// the studio to reset it for her from Supabase directly.
+export async function clientRequestPasswordReset(studioId, phone) {
+  if (!isSupabaseReady) return { error: "Supabase not configured" };
+  try {
+    const { data: info } = await supabaseClient.rpc("client_login_info_for_phone", { p_studio_id: studioId, p_phone: phone });
+    const row = Array.isArray(info) ? info[0] : info;
+    if (!row?.email) return { error: "לא נמצא חשבון עם מספר טלפון זה." };
+    const redirectTo = `${window.location.origin}${window.location.pathname}?reset=client`;
+    await supabaseClient.auth.resetPasswordForEmail(row.email, { redirectTo });
+    return { ok: true, needsMigrationHint: !row.migrated };
+  } catch (err) { log("clientRequestPasswordReset", err); return { error: "שליחת האיפוס נכשלה." }; }
 }
 
 // Restores the client profile for an existing session (page reload).
