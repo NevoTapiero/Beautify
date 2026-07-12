@@ -12,4 +12,21 @@ body {
   background: #fbefea;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overscroll-behavior: none; /* kill iOS/Android pull-to-refresh + rubber-band bounce */
+}
+
+/* The real (installed) app is a single-screen app shell: it must never be
+   larger than the viewport, with only .bf-screen scrolling internally.
+   position:fixed + inset:0 is a hard guarantee of that regardless of any
+   100vh/100dvh mismatch (older iOS in particular sizes them differently
+   when the browser chrome shows/hides) — this is what was letting the
+   whole page grow past one screen and need panning to see the rest.
+   Scoped to live mode only (:has(.bf-root-live)) — the desktop demo page
+   still scrolls normally. */
+body:has(.bf-root-live) {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
 }

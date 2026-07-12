@@ -4,18 +4,6 @@
 
 import { resolveStudioSlug } from "./api";
 
-// A branded fallback icon (rounded square in her wine color + her initial),
-// used when the studio has no uploaded logo. Returned as an SVG data URI.
-function fallbackIcon(name, color) {
-  const letter = (name || "B").trim().charAt(0).toUpperCase() || "B";
-  const svg =
-    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>` +
-    `<rect width='512' height='512' rx='112' fill='${color || "#7C2A53"}'/>` +
-    `<text x='256' y='350' font-size='280' fill='white' text-anchor='middle' ` +
-    `font-family='Georgia,serif'>${letter}</text></svg>`;
-  return "data:image/svg+xml," + encodeURIComponent(svg);
-}
-
 function upsertLink(rel, href, attrs = {}) {
   let el = document.querySelector(`link[rel="${rel}"]`);
   if (!el) { el = document.createElement("link"); el.rel = rel; document.head.appendChild(el); }
@@ -31,54 +19,31 @@ function upsertMeta(name, content) {
 }
 
 // Rebuild the page's identity (title, manifest, icons, theme) for this studio.
+//
+// The manifest itself is NOT built here — it links to /api/manifest?slug=…,
+// a real serverless endpoint (see api/manifest.js). It used to be an
+// in-memory Blob URL, which broke Android installs: minting a WebAPK
+// requires Google's servers to independently fetch the manifest, and a
+// blob: URL only exists inside the tab that created it — so Android
+// couldn't tell two studios' installs apart and collapsed them into one
+// (installing the second studio silently overwrote the first one's icon).
 export function applyStudioPWA(studio) {
   if (!studio) return;
   const slug = resolveStudioSlug();
-  const startUrl = `/${slug}`;
   const color = (studio.color_primary || "").trim() || "#7C2A53";
-  const icon = studio.logo_url || fallbackIcon(studio.name, color);
-  const iconType = studio.logo_url ? undefined : "image/svg+xml";
+  const icon = studio.logo_url || "/icon-mark.png";
 
   const appName = studio.brand_name || studio.name || "Beautify";
   document.title = appName;
 
-  const manifest = {
-    // An explicit id (defaults to start_url per spec, but set it anyway) is
-    // what lets the OS tell two studios' installed apps apart on one origin.
-    id: startUrl,
-    name: appName,
-    short_name: appName,
-    start_url: startUrl,
-    scope: startUrl,
-    display: "standalone",
-    orientation: "portrait",
-    lang: "he",
-    dir: "rtl",
-    background_color: "#FBEFEA",
-    theme_color: color,
-    // Only "any" (never "maskable") — a maskable purpose tells the OS it's
-    // free to crop/mask the icon into its own shape, which turns any
-    // transparent edge on an uploaded logo into a solid black splash.
-    icons: [
-      { src: icon, sizes: "192x192", ...(iconType && { type: iconType }), purpose: "any" },
-      { src: icon, sizes: "512x512", ...(iconType && { type: iconType }), purpose: "any" },
-    ],
-  };
-
-  // A manifest must be reachable by URL, so serve it from an in-memory Blob.
-  const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
-  const url = URL.createObjectURL(blob);
-  const existing = document.querySelector('link[rel="manifest"]');
-  if (existing?.dataset.blob) URL.revokeObjectURL(existing.href);
-  const link = upsertLink("manifest", url);
-  link.dataset.blob = "1";
+  upsertLink("manifest", `/api/manifest?slug=${encodeURIComponent(slug)}`);
 
   upsertMeta("theme-color", color);
   upsertMeta("apple-mobile-web-app-capable", "yes");
   upsertMeta("apple-mobile-web-app-status-bar-style", "default");
   upsertMeta("apple-mobile-web-app-title", appName);
   upsertLink("apple-touch-icon", icon);
-  upsertLink("icon", icon, iconType ? { type: iconType } : {});
+  upsertLink("icon", icon);
 }
 
 // Register the service worker (installability + offline shell + auto-update).
