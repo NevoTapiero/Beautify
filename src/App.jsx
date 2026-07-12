@@ -37,6 +37,18 @@ class ErrorBoundary extends React.Component {
 // clients' booking app, full-screen, with no switcher visible to them.
 const isDemo = api.resolveStudioSlug() === "demo";
 
+// Installed apps (Add to Home Screen) share Chrome's storage/session across
+// every studio at this origin on Android — there's no OS-level isolation
+// between two separate installed icons. So redirecting a mismatched manager
+// login to "her" studio isn't enough there: the cross-studio navigation can
+// itself succeed inside the same installed shell, letting Dana's studio be
+// managed from inside Tamar's icon. In standalone/installed mode a
+// mismatched login is rejected outright instead of redirected — redirecting
+// only makes sense in a normal browser tab.
+const isStandalone = () =>
+  (typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)").matches) ||
+  window.navigator?.standalone === true;
+
 export default function App() {
   const [role, setRole] = useState(isDemo ? "manager" : "client");
   const [studio, setStudio] = useState(null);
@@ -96,7 +108,10 @@ export default function App() {
     api.getManagerSession().then(async (u) => {
       if (!u) return;
       const mySlug = await api.getManagerStudioSlug(u.id);
-      if (mySlug && mySlug !== api.resolveStudioSlug()) { window.location.href = "/" + mySlug; return; }
+      if (mySlug && mySlug !== api.resolveStudioSlug()) {
+        if (isStandalone()) { await api.managerSignOut(); return; }
+        window.location.href = "/" + mySlug; return;
+      }
       if (mySlug) { setManagerUser(u); if (!isDemo) setRole("manager"); }
     });
   }, []);
@@ -258,7 +273,11 @@ export default function App() {
       if (r.error) return r.error;
       const mySlug = await api.getManagerStudioSlug(r.user.id);
       if (!mySlug) { await api.managerSignOut(); return "חשבון זה אינו משויך לאף סטודיו."; }
-      if (mySlug !== api.resolveStudioSlug()) { window.location.href = "/" + mySlug; return null; }
+      if (mySlug !== api.resolveStudioSlug()) {
+        await api.managerSignOut();
+        if (isStandalone()) return "חשבון זה שייך לסטודיו אחר. פתחי את האפליקציה של הסטודיו שלך במקום זאת.";
+        window.location.href = "/" + mySlug; return null;
+      }
       setManagerUser(r.user);
       await loadManagerData();
       return null;
