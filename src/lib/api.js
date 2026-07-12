@@ -149,6 +149,17 @@ export async function managerSignIn(email, password) {
   return { user: data.user };
 }
 
+// The studio slug this manager actually owns (studios_read is public, so a
+// plain select works). Used to make sure a manager logging in on studio A's
+// URL — or a page load restoring an old session there — doesn't end up
+// looking at studio A's data just because that's the page she happened to
+// be on; she gets redirected to her own studio's URL instead.
+export async function getManagerStudioSlug(userId) {
+  if (!isSupabaseReady || !userId) return null;
+  const { data } = await supabaseClient.from("studios").select("slug").eq("owner_id", userId).maybeSingle();
+  return data?.slug || null;
+}
+
 // Managers already log in with their real email, so this is a plain
 // Supabase reset — no phone-lookup indirection needed like the client side.
 export async function managerRequestPasswordReset(email) {

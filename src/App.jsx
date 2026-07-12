@@ -93,7 +93,12 @@ export default function App() {
       applyStudioPWA(b.studio);   // make the installed app *hers* (name/icon/colors)
       api.getCurrentClient(b.studio.id).then((c) => { if (c) setClient(c); });
     });
-    api.getManagerSession().then((u) => { if (u) { setManagerUser(u); if (!isDemo) setRole("manager"); } });
+    api.getManagerSession().then(async (u) => {
+      if (!u) return;
+      const mySlug = await api.getManagerStudioSlug(u.id);
+      if (mySlug && mySlug !== api.resolveStudioSlug()) { window.location.href = "/" + mySlug; return; }
+      if (mySlug) { setManagerUser(u); if (!isDemo) setRole("manager"); }
+    });
   }, []);
 
   // ─── Data loaders ────────────────────────────────────────────────
@@ -251,6 +256,9 @@ export default function App() {
     login: async (email, password) => {
       const r = await api.managerSignIn(email, password);
       if (r.error) return r.error;
+      const mySlug = await api.getManagerStudioSlug(r.user.id);
+      if (!mySlug) { await api.managerSignOut(); return "חשבון זה אינו משויך לאף סטודיו."; }
+      if (mySlug !== api.resolveStudioSlug()) { window.location.href = "/" + mySlug; return null; }
       setManagerUser(r.user);
       await loadManagerData();
       return null;
