@@ -258,6 +258,14 @@ export async function clientRegister(studioId, { name, phone, email, password })
 // synthetic phone-domain email for accounts created before v13. A successful
 // legacy sign-in also kicks off a best-effort migration to her real email so
 // future password resets can reach her (see clientRequestPasswordReset).
+//
+// Guards against a real edge case: her profile's "real email" can coincide
+// with an unrelated, already-existing Supabase account (e.g. she registered
+// using an email that's also someone's manager login, or her own manager
+// login, and the passwords happen to match) — signing in with that email
+// would then authenticate the WRONG account. So a "successful" sign-in is
+// only trusted once we've confirmed it actually owns a client row for this
+// studio; otherwise we sign back out and keep trying the other path.
 export async function clientSignIn(studioId, phone, password) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
   try {
@@ -265,20 +273,22 @@ export async function clientSignIn(studioId, phone, password) {
     const row = Array.isArray(info) ? info[0] : info;
     const realEmail = row?.email || null;
 
-    let authData = null, error = { message: "no-real-email" }, usedLegacy = false;
-    if (realEmail) {
-      const res = await supabaseClient.auth.signInWithPassword({ email: realEmail, password });
-      authData = res.data; error = res.error;
-    }
-    if (error) {
-      const legacy = await supabaseClient.auth.signInWithPassword({ email: phoneToEmail(phone), password });
-      authData = legacy.data; error = legacy.error; usedLegacy = !error;
-    }
-    if (error || !authData?.user) return { error: "טלפון או סיסמה שגויים." };
+    const tryLogin = async (email) => {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error || !data?.user) return null;
+      const { data: client } = await supabaseClient
+        .from("clients").select("*").eq("auth_user_id", data.user.id).eq("studio_id", studioId).maybeSingle();
+      if (!client) { await supabaseClient.auth.signOut(); return null; }
+      return client;
+    };
 
-    const { data: client } = await supabaseClient
-      .from("clients").select("*").eq("auth_user_id", authData.user.id).eq("studio_id", studioId).maybeSingle();
-    if (!client) { await supabaseClient.auth.signOut(); return { error: "לא נמצא פרופיל ללקוחה זו בסטודיו זה." }; }
+    let client = realEmail ? await tryLogin(realEmail) : null;
+    let usedLegacy = false;
+    if (!client) {
+      client = await tryLogin(phoneToEmail(phone));
+      usedLegacy = !!client;
+    }
+    if (!client) return { error: "טלפון או סיסמה שגויים." };
     if (client.blocked) { await supabaseClient.auth.signOut(); return { error: "החשבון חסום. פני לסטודיו." }; }
 
     if (usedLegacy && client.email) {
