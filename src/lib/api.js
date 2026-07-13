@@ -238,10 +238,12 @@ export async function getManagerSession() {
 
 // ─── Client auth (phone + password) ──────────────────────────────────────────
 
-// Registers a new client: creates the auth account, then the client row.
-// The account's login identity is her real email directly (not the legacy
-// synthetic phone-domain address) so a password-reset link can actually
-// reach her inbox; she still only ever types her phone number to sign in.
+// Registers a new client. One person = one auth account (their real email,
+// so reset links reach them), but they can be a client of MANY studios — a
+// customer who visits two salons registers at each. So if the email already
+// has an account (used at another studio), we don't fail: we sign into it
+// with the password they entered and add a client profile for THIS studio.
+// The same phone across studios is fine (no global uniqueness on it).
 // Returns { client } or { error }.
 export async function clientRegister(studioId, { name, phone, email, password }) {
   if (!isSupabaseReady) return { error: "Supabase not configured" };
@@ -250,21 +252,40 @@ export async function clientRegister(studioId, { name, phone, email, password })
     const blocked = await isContactBlocked(studioId, { phone, email, name });
     if (blocked) return { error: "מספר/אימייל זה חסום בסטודיו. פני לסטודיו." };
 
+    // Create (or return) this studio's client profile for an authenticated user.
+    const profileFor = async (authUserId) => {
+      const { data: existing } = await supabaseClient
+        .from("clients").select("*").eq("auth_user_id", authUserId).eq("studio_id", studioId).maybeSingle();
+      if (existing) {
+        // Already a client here — just log her in (registration is idempotent).
+        if (existing.blocked) { await supabaseClient.auth.signOut(); return { error: "החשבון חסום. פני לסטודיו." }; }
+        return { client: existing };
+      }
+      const { data: client, error } = await supabaseClient
+        .from("clients")
+        .insert({
+          studio_id: studioId, auth_user_id: authUserId,
+          name, phone, email, health_signed_at: new Date().toISOString(),
+          auth_email_migrated_at: new Date().toISOString(),
+        })
+        .select("*").single();
+      if (error) throw error;
+      return { client };
+    };
+
     const { data: auth, error: e1 } = await supabaseClient.auth.signUp({ email, password });
-    if (e1) {
-      if (e1.message?.includes("already")) return { error: "האימייל או הטלפון כבר רשומים. נסי להתחבר." };
-      throw e1;
+    // A brand-new email returns a real identity + an active session.
+    const freshId = (!e1 && auth?.user?.id && (auth.user.identities?.length ?? 0) > 0) ? auth.user.id : null;
+    if (freshId) return await profileFor(freshId);
+
+    // Otherwise the email already exists (here or at another studio). Verify
+    // it's really her by signing in with the password she typed.
+    if (e1 && !/already|registered|exist/i.test(e1.message || "")) throw e1;
+    const { data: signin, error: e2 } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (e2 || !signin?.user) {
+      return { error: "האימייל כבר רשום במערכת. הזיני את הסיסמה הקיימת שלך, או השתמשי באימייל אחר." };
     }
-    const { data: client, error: e2 } = await supabaseClient
-      .from("clients")
-      .insert({
-        studio_id: studioId, auth_user_id: auth.user?.id,
-        name, phone, email, health_signed_at: new Date().toISOString(),
-        auth_email_migrated_at: new Date().toISOString(),
-      })
-      .select("*").single();
-    if (e2) throw e2;
-    return { client };
+    return await profileFor(signin.user.id);
   } catch (err) { log("clientRegister", err); return { error: "ההרשמה נכשלה, נסי שוב." }; }
 }
 
