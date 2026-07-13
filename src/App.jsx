@@ -519,7 +519,7 @@ export default function App() {
             ) : (
               <div key={role} style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, animation: "bf-fade .22s ease" }}>
                 {role === "manager"
-                  ? <ManagerApp mgr={mgr} ping={ping} />
+                  ? <ManagerApp mgr={mgr} ping={ping} onBackToClient={isDemo ? undefined : () => setRole("client")} />
                   : <ClientApp cli={cli} ping={ping} onManagerEntry={isDemo ? undefined : () => setRole("manager")} />}
               </div>
             )}

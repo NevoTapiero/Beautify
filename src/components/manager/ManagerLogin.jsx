@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Sheet } from "../ui";
 
-export default function ManagerLogin({ onLogin, onRequestReset, studio }) {
+export default function ManagerLogin({ onLogin, onRequestReset, onBackToClient, studio }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(null);
@@ -51,6 +51,11 @@ export default function ManagerLogin({ onLogin, onRequestReset, studio }) {
         <button onClick={() => setForgot(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 12.5, textDecoration: "underline", justifySelf: "center", padding: "2px 0" }}>
           שכחת סיסמה?
         </button>
+        {onBackToClient && (
+          <button onClick={onBackToClient} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 12, textDecoration: "underline", justifySelf: "center", padding: "6px 0" }}>
+            לקוחה? חזרה לכניסת לקוחות
+          </button>
+        )}
       </div>
       {forgot && <ForgotPasswordSheet onRequestReset={onRequestReset} initialEmail={email} onClose={() => setForgot(false)} />}
     </>

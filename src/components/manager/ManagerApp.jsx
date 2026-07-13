@@ -10,7 +10,7 @@ import MgrGallery from "./MgrGallery";
 import MgrSettings from "./MgrSettings";
 import EmployeeProfile from "./EmployeeProfile";
 
-export default function ManagerApp({ mgr, ping }) {
+export default function ManagerApp({ mgr, ping, onBackToClient }) {
   const [tab, setTab] = useState("home");
   // Selected cosmetician, shared between Home and Calendar (V6). null = owner.
   const [cosmId, setCosmId] = useState(mgr.lockedEmployeeId || null);
@@ -40,7 +40,7 @@ export default function ManagerApp({ mgr, ping }) {
   const empApprCount = (mgr.gallery || []).filter((g) => g.employeeId === lockedId).length;
   const newEmpAppr = !!lockedId && empApprCount > getSeen(sid, "emp-gal-appr");
 
-  if (!mgr.user) return <ManagerLogin onLogin={mgr.login} onRequestReset={mgr.requestPasswordReset} studio={mgr.studio} />;
+  if (!mgr.user) return <ManagerLogin onLogin={mgr.login} onRequestReset={mgr.requestPasswordReset} onBackToClient={onBackToClient} studio={mgr.studio} />;
 
   // Wait for the studio to load before rendering tabs — on a refresh the saved
   // session restores before the studio bundle, and the tabs need mgr.studio.
