@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Camera, Check, X, Pencil, RefreshCw, CheckCircle2 } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Empty, Sheet, GallerySort, sortGallery, cosmeticians } from "../ui";
 import { getSeen, setSeen } from "../../lib/seen";
@@ -15,10 +15,16 @@ export default function MgrGallery({ mgr }) {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingBusy, setPendingBusy] = useState(() => new Set());
-  const decide = (id, action) => {
+  const decide = async (id, action) => {
     if (pendingBusy.has(id)) return;
     setPendingBusy((s) => new Set(s).add(id));
-    action(id);
+    try {
+      await action(id);
+    } finally {
+      // Clear the guard so a failed approve/reject re-enables its buttons
+      // (on success the photo leaves the list and this is a no-op).
+      setPendingBusy((s) => { const n = new Set(s); n.delete(id); return n; });
+    }
   };
 
   const locked = !!mgr.lockedEmployeeId;   // employee-app mode (Phase 3)
@@ -34,15 +40,23 @@ export default function MgrGallery({ mgr }) {
   const showCosm = !locked && mgr.business && cosmList.length > 1;
   const shown = (list) => cosm === "all" ? list : list.filter((g) => (g.employeeId || "owner") === cosm);
 
+  // One object URL per picked file, not one per caption keystroke (see CliGallery).
+  const preview = useMemo(() => (pickedFile ? URL.createObjectURL(pickedFile) : null), [pickedFile]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
   const doUpload = async () => {
     setBusy(true);
-    if (locked) {
-      // Employee uploads go for approval, like a client (note 64).
-      await mgr.uploadEmployeePhoto(pickedFile, cap);
-    } else {
-      await mgr.uploadPhoto(pickedFile, cap, pickedEmp === "owner" ? null : pickedEmp);
+    try {
+      if (locked) {
+        // Employee uploads go for approval, like a client (note 64).
+        await mgr.uploadEmployeePhoto(pickedFile, cap);
+      } else {
+        await mgr.uploadPhoto(pickedFile, cap, pickedEmp === "owner" ? null : pickedEmp);
+      }
+      setPickedFile(null); setCap(""); setPickedEmp(null);
+    } finally {
+      setBusy(false);
     }
-    setBusy(false); setPickedFile(null); setCap(""); setPickedEmp(null);
   };
   const doRefresh = async () => { setRefreshing(true); await mgr.refresh(); setRefreshing(false); };
 
@@ -151,8 +165,8 @@ export default function MgrGallery({ mgr }) {
         <Sheet onClose={() => setPickedFile(null)}>
           <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>העלאת עבודה</h3>
           {pickedFile.type?.startsWith("video")
-            ? <video src={URL.createObjectURL(pickedFile)} controls playsInline style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 16, marginBottom: 14, background: "#000" }} />
-            : <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(pickedFile)}) center/cover`, marginBottom: 14 }} />}
+            ? <video src={preview} controls playsInline style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 16, marginBottom: 14, background: "#000" }} />
+            : <div style={{ height: 170, borderRadius: 16, background: `url(${preview}) center/cover`, marginBottom: 14 }} />}
           <label className="bf-label">תיאור קצר</label>
           <input className="bf-input" placeholder="לדוגמה: פרנץ' ורוד" value={cap} onChange={(e) => setCap(e.target.value)} />
           {showCosm && (<>
@@ -175,7 +189,7 @@ export default function MgrGallery({ mgr }) {
 function CaptionEditor({ photo, mgr, onClose }) {
   const [text, setText] = useState(photo.cap || "");
   const [busy, setBusy] = useState(false);
-  const save = async () => { setBusy(true); await mgr.updateCaption(photo.id, text); setBusy(false); onClose(); };
+  const save = async () => { setBusy(true); try { await mgr.updateCaption(photo.id, text); onClose(); } finally { setBusy(false); } };
   return (
     <Sheet onClose={onClose}>
       <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>עריכת תיאור</h3>

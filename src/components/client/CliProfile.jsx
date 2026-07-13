@@ -54,12 +54,17 @@ export default function CliProfile({ cli }) {
 function EditSheet({ cli, me, onClose }) {
   const [f, setF] = useState({ name: me.name, phone: me.phone, email: me.email || "" });
   const [busy, setBusy] = useState(false);
-  const ok = f.name && f.phone.length >= 9;
+  const ok = f.name.trim().length >= 2 && f.phone.trim().length >= 9;
 
   const save = async () => {
+    if (!ok) return;
     setBusy(true);
-    await cli.updateProfile({ name: f.name, phone: f.phone, email: f.email });
-    setBusy(false); onClose();
+    try {
+      await cli.updateProfile({ name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim() });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

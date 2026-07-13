@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Camera, X, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { GalleryTile, Lightbox, PhotoPicker, Sheet, Empty, GallerySort, sortGallery, cosmeticians } from "../ui";
 import { getSeen, setSeen } from "../../lib/seen";
@@ -35,10 +35,19 @@ export default function CliGallery({ cli }) {
   }));
   useEffect(() => { setSeen(sid, "cli-appr", apprCount); setSeen(sid, "cli-rej", rejCount); }, [sid, apprCount, rejCount]);
 
+  // One object URL per picked file (not one per caption keystroke) — otherwise
+  // the preview video restarts on every render and the URLs leak.
+  const preview = useMemo(() => (picked ? URL.createObjectURL(picked) : null), [picked]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
   const doUpload = async () => {
     setBusy(true);
-    await cli.uploadPhoto(picked, cap, pickedEmp === "owner" ? null : pickedEmp);
-    setBusy(false); setPicked(null); setCap(""); setPickedEmp(null);
+    try {
+      await cli.uploadPhoto(picked, cap, pickedEmp === "owner" ? null : pickedEmp);
+      setPicked(null); setCap(""); setPickedEmp(null);
+    } finally {
+      setBusy(false);
+    }
   };
   const doRefresh = async () => { setRefreshing(true); await cli.refresh(); setRefreshing(false); };
 
@@ -122,8 +131,8 @@ export default function CliGallery({ cli }) {
         <Sheet onClose={() => setPicked(null)}>
           <h3 className="bf-display" style={{ margin: "0 0 12px", fontSize: 20 }}>שיתוף תמונה או סרטון</h3>
           {picked.type?.startsWith("video")
-            ? <video src={URL.createObjectURL(picked)} controls playsInline style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 16, marginBottom: 14, background: "#000" }} />
-            : <div style={{ height: 170, borderRadius: 16, background: `url(${URL.createObjectURL(picked)}) center/cover`, marginBottom: 14 }} />}
+            ? <video src={preview} controls playsInline style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 16, marginBottom: 14, background: "#000" }} />
+            : <div style={{ height: 170, borderRadius: 16, background: `url(${preview}) center/cover`, marginBottom: 14 }} />}
           <label className="bf-label">תיאור קצר</label>
           <input className="bf-input" placeholder="לדוגמה: אומברה ורוד" value={cap} onChange={(e) => setCap(e.target.value)} />
           {showCosm && (<>

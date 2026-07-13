@@ -189,7 +189,7 @@ export default function App() {
     const id = window.setInterval(check, 20000);
     window.addEventListener("focus", check);
     return () => { window.clearInterval(id); window.removeEventListener("focus", check); };
-  }, [client, ping]);
+  }, [client, studio?.id, ping]);
 
   // Remote disconnect: if the manager removes this employee, the locked device
   // unlocks itself (Phase 3). Polls + checks on focus.
@@ -274,8 +274,10 @@ export default function App() {
       const mySlug = await api.getManagerStudioSlug(r.user.id);
       if (!mySlug) { await api.managerSignOut(); return "חשבון זה אינו משויך לאף סטודיו."; }
       if (mySlug !== api.resolveStudioSlug()) {
-        await api.managerSignOut();
-        if (isStandalone()) return "חשבון זה שייך לסטודיו אחר. פתחי את האפליקציה של הסטודיו שלך במקום זאת.";
+        // Installed app: reject outright (see isStandalone note). Browser tab:
+        // redirect to her own studio WITHOUT signing out, so she isn't asked
+        // for her password a second time when she lands there.
+        if (isStandalone()) { await api.managerSignOut(); return "חשבון זה שייך לסטודיו אחר. פתחי את האפליקציה של הסטודיו שלך במקום זאת."; }
         window.location.href = "/" + mySlug; return null;
       }
       setManagerUser(r.user);
@@ -385,11 +387,12 @@ export default function App() {
     },
     saveSettings: async (settings) => {
       const ok = await api.updateStudioSettings(studio.id, settings);
-      if (!ok) { ping("השמירה נכשלה — נסי שוב"); return; }
+      if (!ok) { ping("השמירה נכשלה — נסי שוב"); return false; }
       // Keep local copy in sync so toggles persist across screens, and re-apply
       // the installed-app identity (title/manifest/icons) if name or logo changed.
       setStudio((s) => { const next = { ...s, ...settings }; applyStudioPWA(next); return next; });
       ping("ההגדרה נשמרה");
+      return true;
     },
     // Employee schedule-change approval flow (Phase 3b)
     scheduleReqs,

@@ -38,7 +38,7 @@ export default function ManagerLogin({ onLogin, onRequestReset, studio }) {
         <div>
           <label className="bf-label">סיסמה</label>
           <input className="bf-input" type="password" placeholder="••••••••" value={pw} onChange={e => setPw(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && submit()} />
+            onKeyDown={e => { if (e.key === "Enter" && !loading && email && pw) submit(); }} />
         </div>
         {err && (
           <div style={{ background: "#FEE8E8", color: "#B23A48", borderRadius: 12, padding: "10px 14px", fontSize: 13.5, fontWeight: 600 }}>

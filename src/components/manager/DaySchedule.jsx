@@ -27,7 +27,13 @@ export default function DaySchedule({ effective, dayAppts, dayBreaks, allAppts, 
   if (!dayOpen) return <Empty>הסטודיו סגור ביום זה</Empty>;
 
   const slots = [];
-  const o = toMin(effective.start_time), c = toMin(effective.end_time);
+  // Span the working hours, but stretch to include any appointment/break that
+  // falls outside them (e.g. booked before the hours were changed) so it stays
+  // visible and cancellable instead of vanishing.
+  let o = toMin(effective.start_time), c = toMin(effective.end_time);
+  for (const a of dayAppts) { o = Math.min(o, toMin(a.time)); c = Math.max(c, toMin(a.time) + (a.serviceDur || 30)); }
+  for (const b of dayBreaks) { o = Math.min(o, toMin(b.time)); c = Math.max(c, toMin(b.endTime)); }
+  o = Math.floor(o / 30) * 30; c = Math.ceil(c / 30) * 30;
   for (let m = o; m < c; m += 30) {
     const appt = dayAppts.find((a) => toMin(a.time) >= m && toMin(a.time) < m + 30);
     const cover = dayAppts.find((a) => toMin(a.time) < m && toMin(a.time) + a.serviceDur > m);

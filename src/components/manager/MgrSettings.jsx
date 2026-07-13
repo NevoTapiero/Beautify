@@ -37,11 +37,15 @@ export default function MgrSettings({ mgr }) {
   const [enlargeOwner, setEnlargeOwner] = useState(false);
   const [enlargeEmp, setEnlargeEmp] = useState(null);   // employee whose photo is enlarged
   const [enlargeSvc, setEnlargeSvc] = useState(null);   // service whose photo is enlarged
+  const [delEmp, setDelEmp] = useState(null);           // employee pending delete-confirmation
+  const [delSvc, setDelSvc] = useState(null);           // service pending delete-confirmation
 
-  const tog = (k) => {
+  const tog = async (k) => {
     const next = !state[k];
     setState((p) => ({ ...p, [k]: next }));
-    mgr.saveSettings({ [k]: next });
+    // Roll the toggle back if the save didn't actually persist.
+    const ok = await mgr.saveSettings({ [k]: next });
+    if (ok === false) setState((p) => ({ ...p, [k]: !next }));
   };
 
   const Toggle = ({ k }) => (
@@ -96,7 +100,7 @@ export default function MgrSettings({ mgr }) {
                 {e.title && <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.title}</div>}
               </div>
               <button onClick={() => setEditEmp(e)} aria-label="עריכה" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4 }}><Pencil size={16} /></button>
-              <button onClick={() => mgr.deleteEmployee(e.id)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
+              <button onClick={() => setDelEmp(e)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
             </div>
           ))}
         </div>
@@ -150,7 +154,7 @@ export default function MgrSettings({ mgr }) {
                 <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{sv.dur} דק׳ · ₪{sv.price}</div>
               </div>
               <button onClick={() => setEditSvc(sv)} aria-label="עריכה" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4 }}><Pencil size={16} /></button>
-              <button onClick={() => mgr.deleteService(sv.id)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
+              <button onClick={() => setDelSvc(sv)} aria-label="מחיקה" style={{ background: "none", border: "none", cursor: "pointer", color: "#B23A48", padding: 4 }}><Trash2 size={16} /></button>
             </div>
           ))}
         </div>
@@ -262,6 +266,24 @@ export default function MgrSettings({ mgr }) {
           onClose={() => setLockEmp(null)}
         />
       )}
+      {delEmp && (
+        <Confirm
+          title={`למחוק את ${delEmp.name}?`}
+          body="העובדת תוסר, וכל התורים העתידיים שלה יבוטלו והלקוחות יקבלו על כך הודעה. הפעולה אינה הפיכה."
+          confirmLabel="מחיקת העובדת" danger
+          onConfirm={() => mgr.deleteEmployee(delEmp.id)}
+          onClose={() => setDelEmp(null)}
+        />
+      )}
+      {delSvc && (
+        <Confirm
+          title={`למחוק את "${delSvc.name}"?`}
+          body="השירות יוסר מרשימת השירותים ולקוחות לא יוכלו עוד לקבוע אותו."
+          confirmLabel="מחיקת השירות" danger
+          onConfirm={() => mgr.deleteService(delSvc.id)}
+          onClose={() => setDelSvc(null)}
+        />
+      )}
     </div>
   );
 }
@@ -315,7 +337,7 @@ function EmployeeEditor({ emp, mgr, onClose }) {
           <label className="bf-label">צבע</label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {colors.map((c) => (
-              <button key={c} onClick={() => setColor(c)} aria-label="צבע" style={{ width: 38, height: 38, borderRadius: "50%", background: c, border: color === c ? "3px solid var(--ink)" : "2px solid transparent", cursor: "pointer" }} />
+              <button key={c} onClick={() => setColor(c)} aria-label={`צבע ${c}`} aria-pressed={color === c} style={{ width: 38, height: 38, borderRadius: "50%", background: c, border: color === c ? "3px solid var(--ink)" : "2px solid transparent", cursor: "pointer" }} />
             ))}
           </div>
         </div>
@@ -382,8 +404,8 @@ function ServiceEditor({ svc, mgr, grads, onClose }) {
           <div>
             <label className="bf-label">צבע</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {grads.map((g) => (
-                <button key={g} onClick={() => setGrad(g)} aria-label="צבע" style={{ width: 40, height: 40, borderRadius: 11, background: g, border: grad === g ? "3px solid var(--plum)" : "2px solid transparent", cursor: "pointer" }} />
+              {grads.map((g, i) => (
+                <button key={g} onClick={() => setGrad(g)} aria-label={`ערכת צבע ${i + 1}`} aria-pressed={grad === g} style={{ width: 40, height: 40, borderRadius: 11, background: g, border: grad === g ? "3px solid var(--plum)" : "2px solid transparent", cursor: "pointer" }} />
               ))}
             </div>
           </div>

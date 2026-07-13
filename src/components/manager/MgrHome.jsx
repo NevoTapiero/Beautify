@@ -77,7 +77,7 @@ export default function MgrHome({ mgr, go, cosmId, setCosmId }) {
         <div className="bf-card" style={{ padding: "13px 15px", display: "flex", alignItems: "center", gap: 11, background: "linear-gradient(135deg,#3A2A40,#5E1F40)", color: "#fff" }}>
           <Moon size={20} />
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>{cosmId ? `${(cosmList.find((c) => c.id === cosmId) || {}).name} לא עובדת היום` : "הסטודיו סגור היום"}</div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{cosmId ? `${cosmList.find((c) => c.id === cosmId)?.name || "העובדת"} לא עובדת היום` : "הסטודיו סגור היום"}</div>
             <div style={{ fontSize: 12.5, opacity: .85 }}>לקוחות לא יוכלו לקבוע תור להיום</div>
           </div>
         </div>

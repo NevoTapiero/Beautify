@@ -7,8 +7,10 @@
 function hexToRgb(hex) {
   const h = (hex || "").trim().replace("#", "");
   const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  // Strict hex check — parseInt would otherwise accept "ff00zz" (stops at the
+  // bad char) and yield a wrong color instead of falling back to the default.
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
   const n = parseInt(full, 16);
-  if (full.length !== 6 || Number.isNaN(n)) return null;
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 

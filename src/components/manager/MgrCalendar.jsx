@@ -22,6 +22,13 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
   const [editDay, setEditDay] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reqBusy, setReqBusy] = useState(() => new Set());   // schedule-requests mid-decision (no double-tap)
+  const decideReq = async (r, fn) => {
+    if (reqBusy.has(r.id)) return;
+    setReqBusy((s) => new Set(s).add(r.id));
+    try { await fn(r); }
+    finally { setReqBusy((s) => { const n = new Set(s); n.delete(r.id); return n; }); }
+  };
 
   const [weekly, setWeekly] = useState([]);
   const [override, setOverride] = useState(null);
@@ -135,7 +142,7 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
 
         {locked && cosmId !== mgr.lockedEmployeeId && (
           <div className="bf-card" style={{ padding: "10px 12px", fontSize: 12.5, color: "var(--muted)", textAlign: "center" }}>
-            את צופה בלו"ז של {(cosmList.find((c) => (c.owner ? null : c.id) === cosmId) || {}).name} — לצפייה בלבד
+            את צופה בלו"ז של {cosmList.find((c) => (c.owner ? null : c.id) === cosmId)?.name || "העובדת"} — לצפייה בלבד
           </div>
         )}
 
@@ -161,8 +168,8 @@ export default function MgrCalendar({ mgr, cosmId, setCosmId }) {
                 </div>
                 {!locked && (
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} onClick={() => mgr.approveScheduleRequest(r)}>אישור</button>
-                    <button className="bf-btn bf-btn-ghost bf-btn-sm" onClick={() => mgr.declineScheduleRequest(r)}>דחייה</button>
+                    <button className="bf-btn bf-btn-primary bf-btn-sm" style={{ flex: 1 }} disabled={reqBusy.has(r.id)} onClick={() => decideReq(r, mgr.approveScheduleRequest)}>אישור</button>
+                    <button className="bf-btn bf-btn-ghost bf-btn-sm" disabled={reqBusy.has(r.id)} onClick={() => decideReq(r, mgr.declineScheduleRequest)}>דחייה</button>
                   </div>
                 )}
               </div>
@@ -422,7 +429,7 @@ function WeeklyHoursSheet({ weekly, selDay, hasSelOverride, mgr, cosmId, request
                 <span style={{ color: "var(--muted)" }}>–</span>
                 <TimeSelect value={r.end} onChange={(v) => set(r.weekday, { end: v })} small />
               </div>
-            ) : <div style={{ flex: 1, textAlign: "left", color: "var(--muted)", fontSize: 13 }}>סגור</div>}
+            ) : <div style={{ flex: 1, textAlign: "end", color: "var(--muted)", fontSize: 13 }}>סגור</div>}
           </div>
         ))}
       </div>

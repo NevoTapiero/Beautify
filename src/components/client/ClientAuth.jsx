@@ -9,9 +9,14 @@ export default function ClientAuth({ cli, onManagerEntry }) {
 
   const run = async (fn) => {
     setErr(null); setBusy(true);
-    const error = await fn();
-    setBusy(false);
-    if (error) setErr(error);
+    try {
+      const error = await fn();
+      if (error) setErr(error);
+    } catch {
+      setErr("אירעה תקלה, נסי שוב.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -129,17 +134,22 @@ function RegisterForm({ cli, busy, run }) {
       <div><label className="bf-label">אימייל</label><input className="bf-input" inputMode="email" placeholder="name@mail.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
       <div><label className="bf-label">סיסמה (6 תווים לפחות)</label><input className="bf-input" type="password" placeholder="••••••••" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
 
-      <button onClick={() => setAgree(!agree)} className="bf-card" style={{ padding: 13, display: "flex", gap: 11, alignItems: "flex-start", textAlign: "right", cursor: "pointer", border: agree ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
+      {/* A div (not a button) so the nested terms link is valid markup — a
+          <button> can't contain another interactive element. */}
+      <div role="checkbox" aria-checked={agree} tabIndex={0}
+        onClick={() => setAgree(!agree)}
+        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setAgree((v) => !v); } }}
+        className="bf-card" style={{ padding: 13, display: "flex", gap: 11, alignItems: "flex-start", textAlign: "right", cursor: "pointer", border: agree ? "1px solid var(--rose)" : "1px solid var(--sand)" }}>
         <span style={{ width: 22, height: 22, borderRadius: 7, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: agree ? "linear-gradient(135deg,var(--plum),var(--rose))" : "#fff", border: agree ? "none" : "1px solid var(--sand)" }}>
           {agree && <Check size={15} color="var(--btn-ink)" />}
         </span>
         <span style={{ fontSize: 13, lineHeight: 1.5 }}>
           קראתי ואני מאשרת את{" "}
-          <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setTerms(true); }} onKeyDown={(e) => e.key === "Enter" && setTerms(true)} style={{ color: "var(--plum)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>
+          <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setTerms(true); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setTerms(true); } }} style={{ color: "var(--plum)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>
             תנאי השירות והצהרת הבריאות
           </span>
         </span>
-      </button>
+      </div>
 
       <button className="bf-btn bf-btn-primary" disabled={!ok || busy} onClick={() => run(() => cli.register(f))}>
         <ShieldCheck size={17} /> {busy ? "שומרת…" : "סיום הרשמה"}

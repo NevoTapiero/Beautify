@@ -16,7 +16,9 @@ const STYLE = `
   padding:22px 14px 40px;
 }
 .bf-display{ font-family:'Frank Ruhl Libre', serif; }
-.bf-root :focus-visible{ outline:2px solid var(--rose); outline-offset:2px; border-radius:10px; }
+/* No border-radius here — it would morph the focused element's own shape
+   (round avatars, pills); the outline already traces the element's radius. */
+.bf-root :focus-visible{ outline:2px solid var(--rose); outline-offset:2px; }
 
 .bf-mark{ width:28px; height:34px; object-fit:contain; display:inline-block; flex:none; }
 .bf-mark-badge{ width:46px; height:46px; border-radius:14px; background:#fff; display:inline-flex;
@@ -28,6 +30,7 @@ const STYLE = `
   border-radius:999px; padding:5px; gap:4px; box-shadow:0 6px 18px -12px rgba(42,26,46,.5); }
 .bf-roleswitch button{ border:none; background:none; padding:9px 20px; border-radius:999px;
   font-weight:700; font-size:14px; color:var(--muted); cursor:pointer; transition:.18s; font-family:inherit; }
+.bf-roleswitch button:active{ transform:scale(.95); }
 .bf-roleswitch button.active{ background:linear-gradient(135deg,var(--plum),var(--rose)); color:var(--btn-ink);
   box-shadow:0 8px 18px -10px rgba(124,42,83,.7); }
 
@@ -39,12 +42,15 @@ const STYLE = `
    like, not a phone illustration on a desktop demo page. */
 .bf-phone-live{ width:100%; height:100dvh; max-height:none; border:none; border-radius:0; box-shadow:none; }
 .bf-root-live{ padding:0; min-height:0; height:100dvh; }
-.bf-screen{ flex:1; min-height:0; overflow-y:auto; }
+.bf-screen{ flex:1; min-height:0; overflow-y:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .bf-screen::-webkit-scrollbar{ width:0; }
 .bf-pad{ padding:18px 16px 26px; }
 
 .bf-appbar{ background:linear-gradient(135deg,var(--plum-deep),var(--plum)); color:var(--btn-ink);
   padding:16px 18px 16px; position:relative; overflow:hidden; flex:none; }
+/* On an installed iPhone the app fills the screen, so the header must clear the
+   notch/status bar (env(safe-area-inset-top)); harmlessly 0 everywhere else. */
+.bf-root-live .bf-appbar{ padding-top:calc(16px + env(safe-area-inset-top)); }
 .bf-appbar::after{ content:''; position:absolute; inset:0 0 55% 0;
   background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0)); pointer-events:none; }
 .bf-appbar h1{ font-size:21px; margin:0; line-height:1.15; position:relative; }
@@ -52,6 +58,8 @@ const STYLE = `
 .bf-appbar .bf-wordmark{ color:var(--btn-ink); }
 
 .bf-nav{ display:flex; background:var(--surface); border-top:1px solid var(--sand); flex:none; padding-bottom:2px; position:relative; }
+/* Keep the tab bar above the iPhone home indicator when installed. */
+.bf-root-live .bf-nav{ padding-bottom:calc(2px + env(safe-area-inset-bottom)); }
 .bf-nav-indicator{ position:absolute; top:0; height:2.5px; border-radius:0 0 3px 3px;
   background:linear-gradient(135deg,var(--plum),var(--rose));
   transition:inset-inline-start .55s cubic-bezier(.2,.8,.2,1), width .55s cubic-bezier(.2,.8,.2,1); pointer-events:none; z-index:0; }
@@ -126,7 +134,7 @@ button.bf-card:active{ transform:scale(.97); }
 .bf-day .dn{ font-size:18px; font-weight:800; line-height:1; }
 .bf-day .dl{ font-size:11px; font-weight:700; opacity:.8; margin-top:3px; }
 
-.bf-photo-x{ position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%;
+.bf-photo-x{ position:absolute; top:10px; inset-inline-end:10px; width:32px; height:32px; border-radius:50%;
   background:rgba(20,12,22,.55); border:none; display:flex; align-items:center; justify-content:center;
   color:#fff; cursor:pointer; }
 
@@ -140,8 +148,10 @@ button.bf-card:active{ transform:scale(.97); }
 
 .bf-modalwrap{ position:absolute; inset:0; background:rgba(42,26,46,.5); display:flex; align-items:flex-end;
   justify-content:center; z-index:40; animation:bf-fade .2s ease; }
-.bf-sheet{ background:var(--surface); width:100%; border-radius:26px 26px 0 0; padding:20px 18px 22px;
-  max-height:92%; overflow-y:auto; animation:bf-up .26s cubic-bezier(.2,.8,.2,1); }
+.bf-sheet{ background:var(--surface); width:100%; border-radius:26px 26px 0 0;
+  padding:20px 18px calc(22px + env(safe-area-inset-bottom)); max-height:92%;
+  overflow-y:auto; scrollbar-width:none; animation:bf-up .26s cubic-bezier(.2,.8,.2,1); }
+.bf-sheet::-webkit-scrollbar{ width:0; }
 
 @keyframes bf-up{ from{ transform:translateY(40px); opacity:.6 } to{ transform:translateY(0); opacity:1 } }
 @keyframes bf-fade{ from{ opacity:0 } to{ opacity:1 } }

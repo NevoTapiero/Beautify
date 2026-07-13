@@ -16,9 +16,6 @@ export function resolveStudioSlug() {
   } catch { return "demo"; }
 }
 
-// Kept for backwards-compat; now resolved from the URL on each call.
-export const STUDIO_SLUG = "demo";
-
 // Returning clients log in with phone + password. Under the hood that's a
 // Supabase email/password account using a synthetic address, so no SMS is
 // needed yet. (SMS one-time-code comes later.)
@@ -30,9 +27,10 @@ const log = (where, err) => console.error(`[Beautify] ${where} failed:`, err?.me
 // ─── Time helpers ────────────────────────────────────────────────────────────
 
 function toTimestamp(dayOffset, timeStr) {
+  const [h, m] = String(timeStr || "").split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;   // guard malformed "HH:MM"
   const d = new Date();
   d.setDate(d.getDate() + dayOffset);
-  const [h, m] = timeStr.split(":").map(Number);
   d.setHours(h, m, 0, 0);
   return d.toISOString();
 }
@@ -135,7 +133,11 @@ export async function deleteService(id) {
   if (!isSupabaseReady) return false;
   try {
     const { error } = await supabaseManager.from("services").delete().eq("id", id);
-    if (error) await supabaseManager.from("services").update({ active: false }).eq("id", id);
+    if (error) {
+      // Hard-delete blocked (e.g. referenced by past appointments) → soft-delete.
+      const { error: e2 } = await supabaseManager.from("services").update({ active: false }).eq("id", id);
+      if (e2) throw e2;
+    }
     return true;
   } catch (err) { log("deleteService", err); return false; }
 }
@@ -156,8 +158,10 @@ export async function managerSignIn(email, password) {
 // be on; she gets redirected to her own studio's URL instead.
 export async function getManagerStudioSlug(userId) {
   if (!isSupabaseReady || !userId) return null;
-  const { data } = await supabaseClient.from("studios").select("slug").eq("owner_id", userId).maybeSingle();
-  return data?.slug || null;
+  // .limit(1) (not .maybeSingle) so a future owner of >1 studio still resolves
+  // to one slug instead of erroring out and being rejected as "no studio".
+  const { data } = await supabaseClient.from("studios").select("slug").eq("owner_id", userId).limit(1);
+  return data?.[0]?.slug || null;
 }
 
 // Managers already log in with their real email, so this is a plain
@@ -443,11 +447,13 @@ export async function isContactBlocked(studioId, { phone, email }) {
 export async function saveAppointment(studioId, clientId, serviceId, dayOffset, timeStr, paid, employeeId) {
   if (!isSupabaseReady) return null;
   try {
+    const startsAt = toTimestamp(dayOffset, timeStr);
+    if (!startsAt) return null;
     const { data, error } = await supabaseClient
       .from("appointments")
       .insert({
         studio_id: studioId, client_id: clientId, service_id: serviceId,
-        starts_at: toTimestamp(dayOffset, timeStr), status: "confirmed", paid,
+        starts_at: startsAt, status: "confirmed", paid,
         employee_id: employeeId || null,
       })
       .select("*, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
@@ -691,7 +697,11 @@ export async function deleteEmployee(id) {
   if (!isSupabaseReady) return false;
   try {
     const { error } = await supabaseManager.from("employees").delete().eq("id", id);
-    if (error) await supabaseManager.from("employees").update({ active: false }).eq("id", id);
+    if (error) {
+      // Hard-delete blocked (e.g. referenced by past appointments) → soft-delete.
+      const { error: e2 } = await supabaseManager.from("employees").update({ active: false }).eq("id", id);
+      if (e2) throw e2;
+    }
     return true;
   } catch (err) { log("deleteEmployee", err); return false; }
 }
@@ -913,11 +923,13 @@ export async function toggleEmployeeLike(galleryId, employeeId, currentlyLiked) 
   if (!isSupabaseReady || !employeeId) return currentlyLiked;
   try {
     if (currentlyLiked) {
-      await supabaseManager.from("gallery_likes").delete()
+      const { error } = await supabaseManager.from("gallery_likes").delete()
         .eq("gallery_id", galleryId).eq("employee_id", employeeId);
+      if (error) throw error;
       return false;
     }
-    await supabaseManager.from("gallery_likes").insert({ gallery_id: galleryId, employee_id: employeeId });
+    const { error } = await supabaseManager.from("gallery_likes").insert({ gallery_id: galleryId, employee_id: employeeId });
+    if (error) throw error;
     return true;
   } catch (err) { log("toggleEmployeeLike", err); return currentlyLiked; }
 }
@@ -1019,11 +1031,13 @@ export async function toggleLike(galleryId, clientId, currentlyLiked) {
   if (!isSupabaseReady || !clientId) return currentlyLiked;
   try {
     if (currentlyLiked) {
-      await supabaseClient.from("gallery_likes").delete()
+      const { error } = await supabaseClient.from("gallery_likes").delete()
         .eq("gallery_id", galleryId).eq("client_id", clientId);
+      if (error) throw error;
       return false;
     }
-    await supabaseClient.from("gallery_likes").insert({ gallery_id: galleryId, client_id: clientId });
+    const { error } = await supabaseClient.from("gallery_likes").insert({ gallery_id: galleryId, client_id: clientId });
+    if (error) throw error;
     return true;
   } catch (err) { log("toggleLike", err); return currentlyLiked; }
 }

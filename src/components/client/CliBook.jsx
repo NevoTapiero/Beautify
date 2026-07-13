@@ -46,10 +46,16 @@ export default function CliBook({ cli }) {
   const finish = async () => {
     if (busy) return;
     setBusy(true);
-    await cli.book(service, offset, time, false, empArg);
-    setBusy(false);
-    cli.ping("התור נקבע ✓ נתראה!");
-    setStep(1); setService(null); setOffset(null); setTime(null); setEmployee(null);
+    try {
+      const appt = await cli.book(service, offset, time, false, empArg);
+      if (!appt) { cli.ping("קביעת התור נכשלה — ייתכן שהשעה נתפסה. נסי שוב 🤍"); return; }
+      cli.ping("התור נקבע ✓ נתראה!");
+      setStep(1); setService(null); setOffset(null); setTime(null); setEmployee(null);
+    } catch {
+      cli.ping("קביעת התור נכשלה — נסי שוב 🤍");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

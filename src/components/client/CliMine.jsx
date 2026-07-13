@@ -114,14 +114,20 @@ function RescheduleSheet({ appt, cli, onClose }) {
   useEffect(() => {
     if (offset == null) { setSlots(null); return; }
     let active = true; setSlots(null);
-    availableSlots(cli.studio.id, dateForOffset(offset), appt.serviceDur).then((l) => { if (active) setSlots(l); });
+    // Scope availability to the appointment's own cosmetician (business mode),
+    // so a reschedule doesn't offer slots that beautician doesn't actually have.
+    availableSlots(cli.studio.id, dateForOffset(offset), appt.serviceDur, appt.employeeId ?? null).then((l) => { if (active) setSlots(l); });
     return () => { active = false; };
   }, [offset]); // eslint-disable-line
 
   const pick = async (time) => {
     setBusy(true);
-    await cli.reschedule(appt.id, offset, time);
-    setBusy(false); onClose();
+    try {
+      await cli.reschedule(appt.id, offset, time);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
