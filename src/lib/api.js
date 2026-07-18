@@ -501,6 +501,44 @@ export async function loadManagerAppointments(studioId) {
   } catch (err) { log("loadManagerAppointments", err); return null; }
 }
 
+// Start of the current week (Sunday 00:00 local) — the weekly log only lists
+// weeks that are already over.
+function startOfCurrentWeek() {
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay());
+  return d;
+}
+
+// Weekly-log history: every non-cancelled appointment BEFORE this week began,
+// newest first. Grouped into weeks + rendered to PDF in the manager settings.
+export async function loadAppointmentHistory(studioId) {
+  if (!isSupabaseReady || !studioId) return null;
+  try {
+    const { data, error } = await supabaseManager
+      .from("appointments")
+      .select("id, starts_at, status, paid, client_id, service_id, employee_id, clients(id,name,phone), services(id,name,duration,price,gradient), employees(id,name)")
+      .eq("studio_id", studioId).neq("status", "cancelled")
+      .lt("starts_at", startOfCurrentWeek().toISOString())
+      .order("starts_at", { ascending: false });
+    if (error) throw error;
+    return (data || []).map(shapeAppt);
+  } catch (err) { log("loadAppointmentHistory", err); return null; }
+}
+
+// Hard-delete every appointment in [fromISO, toISO) for a studio — used when the
+// manager deletes a weekly log row ("and all the data is deleted"). Manager
+// session only; RLS (is_studio_manager) scopes it to her own studio.
+export async function deleteAppointmentsInRange(studioId, fromISO, toISO) {
+  if (!isSupabaseReady || !studioId) return false;
+  try {
+    const { error } = await supabaseManager
+      .from("appointments").delete()
+      .eq("studio_id", studioId)
+      .gte("starts_at", fromISO).lt("starts_at", toISO);
+    if (error) throw error;
+    return true;
+  } catch (err) { log("deleteAppointmentsInRange", err); return false; }
+}
+
 // Client view: all of this client's non-cancelled appointments.
 export async function loadMyAppointments(clientId) {
   if (!isSupabaseReady || !clientId) return null;

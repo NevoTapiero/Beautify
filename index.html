@@ -7,6 +7,24 @@
     <link rel="icon" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Beautify</title>
+    <!-- Point the manifest at THIS studio's slug synchronously, before anything
+         else runs. Each studio (/demo, /tamar-nails, …) then installs as its own
+         separate home-screen app with its own start_url/id/scope — if this were
+         injected later by JS (after the studio loads), a quick "Add to Home
+         Screen" could capture a missing/shared manifest and the OS would merge
+         the installs into one, opening whichever studio was installed first. -->
+    <script>
+      (function () {
+        var seg = (location.pathname || "/").split("/").filter(Boolean)[0];
+        var reserved = { assets: 1, manifest: 1, sw: 1, favicon: 1, api: 1, "index.html": 1 };
+        var slug = (!seg || reserved[seg.toLowerCase()] || seg.indexOf(".") >= 0)
+          ? "demo" : decodeURIComponent(seg).toLowerCase();
+        var l = document.createElement("link");
+        l.rel = "manifest";
+        l.href = "/api/manifest?slug=" + encodeURIComponent(slug);
+        document.head.appendChild(l);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

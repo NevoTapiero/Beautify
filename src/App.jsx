@@ -268,6 +268,13 @@ export default function App() {
     addService: async (fields) => { await api.addService(studio.id, fields); ping("השירות נוסף"); await refreshStudio(); },
     updateService: async (id, fields) => { await api.updateService(id, fields); ping("השירות עודכן"); await refreshStudio(); },
     deleteService: async (id) => { await api.deleteService(id); ping("השירות הוסר"); await refreshStudio(); },
+    // Weekly appointments log (download PDF / delete a past week)
+    loadAppointmentHistory: () => api.loadAppointmentHistory(studio.id),
+    deleteWeekAppointments: async (fromISO, toISO) => {
+      const ok = await api.deleteAppointmentsInRange(studio.id, fromISO, toISO);
+      ping(ok ? "התורים של השבוע נמחקו" : "המחיקה נכשלה — נסי שוב");
+      return ok;
+    },
     login: async (email, password) => {
       const r = await api.managerSignIn(email, password);
       if (r.error) return r.error;

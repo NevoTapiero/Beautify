@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Check, X, ChevronDown, Image as ImageIcon, Briefcase, UserPlus, Smartphone, Lock, Camera } from "lucide-react";
+import { Bell, Users, Sparkles, LogOut, Plus, Pencil, Trash2, Check, X, ChevronDown, Image as ImageIcon, Briefcase, UserPlus, Smartphone, Lock, Camera, FileText } from "lucide-react";
 import { SectionTitle, Row, Sheet, PhotoPicker, PhotoEnlarge, serviceBg, Confirm } from "../ui";
+import WeeklyReports from "./WeeklyReports";
 
 const KEYS = {
   notify_day_start:   { title: "סיכום בתחילת יום", sub: "כל הבוקר — רשימת התורים של היום" },
@@ -30,6 +31,7 @@ export default function MgrSettings({ mgr }) {
   const [codeGate, setCodeGate] = useState(null);            // {target:true|false} business code prompt
   const [lockEmp, setLockEmp] = useState(null);              // employee to confirm locking the device to
   const [openNotif, setOpenNotif] = useState(false);         // notifications dropdown (note 44)
+  const [openReports, setOpenReports] = useState(false);     // weekly appointment reports (business)
   const [openMore, setOpenMore] = useState(false);           // "additional settings" dropdown (note 46)
   const [ownerNameDraft, setOwnerNameDraft] = useState(mgr.ownerName); // her personal name (V8)
   const [editOwnerName, setEditOwnerName] = useState(false);
@@ -158,6 +160,16 @@ export default function MgrSettings({ mgr }) {
             </div>
           ))}
         </div>
+      </>)}
+
+      {/* Weekly appointment reports — download PDF / delete a past week (business, note 65) */}
+      {mgr.business && !mgr.lockedEmployeeId && (<>
+        <button onClick={() => setOpenReports((v) => !v)} className="bf-card" style={{ padding: "12px 13px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", textAlign: "right", width: "100%" }}>
+          <FileText size={16} color="var(--plum)" />
+          <span style={{ flex: 1, fontWeight: 800, fontSize: 15.5 }}>דוחות תורים שבועיים</span>
+          <ChevronDown size={18} color="var(--muted)" style={{ transform: openReports ? "rotate(180deg)" : "none", transition: ".18s" }} />
+        </button>
+        {openReports && <WeeklyReports mgr={mgr} />}
       </>)}
 
       {/* Notifications — collapsible dropdown (note 44) */}

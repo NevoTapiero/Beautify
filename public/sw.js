@@ -2,7 +2,7 @@
 // resilience + auto-update. Strategy: network-first for navigations (so a fresh
 // HTML is fetched when online, cached shell when offline), cache-first for the
 // hashed, immutable build assets.
-const CACHE = "beautify-v1";
+const CACHE = "beautify-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE));
