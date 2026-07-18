@@ -11,6 +11,23 @@ import CliProfile from "./CliProfile";
 export default function ClientApp({ cli, onManagerEntry }) {
   const [tab, setTab] = useState("book");
 
+  // Every time she leaves the app and comes back (backgrounding a PWA keeps
+  // its JS alive, so the tab she left on would otherwise still be showing),
+  // she lands back on booking a new appointment. Gated on actually having
+  // been hidden for a while — a quick native file/camera picker roundtrip
+  // (photo upload) also blurs/re-hides the page for a moment and must NOT
+  // reset the tab.
+  useEffect(() => {
+    let hiddenAt = null;
+    const onVisibility = () => {
+      if (document.hidden) { hiddenAt = Date.now(); return; }
+      if (hiddenAt && Date.now() - hiddenAt > 20000) setTab("book");
+      hiddenAt = null;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   // Gallery badge (note A): how many studio photos are new since she last
   // looked. NOTE: must run before any early return (Rules of Hooks).
   const sid = cli.studio?.id;
