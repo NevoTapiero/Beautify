@@ -42,14 +42,19 @@ const CUSTOMERS = [
 const CUST_PHONES = CUSTOMERS.map((c) => c.phone);
 
 // Appointment layouts (relative to today). t = "HH:MM", cos = owner|maya|shira, svc = service index.
+// ~14 per day, split across all three cosmeticians with no per-cosmetician overlap.
 const DAY = [
-  { cos: "owner", t: "10:00", svc: 0 }, { cos: "owner", t: "13:30", svc: 2 },
-  { cos: "maya", t: "09:30", svc: 1 }, { cos: "maya", t: "12:00", svc: 0 }, { cos: "maya", t: "15:00", svc: 2 },
-  { cos: "shira", t: "11:00", svc: 2 }, { cos: "shira", t: "14:30", svc: 0 }, { cos: "shira", t: "16:30", svc: 1 },
+  // owner (svc0=60m, svc1=90m, svc2=75m)
+  { cos: "owner", t: "09:00", svc: 0 }, { cos: "owner", t: "10:30", svc: 1 }, { cos: "owner", t: "12:30", svc: 2 }, { cos: "owner", t: "15:00", svc: 0 },
+  // maya
+  { cos: "maya", t: "09:30", svc: 1 }, { cos: "maya", t: "11:15", svc: 0 }, { cos: "maya", t: "12:30", svc: 2 }, { cos: "maya", t: "14:30", svc: 1 }, { cos: "maya", t: "16:15", svc: 0 },
+  // shira
+  { cos: "shira", t: "09:00", svc: 2 }, { cos: "shira", t: "10:30", svc: 0 }, { cos: "shira", t: "12:00", svc: 1 }, { cos: "shira", t: "14:00", svc: 2 }, { cos: "shira", t: "15:45", svc: 0 },
 ];
 const PAST_DAY = [
-  { cos: "owner", t: "10:30", svc: 0 }, { cos: "maya", t: "11:30", svc: 1 },
-  { cos: "shira", t: "13:00", svc: 2 }, { cos: "maya", t: "15:30", svc: 0 },
+  { cos: "owner", t: "09:30", svc: 0 }, { cos: "owner", t: "11:30", svc: 2 },
+  { cos: "maya", t: "10:00", svc: 1 }, { cos: "maya", t: "13:30", svc: 0 },
+  { cos: "shira", t: "10:30", svc: 2 }, { cos: "shira", t: "15:00", svc: 1 },
 ];
 
 const at = (offset, hhmm) => { const [h, m] = hhmm.split(":").map(Number); const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offset); d.setHours(h, m, 0, 0); return d.toISOString(); };
