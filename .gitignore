@@ -36,3 +36,6 @@ files.zip
 *.ntvs*
 *.njsproj
 *.sln
+
+# keep the template tracked
+!.env.example

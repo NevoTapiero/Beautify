@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Beautify — אפליקציית ניהול תורים וגלריה לקוסמטיקאיות (אב-טיפוס)",
+  "description": "Beautify: white-label appointment booking and private photo gallery for independent beauticians and beauty studios",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
